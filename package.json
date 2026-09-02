@@ -1,5 +1,5 @@
 {
-  "name": "@kubestellar/rationguard",
+  "name": "@hivecommons/rationguard",
   "version": "0.10.4",
   "description": "Detect and rebut rationalization patterns in AI agent output",
   "type": "module",
@@ -46,6 +46,6 @@
     "typescript": "^5.7.0"
   },
   "dependencies": {
-    "@kubestellar/pluk": "^0.8.0"
+    "@hivecommons/pluk": "^0.8.0"
   }
 }
