@@ -7,7 +7,7 @@ import { CATEGORY_LABELS } from './types.js';
 import type { ExcuseCategory, Excuse } from './types.js';
 import { Watcher } from './watcher.js';
 import type { WatcherDetection } from './watcher.js';
-import { discoverSessions, attach, type SessionInfo } from '@kubestellar/pluk';
+import { discoverSessions, attach, type SessionInfo } from '@hivecommons/pluk';
 import fs from 'node:fs';
 
 const ANSI_RED = '\x1b[31m';

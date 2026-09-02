@@ -4,7 +4,7 @@ import { check } from './checker.js';
 import { DEFAULT_EXCUSES } from './defaults.js';
 import { loadCustomExcuses, recordSighting } from './learner.js';
 import type { Excuse, CheckResult, MatchResult } from './types.js';
-import type { PlukEvent, PlukEventType, Subscriber, WatchOptions } from '@kubestellar/pluk';
+import type { PlukEvent, PlukEventType, Subscriber, WatchOptions } from '@hivecommons/pluk';
 
 const RAW_OUTPUT_BUFFER_MAX_LINES = 20;
 const RAW_OUTPUT_FLUSH_MS = 2_000;
@@ -111,7 +111,7 @@ export class Watcher extends EventEmitter {
   async start(): Promise<void> {
     this.log(`starting watcher: session=${this.opts.session} mode=${this.opts.mode} cli=${this.opts.cli ?? 'claude'} rebuttal=${this.opts.rebuttal ?? 'none'}`);
     this.log(`loaded ${this.excuses.length} excuses across ${new Set(this.excuses.map(e => e.category)).size} categories`);
-    const pluk = await import('@kubestellar/pluk');
+    const pluk = await import('@hivecommons/pluk');
 
     if (this.opts.mode === 'subscribe') {
       this.log(`subscribing to JSONL log (runDir=${this.opts.runDir ?? 'default'})`);
