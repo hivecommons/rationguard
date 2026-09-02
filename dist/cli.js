@@ -4,7 +4,7 @@ import { DEFAULT_EXCUSES } from './defaults.js';
 import { recordSighting, loadCustomExcuses, listSightings } from './learner.js';
 import { CATEGORY_LABELS } from './types.js';
 import { Watcher } from './watcher.js';
-import { discoverSessions, attach } from '@kubestellar/pluk';
+import { discoverSessions, attach } from '@hivecommons/pluk';
 import fs from 'node:fs';
 const ANSI_RED = '\x1b[31m';
 const ANSI_YELLOW = '\x1b[33m';
