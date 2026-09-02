@@ -14,6 +14,8 @@ rationguard catches these patterns and provides rebuttals — in real-time via [
 npm install -g @kubestellar/rationguard @kubestellar/pluk
 ```
 
+> This repo moved to the `hivecommons` org; the npm package scope (`@kubestellar/...`) stays as-is for now — the scope migration is a coordinated follow-up.
+
 ---
 
 ## Quick Start
