@@ -23,16 +23,16 @@
     "llm",
     "cli"
   ],
-  "author": "KubeStellar",
+  "author": "hivecommons",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kubestellar/rationguard.git"
+    "url": "git+https://github.com/hivecommons/rationguard.git"
   },
   "bugs": {
-    "url": "https://github.com/kubestellar/rationguard/issues"
+    "url": "https://github.com/hivecommons/rationguard/issues"
   },
-  "homepage": "https://github.com/kubestellar/rationguard#readme",
+  "homepage": "https://github.com/hivecommons/rationguard#readme",
   "engines": {
     "node": ">=18"
   },
