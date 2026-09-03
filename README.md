@@ -241,3 +241,5 @@ The 15 default excuses in rationguard are the universal patterns that apply to a
 ## License
 
 Apache-2.0
+
+<!-- pr-verifier canary 2026-09-03 -->
