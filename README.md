@@ -232,7 +232,7 @@ const block = generatePromptBlock();
 
 ## Origin
 
-rationguard was extracted from the [Hive](https://github.com/kubestellar/hive) multi-agent orchestration system. Hive runs 5+ AI agents continuously and discovered that agents rationalize inaction with predictable patterns. The original excuse-rebuttal tables (49 excuses across 5 agents) were built empirically — every excuse was observed in production before it was catalogued.
+rationguard was extracted from the [Hive](https://github.com/hivecommons/hive) multi-agent orchestration system. Hive runs 5+ AI agents continuously and discovered that agents rationalize inaction with predictable patterns. The original excuse-rebuttal tables (49 excuses across 5 agents) were built empirically — every excuse was observed in production before it was catalogued.
 
 The 15 default excuses in rationguard are the universal patterns that apply to any AI agent, not just Hive's.
 
