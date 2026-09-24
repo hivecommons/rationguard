@@ -22,8 +22,10 @@ const CONFIDENCE_HIGH = 0.7;
 const CONFIDENCE_MEDIUM = 0.4;
 
 function getAllExcuses(): Excuse[] {
-  const custom = loadCustomExcuses();
-  const projectCustom = loadCustomExcuses('.');
+  const custom = loadCustomExcuses().map((e): Excuse => ({ ...e, source: 'user' }));
+  // Project-local excuses are repo-controlled (untrusted): used for
+  // detection/display here, never for auto-sent rebuttals (see watcher.ts).
+  const projectCustom = loadCustomExcuses('.').map((e): Excuse => ({ ...e, source: 'project' }));
   return [...DEFAULT_EXCUSES, ...custom, ...projectCustom];
 }
 
