@@ -236,6 +236,11 @@ function cmdAdd(positional: string[], flags: Record<string, string>): void {
 
   const result = recordSighting(excuse, category, rebuttal);
 
+  if (result.alreadyKnown) {
+    console.log(`${ANSI_GREEN}✓${ANSI_RESET} Already covered by a known excuse pattern or keyword — nothing recorded.`);
+    return;
+  }
+
   if (result.autoPromoted && result.excuse) {
     console.log(`${ANSI_GREEN}⬆${ANSI_RESET} Auto-promoted to custom excuse! (seen ${result.count} times)`);
     console.log(`   Category: ${CATEGORY_LABELS[result.excuse.category]}`);

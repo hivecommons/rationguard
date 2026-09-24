@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { DEFAULT_EXCUSES } from './defaults.js';
 import type { Excuse, ExcuseCategory } from './types.js';
 
 const SIGHTINGS_FILE = 'sightings.json';
@@ -89,16 +90,41 @@ function generateRebuttal(category: ExcuseCategory): string {
   return rebuttals[category];
 }
 
+/**
+ * True when the text is already covered by a known excuse — the pattern or a
+ * keyword of a built-in, user-level, or project-local excuse. Recording (and
+ * especially auto-promoting) such text is circular: high-confidence matches
+ * report the known pattern/keyword as matchedText, so promotion would create
+ * duplicate excuses or bare-keyword patterns that exact-match at confidence
+ * 1.0 on innocuous output, feeding back into more sightings and rebuttals. It
+ * would also let untrusted project-local excuse keywords be laundered into
+ * the trusted user-level store.
+ */
+function isKnownExcuseText(normalized: string, projectDir?: string): boolean {
+  const known = [...DEFAULT_EXCUSES, ...loadCustomExcuses(projectDir), ...loadCustomExcuses('.')];
+  for (const excuse of known) {
+    if (normalizeForDedup(excuse.pattern) === normalized) return true;
+    for (const kw of excuse.keywords) {
+      if (normalizeForDedup(kw) === normalized) return true;
+    }
+  }
+  return false;
+}
+
 export function recordSighting(
   text: string,
   category?: ExcuseCategory,
   rebuttal?: string,
   projectDir?: string,
-): { isNew: boolean; count: number; autoPromoted: boolean; excuse: Excuse | null } {
+): { isNew: boolean; count: number; autoPromoted: boolean; excuse: Excuse | null; alreadyKnown?: boolean } {
   const storePath = getStorePath(projectDir);
   const store = loadStore(storePath);
   const normalized = normalizeForDedup(text);
   const now = new Date().toISOString();
+
+  if (isKnownExcuseText(normalized, projectDir)) {
+    return { isNew: false, count: 0, autoPromoted: false, excuse: null, alreadyKnown: true };
+  }
 
   let existing = store.sightings.find(s => normalizeForDedup(s.text) === normalized);
 

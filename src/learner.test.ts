@@ -42,10 +42,45 @@ describe('recordSighting', () => {
   });
 
   it('treats different text as a separate sighting', () => {
-    recordSighting('too complex to fix', undefined, undefined, dir);
+    recordSighting('way too gnarly to untangle today', undefined, undefined, dir);
     const res = recordSighting('deferring to next sprint', undefined, undefined, dir);
     assert.strictEqual(res.isNew, true);
     assert.strictEqual(listSightings(dir).length, 2);
+  });
+
+  it('does not record text that equals a built-in excuse pattern', () => {
+    const res = recordSighting('too complex to fix', undefined, undefined, dir);
+    assert.strictEqual(res.alreadyKnown, true);
+    assert.strictEqual(res.count, 0);
+    assert.strictEqual(res.autoPromoted, false);
+    assert.strictEqual(listSightings(dir).length, 0);
+  });
+
+  it('does not record text that equals a built-in excuse keyword', () => {
+    // "looks good to me" is a keyword of "it is probably fine / should be ok";
+    // promoting it would exact-match innocuous output at confidence 1.0.
+    for (let i = 0; i < 4; i++) {
+      const res = recordSighting('Looks good to me!', undefined, undefined, dir);
+      assert.strictEqual(res.alreadyKnown, true);
+      assert.strictEqual(res.autoPromoted, false);
+    }
+    assert.strictEqual(listSightings(dir).length, 0);
+    assert.strictEqual(loadCustomExcuses(dir).length, 0);
+  });
+
+  it('does not record text already promoted to a custom excuse', () => {
+    for (let i = 0; i < 3; i++) recordSighting('a fresh novel excuse', undefined, undefined, dir);
+    assert.strictEqual(loadCustomExcuses(dir).length, 1);
+    const res = recordSighting('a fresh novel excuse', undefined, undefined, dir);
+    assert.strictEqual(res.alreadyKnown, true);
+    assert.strictEqual(loadCustomExcuses(dir).length, 1);
+  });
+
+  it('still records novel text that merely contains a known keyword', () => {
+    const res = recordSighting('honestly it looks good to me but I did not run it', undefined, undefined, dir);
+    assert.strictEqual(res.isNew, true);
+    assert.strictEqual(res.alreadyKnown, undefined);
+    assert.strictEqual(listSightings(dir).length, 1);
   });
 
   it('updates category and rebuttal on repeat sightings when provided', () => {
@@ -73,8 +108,8 @@ describe('recordSighting', () => {
   it('does not promote the same sighting twice', () => {
     for (let i = 0; i < 3; i++) recordSighting('promoted once only', undefined, undefined, dir);
     const res = recordSighting('promoted once only', undefined, undefined, dir);
-    assert.strictEqual(res.count, 4);
     assert.strictEqual(res.autoPromoted, false);
+    assert.strictEqual(res.alreadyKnown, true);
     assert.strictEqual(loadCustomExcuses(dir).length, 1);
   });
 
