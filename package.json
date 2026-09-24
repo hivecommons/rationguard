@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "node --test dist/checker.test.js",
+    "test": "node --test dist/",
     "lint": "tsc --noEmit"
   },
   "keywords": [
