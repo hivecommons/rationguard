@@ -34,8 +34,11 @@ export interface WatcherOptions {
 }
 
 function getAllExcuses(): Excuse[] {
-  const custom = loadCustomExcuses();
-  const projectCustom = loadCustomExcuses('.');
+  const custom = loadCustomExcuses().map((e): Excuse => ({ ...e, source: 'user' }));
+  // Project-local excuses come from the (potentially untrusted) working
+  // directory — keep them for detection but mark them so their rebuttals
+  // are never auto-sent into an agent session.
+  const projectCustom = loadCustomExcuses('.').map((e): Excuse => ({ ...e, source: 'project' }));
   return [...DEFAULT_EXCUSES, ...custom, ...projectCustom];
 }
 
@@ -47,8 +50,19 @@ function validateSession(session: string): void {
   }
 }
 
-function sendRebuttal(session: string, rebuttal: string, verbose = false): boolean {
+/**
+ * Collapse CR/LF and other control characters so a rebuttal is delivered as
+ * exactly one line followed by one Enter — embedded newlines would otherwise
+ * submit extra, attacker-controllable lines to the agent CLI.
+ */
+function sanitizeRebuttal(rebuttal: string): string {
+  return rebuttal.replace(/[\x00-\x1f\x7f]+/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function sendRebuttal(session: string, rebuttalRaw: string, verbose = false): boolean {
   validateSession(session);
+  const rebuttal = sanitizeRebuttal(rebuttalRaw);
+  if (!rebuttal) return false;
 
   if (verbose) {
     console.error(`\x1b[2m[rationguard]\x1b[0m sendRebuttal: trying pluk-send`);
@@ -242,6 +256,10 @@ export class Watcher extends EventEmitter {
         const sentTexts = new Set<string>();
         for (const match of result.matches) {
           if (!match.excuse) continue;
+          if (match.excuse.source === 'project') {
+            this.log(`skipping rebuttal for "${match.excuse.pattern}" (project-local excuse — untrusted working directory, detection only)`);
+            continue;
+          }
           const key = match.excuse.pattern;
           const lastSent = this.rebuttalCooldowns.get(key) ?? 0;
           if (now - lastSent < REBUTTAL_COOLDOWN_MS) {

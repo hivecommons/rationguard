@@ -3,6 +3,13 @@ export interface Excuse {
   rebuttal: string;
   category: ExcuseCategory;
   keywords: string[];
+  /**
+   * Where this excuse was loaded from. Excuses from the project working
+   * directory ('project') are untrusted: a cloned repository controls their
+   * contents, so their rebuttals must never be auto-typed into an agent
+   * session (detection/logging only).
+   */
+  source?: 'builtin' | 'user' | 'project';
 }
 
 export type ExcuseCategory =
