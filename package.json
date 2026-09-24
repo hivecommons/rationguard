@@ -9,8 +9,9 @@
   },
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "dev": "tsc --watch",
-    "test": "node --test dist/",
+    "test": "node --test dist/*.test.js",
     "lint": "tsc --noEmit"
   },
   "keywords": [
