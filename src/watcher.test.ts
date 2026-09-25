@@ -1,5 +1,6 @@
 import { describe, it, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
+import { once } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -14,6 +15,8 @@ let homeDir: string;
 let projectDir: string;
 let binDir: string;
 let argsFile: string;
+let tmuxBinDir: string;
+let tmuxArgsFile: string;
 const savedHome = process.env['HOME'];
 const savedPath = process.env['PATH'];
 const savedCwd = process.cwd();
@@ -30,8 +33,16 @@ before(() => {
   const fakePlukSend = path.join(binDir, 'pluk-send');
   fs.writeFileSync(fakePlukSend, '#!/bin/sh\nprintf \'%s\\n\' "$@" > "$RG_TEST_ARGS_FILE"\n');
   fs.chmodSync(fakePlukSend, 0o755);
+  // A bin dir that has tmux but NOT pluk-send, to exercise the fallback path.
+  tmuxBinDir = path.join(sandbox, 'tmux-bin');
+  tmuxArgsFile = path.join(sandbox, 'tmux-args.txt');
+  fs.mkdirSync(tmuxBinDir, { recursive: true });
+  const fakeTmux = path.join(tmuxBinDir, 'tmux');
+  fs.writeFileSync(fakeTmux, '#!/bin/sh\nprintf \'%s\\n\' "$@" >> "$RG_TEST_TMUX_ARGS_FILE"\n');
+  fs.chmodSync(fakeTmux, 0o755);
   process.env['HOME'] = homeDir;
   process.env['RG_TEST_ARGS_FILE'] = argsFile;
+  process.env['RG_TEST_TMUX_ARGS_FILE'] = tmuxArgsFile;
   process.chdir(projectDir);
 });
 
@@ -41,6 +52,7 @@ after(() => {
   else process.env['HOME'] = savedHome;
   process.env['PATH'] = savedPath;
   delete process.env['RG_TEST_ARGS_FILE'];
+  delete process.env['RG_TEST_TMUX_ARGS_FILE'];
   fs.rmSync(sandbox, { recursive: true, force: true });
 });
 
@@ -49,6 +61,7 @@ beforeEach(() => {
   fs.rmSync(path.join(homeDir, '.rationguard'), { recursive: true, force: true });
   fs.rmSync(path.join(projectDir, '.rationguard'), { recursive: true, force: true });
   fs.rmSync(argsFile, { force: true });
+  fs.rmSync(tmuxArgsFile, { force: true });
   process.env['PATH'] = savedPath;
 });
 
@@ -393,5 +406,100 @@ describe('custom excuse loading', () => {
     assert.strictEqual(bySource.get('frobnicate user excuse'), 'user');
     assert.strictEqual(bySource.get('frobnicate project excuse'), 'project');
     assert.strictEqual(bySource.get('no work found'), undefined);
+  });
+});
+
+describe('rebuttal delivery fallback', () => {
+  it('falls back to tmux send-keys when pluk-send is unavailable', () => {
+    // tmuxBinDir has a fake tmux but no pluk-send.
+    process.env['PATH'] = tmuxBinDir;
+    const { watcher, detections } = makeWatcher({ rebuttal: 'send' });
+    const w = internals(watcher);
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    watcher.stop();
+
+    assert.strictEqual(detections.length, 1);
+    assert.ok(detections[0].sentRebuttals);
+    assert.ok(detections[0].sentRebuttals.includes('no work found'));
+
+    // Two invocations: literal text, then Enter.
+    const args = fs.readFileSync(tmuxArgsFile, 'utf-8').trim().split('\n');
+    assert.deepStrictEqual(args.slice(0, 4), ['send-keys', '-l', '-t', 'test-session']);
+    assert.strictEqual(args[args.length - 1], 'Enter');
+    assert.strictEqual(args[args.length - 2], 'test-session');
+  });
+
+  it('verbose mode logs the pluk-send failure and the tmux fallback', () => {
+    process.env['PATH'] = tmuxBinDir;
+    const logs: string[] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => { logs.push(args.join(' ')); };
+    try {
+      const { watcher, detections } = makeWatcher({ rebuttal: 'send', verbose: true });
+      const w = internals(watcher);
+      w.handleEvent(rawOutput('test-session', 'no work found'));
+      w.handleEvent(stateChange('test-session', 'working', 'idle'));
+      watcher.stop();
+      assert.strictEqual(detections.length, 1);
+    } finally {
+      console.error = originalError;
+    }
+
+    assert.ok(logs.some(l => l.includes('sendRebuttal: trying pluk-send')));
+    assert.ok(logs.some(l => l.includes('sendRebuttal: pluk-send failed')));
+    assert.ok(logs.some(l => l.includes('falling back to tmux send-keys')));
+    assert.ok(logs.some(l => l.includes('tmux send-keys succeeded')));
+  });
+});
+
+describe('timed flush', () => {
+  it('flushes buffered raw output when the flush timer elapses', async () => {
+    const { watcher, detections } = makeWatcher();
+    const w = internals(watcher);
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    // A second line must reuse the already-armed timer, not arm another.
+    w.handleEvent(rawOutput('test-session', 'still no work found'));
+    assert.ok(w.flushTimer, 'flush timer should be armed after raw output');
+    assert.strictEqual(detections.length, 0);
+
+    await once(watcher, 'detection');
+
+    assert.strictEqual(detections.length, 1);
+    assert.strictEqual(w.buffer.length, 0);
+    assert.strictEqual(w.flushTimer, null);
+    watcher.stop();
+  });
+});
+
+describe('subscribe-mode start()', () => {
+  it('tails the pluk JSONL log and emits detections for appended events', async () => {
+    const runDir = path.join(sandbox, 'run-subscribe');
+    const logsDir = path.join(runDir, 'logs');
+    fs.mkdirSync(logsDir, { recursive: true });
+    const logFile = path.join(logsDir, 'test-session.jsonl');
+    fs.writeFileSync(logFile, '');
+
+    const { watcher, detections } = makeWatcher({ runDir });
+    let detected = false;
+    watcher.on('detection', () => { detected = true; });
+    const started = watcher.start();
+
+    // The subscriber tails from EOF; keep appending until it picks events up.
+    const lines =
+      [rawOutput('test-session', 'no work found'), stateChange('test-session', 'working', 'idle')]
+        .map(e => JSON.stringify(e))
+        .join('\n') + '\n';
+    for (let i = 0; i < 40 && !detected; i++) {
+      fs.appendFileSync(logFile, lines);
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+
+    watcher.stop();
+    await started;
+
+    assert.ok(detected, 'expected at least one detection from the tailed log');
+    assert.ok(detections.length >= 1);
+    assert.ok(detections[0].matches.some(m => m.excuse?.pattern === 'no work found'));
   });
 });
