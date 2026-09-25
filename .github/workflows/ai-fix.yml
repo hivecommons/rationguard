@@ -19,6 +19,10 @@ permissions:
 
 jobs:
   ai-fix:
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
     if: >-
       github.event_name != 'pull_request_target' ||
       (github.event.pull_request.head.repo.full_name == github.repository &&
