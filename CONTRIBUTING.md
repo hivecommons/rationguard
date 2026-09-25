@@ -26,6 +26,17 @@ npm test
 
 The package ships compiled files from `dist/`, but `dist/` is generated and intentionally not committed. `npm publish` runs `npm run build` through `prepublishOnly`.
 
+## Releases
+
+Maintainers publish by pushing a version tag that matches `v*`, for example `v0.10.5`. The tag-triggered publish workflow runs lint, build, and tests before publishing to npm with provenance:
+
+```bash
+git tag v0.10.5
+git push origin v0.10.5
+```
+
+The repository must have an `NPM_TOKEN` Actions secret with permission to publish `@hivecommons/rationguard`; the workflow uses it as `NODE_AUTH_TOKEN` for `npm publish --provenance --access public`.
+
 ## Development notes
 
 - Source lives under `src/` and is TypeScript ESM.

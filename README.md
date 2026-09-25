@@ -16,6 +16,12 @@ npm install -g @hivecommons/rationguard @hivecommons/pluk
 
 ---
 
+## Releases
+
+Maintainers publish releases by pushing a `v*` tag. The tag workflow runs the test gate, then publishes `@hivecommons/rationguard` to npm with provenance using the repository `NPM_TOKEN` Actions secret.
+
+---
+
 ## Quick Start
 
 One command — creates a tmux session, starts the AI CLI, wires pluk event capture, opens a terminal window for you to interact, and runs rationguard in this terminal to detect rationalizations:
