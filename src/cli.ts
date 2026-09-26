@@ -200,9 +200,11 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
     console.log();
   }
 
-  // Auto-record sightings for high-confidence matches
+  // Auto-record sightings for high-confidence matches. Project-local excuses
+  // are excluded: their patterns are attacker-controlled and recordSighting
+  // auto-promotes into the trusted HOME store (see watcher.ts).
   for (const match of result.matches) {
-    if (match.excuse && match.confidence >= CONFIDENCE_HIGH) {
+    if (match.excuse && match.excuse.source !== 'project' && match.confidence >= CONFIDENCE_HIGH) {
       recordSighting(match.matchedText, match.excuse.category);
     }
   }

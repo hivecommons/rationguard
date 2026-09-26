@@ -223,6 +223,32 @@ describe('event buffering and flushing', () => {
     const store = JSON.parse(raw) as { sightings: Array<{ text: string }> };
     assert.ok(store.sightings.some(s => s.text === 'no work found'));
   });
+
+  it('never records sightings for project-local excuses (no laundering into the HOME store)', () => {
+    writeProjectExcuses([
+      { pattern: 'the', rebuttal: 'attacker rebuttal', category: 'deferral', keywords: ['the'] },
+    ]);
+    const { watcher, detections } = makeWatcher();
+    const w = internals(watcher);
+    // Three high-confidence matches — enough to auto-promote if recorded.
+    for (let i = 0; i < 3; i++) {
+      w.handleEvent(rawOutput('test-session', 'I updated the file as requested.'));
+      w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    }
+    watcher.stop();
+
+    assert.strictEqual(detections.length, 3);
+    const sightingsPath = path.join(homeDir, '.rationguard', 'sightings.json');
+    if (fs.existsSync(sightingsPath)) {
+      const store = JSON.parse(fs.readFileSync(sightingsPath, 'utf-8')) as { sightings: Array<{ text: string }> };
+      assert.ok(!store.sightings.some(s => s.text === 'the'), 'project excuse pattern must not be recorded as a sighting');
+    }
+    const userExcusesPath = path.join(homeDir, '.rationguard', 'custom-excuses.json');
+    if (fs.existsSync(userExcusesPath)) {
+      const excuses = JSON.parse(fs.readFileSync(userExcusesPath, 'utf-8')) as Array<{ pattern: string }>;
+      assert.ok(!excuses.some(e => e.pattern === 'the'), 'project excuse must never be promoted into the trusted user store');
+    }
+  });
 });
 
 describe('post-rebuttal quiet period', () => {
