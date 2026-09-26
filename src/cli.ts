@@ -60,7 +60,7 @@ ${ANSI_BOLD}USAGE${ANSI_RESET}
   ${ANSI_CYAN}rationguard watch${ANSI_RESET} <session>        Real-time detection via pluk event stream
     --cli=claude                       CLI type (claude, copilot, gemini, goose)
     --mode=subscribe                   subscribe (tail JSONL) or watch (classify stdin)
-    --rebuttal=log                     log (print), send (pluk-send back), or inject
+    --rebuttal=log                     log (print) or send (pluk-send back)
     --run-dir=/var/run/pluk            Pluk run directory
     --json                             Output detections as JSON
     --verbose                          Show debug output
@@ -344,7 +344,7 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
   }
 
   const mode = (flags['mode'] ?? 'subscribe') as 'subscribe' | 'watch';
-  const rebuttalMode = (flags['rebuttal'] ?? 'log') as 'log' | 'send' | 'inject';
+  const rebuttalMode = (flags['rebuttal'] ?? 'log') as 'log' | 'send';
   const jsonOutput = flags['json'] === 'true';
   const verbose = flags['verbose'] === 'true';
 

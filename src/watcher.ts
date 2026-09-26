@@ -27,7 +27,7 @@ export interface WatcherOptions {
   patternsDir?: string;
   mode: 'subscribe' | 'watch';
   filter?: PlukEventType[];
-  rebuttal?: 'log' | 'send' | 'inject';
+  rebuttal?: 'log' | 'send';
   quiet?: boolean;
   verbose?: boolean;
   onDetection?: (detection: WatcherDetection) => void;
