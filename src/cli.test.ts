@@ -1,6 +1,6 @@
 import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -294,5 +294,203 @@ describe('watch and attach argument validation', () => {
     const res = run(['attach']);
     assert.strictEqual(res.status, 1);
     assert.match(stripAnsi(res.stderr), /session name is required/);
+  });
+});
+
+// --- Long-path tests: populated sessions, stdin timeout, live watch ---
+
+interface RawPlukEvent {
+  v: number;
+  ts: string;
+  seq: number;
+  pid: number;
+  session: string;
+  pane: string;
+  source: string;
+  type: string;
+  data: Record<string, string>;
+}
+
+function plukEvent(session: string, type: string, data: Record<string, string>): RawPlukEvent {
+  return {
+    v: 1,
+    ts: new Date().toISOString(),
+    seq: 0,
+    pid: process.pid,
+    session,
+    pane: '0',
+    source: 'test',
+    type,
+    data,
+  };
+}
+
+function jsonlLines(events: RawPlukEvent[]): string {
+  return events.map(e => JSON.stringify(e)).join('\n') + '\n';
+}
+
+function makeRunDir(name: string, session: string, events: RawPlukEvent[]): { runDir: string; logFile: string } {
+  const runDir = path.join(sandbox, name);
+  const logsDir = path.join(runDir, 'logs');
+  fs.mkdirSync(logsDir, { recursive: true });
+  const logFile = path.join(logsDir, `${session}.jsonl`);
+  fs.writeFileSync(logFile, events.length > 0 ? jsonlLines(events) : '');
+  return { runDir, logFile };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function waitForExit(child: ChildProcess): Promise<number | null> {
+  return new Promise(resolve => child.on('close', code => resolve(code)));
+}
+
+describe('sessions with discovered sessions', () => {
+  it('renders a table row for each discovered session', () => {
+    const { runDir } = makeRunDir('sessions-run-dir', 'my-agent', [
+      plukEvent('my-agent', 'state_change', { from: 'unknown', to: 'working', cli: 'claude' }),
+      plukEvent('my-agent', 'raw_output', { line: 'hello' }),
+    ]);
+    const res = run(['sessions', `--run-dir=${runDir}`]);
+    assert.strictEqual(res.status, 0);
+    const out = stripAnsi(res.stdout);
+    assert.match(out, /SESSION\s+CLI\s+STATE\s+TMUX\s+LAST ACTIVITY\s*EVENTS/);
+    assert.match(out, /my-agent\s+claude\s+working/);
+    assert.match(out, /rationguard watch <session> to start monitoring/);
+  });
+
+  it('reports the discovered session in --json output', () => {
+    const { runDir } = makeRunDir('sessions-json-run-dir', 'json-agent', [
+      plukEvent('json-agent', 'state_change', { from: 'working', to: 'idle', cli: 'goose' }),
+    ]);
+    const res = run(['sessions', `--run-dir=${runDir}`, '--json']);
+    assert.strictEqual(res.status, 0);
+    const parsed = JSON.parse(res.stdout) as Array<{ session: string; cli: string; state: string; eventCount: number }>;
+    assert.strictEqual(parsed.length, 1);
+    assert.strictEqual(parsed[0].session, 'json-agent');
+    assert.strictEqual(parsed[0].cli, 'goose');
+    assert.strictEqual(parsed[0].state, 'idle');
+    assert.strictEqual(parsed[0].eventCount, 1);
+  });
+});
+
+describe('stdin timeout', () => {
+  it('exits 1 with "No input" when piped stdin stays open but silent', async () => {
+    const child = spawn(process.execPath, [CLI, 'check'], {
+      cwd: projectDir,
+      env: { ...process.env, HOME: homeDir },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let stderr = '';
+    child.stderr!.on('data', (d: Buffer) => { stderr += d.toString(); });
+    // Never write to or end stdin — the CLI's 100ms stdin timer must fire.
+    const code = await waitForExit(child);
+    assert.strictEqual(code, 1);
+    assert.match(stripAnsi(stderr), /No input/);
+  });
+});
+
+describe('watch (live subscribe)', () => {
+  interface WatchHandle {
+    child: ChildProcess;
+    stdout: () => string;
+    stderr: () => string;
+  }
+
+  function spawnWatch(args: string[], extraEnv: Record<string, string> = {}): WatchHandle {
+    const child = spawn(process.execPath, [CLI, 'watch', ...args], {
+      cwd: projectDir,
+      env: { ...process.env, HOME: homeDir, ...extraEnv },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout!.on('data', (d: Buffer) => { stdout += d.toString(); });
+    child.stderr!.on('data', (d: Buffer) => { stderr += d.toString(); });
+    return { child, stdout: () => stdout, stderr: () => stderr };
+  }
+
+  // The watcher tails the JSONL log from EOF, so keep appending the excuse
+  // until the subprocess reports a detection (or give up after ~10s).
+  async function appendUntil(logFile: string, session: string, seen: () => boolean): Promise<void> {
+    const lines = jsonlLines([
+      plukEvent(session, 'raw_output', { line: 'no work found' }),
+      plukEvent(session, 'state_change', { from: 'working', to: 'idle' }),
+    ]);
+    for (let i = 0; i < 40 && !seen(); i++) {
+      fs.appendFileSync(logFile, lines);
+      await sleep(250);
+    }
+  }
+
+  it('emits JSON detections and stops cleanly on SIGINT', async () => {
+    const session = 'watch-json';
+    const { runDir, logFile } = makeRunDir('watch-json-run-dir', session, []);
+    const h = spawnWatch([session, `--run-dir=${runDir}`, '--json']);
+
+    await appendUntil(logFile, session, () => h.stdout().includes('"matches"'));
+    assert.ok(h.stdout().includes('"matches"'), `no JSON detection in: ${h.stdout()} ${h.stderr()}`);
+
+    const jsonLine = h.stdout().split('\n').find(l => l.startsWith('{'));
+    assert.ok(jsonLine);
+    const parsed = JSON.parse(jsonLine) as { session: string; matches: Array<{ pattern: string; rebuttal: string }> };
+    assert.strictEqual(parsed.session, session);
+    assert.ok(parsed.matches.some(m => m.pattern === 'no work found'));
+
+    h.child.kill('SIGINT');
+    const code = await waitForExit(h.child);
+    assert.strictEqual(code, 0);
+    assert.match(stripAnsi(h.stdout()), /Stopped watching\./);
+  });
+
+  it('prints detections with sent/suppressed rebuttal status in send mode', async () => {
+    const session = 'watch-send';
+    const { runDir, logFile } = makeRunDir('watch-send-run-dir', session, []);
+
+    // A fake pluk-send on PATH so rebuttal delivery succeeds.
+    const binDir = path.join(sandbox, 'watch-send-bin');
+    fs.mkdirSync(binDir, { recursive: true });
+    const fakePlukSend = path.join(binDir, 'pluk-send');
+    fs.writeFileSync(fakePlukSend, '#!/bin/sh\nexit 0\n');
+    fs.chmodSync(fakePlukSend, 0o755);
+
+    // Two user excuses sharing one rebuttal: the first is sent, the second is
+    // deduplicated, so both branches of the send-status output are printed.
+    const dir = path.join(homeDir, '.rationguard');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'custom-excuses.json'),
+      JSON.stringify([
+        { pattern: 'zorble watch one', rebuttal: 'shared watch rebuttal', category: 'deferral', keywords: ['zorble watch one'] },
+        { pattern: 'zorble watch two', rebuttal: 'shared watch rebuttal', category: 'deferral', keywords: ['zorble watch two'] },
+      ]) + '\n',
+    );
+
+    const h = spawnWatch(
+      [session, `--run-dir=${runDir}`, '--rebuttal=send'],
+      { PATH: `${binDir}:${process.env['PATH'] ?? ''}` },
+    );
+
+    const lines = jsonlLines([
+      plukEvent(session, 'raw_output', { line: 'zorble watch one and zorble watch two' }),
+      plukEvent(session, 'state_change', { from: 'working', to: 'idle' }),
+    ]);
+    for (let i = 0; i < 40 && !h.stdout().includes('Rebuttal:'); i++) {
+      fs.appendFileSync(logFile, lines);
+      await sleep(250);
+    }
+
+    h.child.kill('SIGINT');
+    const code = await waitForExit(h.child);
+    assert.strictEqual(code, 0);
+
+    const out = stripAnsi(h.stdout());
+    assert.match(out, /watching watch-send \(mode=subscribe, rebuttal=send\)/);
+    assert.match(out, /Deferral — "zorble watch one"/);
+    assert.match(out, /Rebuttal: shared watch rebuttal/);
+    assert.match(out, /→ Sent rebuttal to watch-send/);
+    assert.match(out, /→ Rebuttal suppressed \(cooldown\/dedup\)/);
+    assert.match(out, /Stopped watching\./);
   });
 });
