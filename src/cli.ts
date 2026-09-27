@@ -21,6 +21,14 @@ const ANSI_RESET = '\x1b[0m';
 const CONFIDENCE_HIGH = 0.7;
 const CONFIDENCE_MEDIUM = 0.4;
 
+// Untrusted text (project-local excuses, agent output, pluk session metadata)
+// must never reach the terminal with control characters: raw ESC/OSC bytes can
+// spoof window titles, overwrite the screen to hide detections, or write the
+// clipboard on some emulators. Mirrors sanitizeRebuttal in watcher.ts.
+export function sanitizeForTerminal(text: string): string {
+  return text.replace(/[\x00-\x1f\x7f]+/g, ' ');
+}
+
 function getAllExcuses(): Excuse[] {
   const custom = loadCustomExcuses().map((e): Excuse => ({ ...e, source: 'user' }));
   // Project-local excuses are repo-controlled (untrusted): used for
@@ -194,9 +202,9 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
     if (!match.excuse) continue;
     const category = CATEGORY_LABELS[match.excuse.category];
     console.log(`  ${colorConfidence(match.confidence)} ${ANSI_BOLD}${category}${ANSI_RESET}`);
-    console.log(`     Pattern:  "${match.excuse.pattern}"`);
-    console.log(`     Matched:  "${match.matchedText}"`);
-    console.log(`     Rebuttal: ${match.excuse.rebuttal}`);
+    console.log(`     Pattern:  "${sanitizeForTerminal(match.excuse.pattern)}"`);
+    console.log(`     Matched:  "${sanitizeForTerminal(match.matchedText)}"`);
+    console.log(`     Rebuttal: ${sanitizeForTerminal(match.excuse.rebuttal)}`);
     console.log();
   }
 
@@ -244,7 +252,7 @@ function cmdAdd(positional: string[], flags: Record<string, string>): void {
   if (result.autoPromoted && result.excuse) {
     console.log(`${ANSI_GREEN}⬆${ANSI_RESET} Auto-promoted to custom excuse! (seen ${result.count} times)`);
     console.log(`   Category: ${CATEGORY_LABELS[result.excuse.category]}`);
-    console.log(`   Rebuttal: ${result.excuse.rebuttal}`);
+    console.log(`   Rebuttal: ${sanitizeForTerminal(result.excuse.rebuttal)}`);
   } else if (result.isNew) {
     console.log(`${ANSI_YELLOW}+${ANSI_RESET} Recorded new sighting (${result.count}/3 for auto-promotion)`);
   } else {
@@ -270,8 +278,8 @@ function cmdList(flags: Record<string, string>): void {
   for (const [category, excuses] of grouped) {
     console.log(`\n${ANSI_BOLD}${category}${ANSI_RESET}`);
     for (const excuse of excuses) {
-      console.log(`  ${ANSI_CYAN}•${ANSI_RESET} ${excuse.pattern}`);
-      console.log(`    ${ANSI_DIM}→ ${excuse.rebuttal}${ANSI_RESET}`);
+      console.log(`  ${ANSI_CYAN}•${ANSI_RESET} ${sanitizeForTerminal(excuse.pattern)}`);
+      console.log(`    ${ANSI_DIM}→ ${sanitizeForTerminal(excuse.rebuttal)}${ANSI_RESET}`);
     }
   }
   console.log();
@@ -331,7 +339,7 @@ function cmdSessions(flags: Record<string, string>): void {
     const tmuxIcon = s.tmuxAlive ? `${ANSI_GREEN}●${ANSI_RESET}` : `${ANSI_DIM}○${ANSI_RESET}`;
     const stateColor = s.state === 'working' ? ANSI_GREEN : s.state === 'idle' ? ANSI_CYAN : ANSI_DIM;
     console.log(
-      `${s.session.padEnd(COL_SESSION)}${s.cli.padEnd(COL_CLI)}${stateColor}${s.state.padEnd(COL_STATE)}${ANSI_RESET}${tmuxIcon}${''.padEnd(COL_TMUX - 2)}${s.lastActivityAgo.padEnd(COL_AGO)}${s.eventCount}`,
+      `${sanitizeForTerminal(s.session).padEnd(COL_SESSION)}${sanitizeForTerminal(s.cli).padEnd(COL_CLI)}${stateColor}${sanitizeForTerminal(s.state).padEnd(COL_STATE)}${ANSI_RESET}${tmuxIcon}${''.padEnd(COL_TMUX - 2)}${sanitizeForTerminal(s.lastActivityAgo).padEnd(COL_AGO)}${s.eventCount}`,
     );
   }
 
@@ -385,8 +393,8 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
       for (const match of detection.matches) {
         if (!match.excuse) continue;
         const category = CATEGORY_LABELS[match.excuse.category];
-        console.log(`${ANSI_RED}⚠${ANSI_RESET} ${colorConfidence(match.confidence)} ${ANSI_BOLD}${category}${ANSI_RESET} — "${match.matchedText}"`);
-        console.log(`  ${ANSI_DIM}Rebuttal:${ANSI_RESET} ${match.excuse.rebuttal}`);
+        console.log(`${ANSI_RED}⚠${ANSI_RESET} ${colorConfidence(match.confidence)} ${ANSI_BOLD}${category}${ANSI_RESET} — "${sanitizeForTerminal(match.matchedText)}"`);
+        console.log(`  ${ANSI_DIM}Rebuttal:${ANSI_RESET} ${sanitizeForTerminal(match.excuse.rebuttal)}`);
 
         if (rebuttalMode === 'send') {
           if (sentPatterns.has(match.excuse.pattern)) {
@@ -432,7 +440,7 @@ function cmdSightings(flags: Record<string, string>): void {
       ? `${ANSI_GREEN}promoted${ANSI_RESET}`
       : `${s.count}/3`;
     const category = CATEGORY_LABELS[s.suggestedCategory];
-    console.log(`  ${ANSI_BOLD}${s.count}×${ANSI_RESET} "${s.text}" ${ANSI_DIM}[${category}]${ANSI_RESET} ${status}`);
+    console.log(`  ${ANSI_BOLD}${s.count}×${ANSI_RESET} "${sanitizeForTerminal(s.text)}" ${ANSI_DIM}[${category}]${ANSI_RESET} ${status}`);
   }
   console.log();
 }
