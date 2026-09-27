@@ -16,3 +16,8 @@ updates:
       npm:
         patterns:
           - "*"
+    ignore:
+      # TypeScript 7 (native compiler) breaks the current tsconfig/build.
+      # Take TS majors deliberately via a migration PR, not Dependabot.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
