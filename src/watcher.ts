@@ -245,7 +245,11 @@ export class Watcher extends EventEmitter {
       };
 
       for (const match of result.matches) {
-        if (match.excuse && match.confidence >= CONFIDENCE_HIGH) {
+        // Never record sightings for project-local excuses: their patterns are
+        // attacker-controlled (untrusted working directory), and recordSighting
+        // auto-promotes into the trusted HOME store after 3 sightings — which
+        // would make them auto-send eligible in every future session.
+        if (match.excuse && match.excuse.source !== 'project' && match.confidence >= CONFIDENCE_HIGH) {
           recordSighting(match.matchedText, match.excuse.category);
         }
       }
