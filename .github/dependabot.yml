@@ -16,3 +16,8 @@ updates:
       npm:
         patterns:
           - "*"
+    ignore:
+      # TypeScript 7.x breaks the build (stricter checks fail even in
+      # dependency .d.ts files); stay on 5.x until migration is planned.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
