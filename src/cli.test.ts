@@ -493,4 +493,18 @@ describe('watch (live subscribe)', () => {
     assert.match(out, /→ Rebuttal suppressed \(cooldown\/dedup\)/);
     assert.match(out, /Stopped watching\./);
   });
+
+  it('exits 1 with the underlying error when the session log path is unreadable', async () => {
+    const session = 'watch-unreadable';
+    const runDir = path.join(sandbox, 'watch-unreadable-run-dir');
+    // Make the session's JSONL log path a directory: the subscriber finds it
+    // but open() rejects (EISDIR), so watcher.start() throws and the CLI's
+    // top-level error handler must report it and exit 1.
+    fs.mkdirSync(path.join(runDir, 'logs', `${session}.jsonl`), { recursive: true });
+
+    const h = spawnWatch([session, `--run-dir=${runDir}`]);
+    const code = await waitForExit(h.child);
+    assert.strictEqual(code, 1);
+    assert.match(h.stderr(), /EISDIR|illegal operation on a directory/i);
+  });
 });

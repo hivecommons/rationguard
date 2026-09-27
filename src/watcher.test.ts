@@ -385,6 +385,29 @@ describe('rebuttal sending', () => {
     assert.strictEqual(detections[0].sentRebuttals, undefined);
     assert.strictEqual(fs.existsSync(argsFile), false);
   });
+
+  it('logs pluk-send success when verbose is enabled', () => {
+    process.env['PATH'] = `${binDir}:${savedPath}`;
+    const logs: string[] = [];
+    const savedError = console.error;
+    console.error = (...args: unknown[]) => { logs.push(args.map(String).join(' ')); };
+    try {
+      const { watcher, detections } = makeWatcher({ rebuttal: 'send', verbose: true });
+      const w = internals(watcher);
+      w.handleEvent(rawOutput('test-session', 'no work found'));
+      w.handleEvent(stateChange('test-session', 'working', 'idle'));
+      watcher.stop();
+
+      assert.strictEqual(detections.length, 1);
+      assert.ok(detections[0].sentRebuttals?.includes('no work found'));
+    } finally {
+      console.error = savedError;
+    }
+    assert.ok(
+      logs.some(l => l.includes('sendRebuttal: pluk-send succeeded')),
+      `expected verbose success log, got: ${logs.join(' | ')}`,
+    );
+  });
 });
 
 describe('custom excuse loading', () => {
@@ -501,5 +524,23 @@ describe('subscribe-mode start()', () => {
     assert.ok(detected, 'expected at least one detection from the tailed log');
     assert.ok(detections.length >= 1);
     assert.ok(detections[0].matches.some(m => m.excuse?.pattern === 'no work found'));
+  });
+});
+
+describe('live watch mode (stdin classification)', () => {
+  it('start() wires a pluk watch handle and stop() releases it', async () => {
+    const { watcher } = makeWatcher({ mode: 'watch' });
+    await watcher.start();
+
+    const w = watcher as unknown as {
+      watchHandle: { stop: () => void } | null;
+      subscriber: unknown;
+    };
+    assert.ok(w.watchHandle, 'expected a watch handle after start() in watch mode');
+    assert.strictEqual(typeof w.watchHandle.stop, 'function');
+    assert.strictEqual(w.subscriber, null);
+
+    // stop() must not throw when releasing the readline-backed handle.
+    watcher.stop();
   });
 });
