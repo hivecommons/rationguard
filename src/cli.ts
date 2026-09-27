@@ -22,14 +22,6 @@ const ANSI_RESET = '\x1b[0m';
 const CONFIDENCE_HIGH = 0.7;
 const CONFIDENCE_MEDIUM = 0.4;
 
-// Untrusted text (project-local excuses, agent output, pluk session metadata)
-// must never reach the terminal with control characters: raw ESC/OSC bytes can
-// spoof window titles, overwrite the screen to hide detections, or write the
-// clipboard on some emulators. Mirrors sanitizeRebuttal in watcher.ts.
-export function sanitizeForTerminal(text: string): string {
-  return text.replace(/[\x00-\x1f\x7f]+/g, ' ');
-}
-
 function getAllExcuses(): Excuse[] {
   const custom = loadCustomExcuses().map((e): Excuse => ({ ...e, source: 'user' }));
   // Project-local excuses are repo-controlled (untrusted): used for
