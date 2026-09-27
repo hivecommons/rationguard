@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { CATEGORY_LABELS } from './types.js';
 import type { Excuse, ExcuseCategory } from './types.js';
 
 const SIGHTINGS_FILE = 'sightings.json';
@@ -156,11 +157,34 @@ function getCustomExcusesPath(projectDir?: string): string {
   return path.join(base, 'custom-excuses.json');
 }
 
+/**
+ * Shape-validates a parsed excuse entry. The custom-excuses file in the
+ * project working directory is untrusted (a cloned repository controls it),
+ * and entries with the wrong shape would otherwise throw deep inside the
+ * checker — killing `check`, `watch`, and `attach` and silently disabling
+ * detection. Invalid entries are dropped instead.
+ */
+function isValidExcuse(value: unknown): value is Excuse {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const e = value as Record<string, unknown>;
+  return (
+    typeof e['pattern'] === 'string' &&
+    e['pattern'].trim().length > 0 &&
+    typeof e['rebuttal'] === 'string' &&
+    typeof e['category'] === 'string' &&
+    e['category'] in CATEGORY_LABELS &&
+    Array.isArray(e['keywords']) &&
+    e['keywords'].every(k => typeof k === 'string')
+  );
+}
+
 export function loadCustomExcuses(projectDir?: string): Excuse[] {
   const filePath = getCustomExcusesPath(projectDir);
   try {
     const raw = fs.readFileSync(filePath, 'utf-8');
-    return JSON.parse(raw) as Excuse[];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(isValidExcuse);
   } catch {
     return [];
   }

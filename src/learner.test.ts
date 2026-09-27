@@ -127,6 +127,36 @@ describe('loadCustomExcuses', () => {
     fs.writeFileSync(path.join(base, 'custom-excuses.json'), '{not json');
     assert.deepStrictEqual(loadCustomExcuses(dir), []);
   });
+
+  it('returns an empty array when the JSON is not an array', () => {
+    const base = path.join(dir, '.rationguard');
+    fs.mkdirSync(base, { recursive: true });
+    fs.writeFileSync(path.join(base, 'custom-excuses.json'), '{"not":"array"}');
+    assert.deepStrictEqual(loadCustomExcuses(dir), []);
+  });
+
+  it('drops entries with the wrong shape and keeps valid ones', () => {
+    const base = path.join(dir, '.rationguard');
+    fs.mkdirSync(base, { recursive: true });
+    const valid: Excuse = {
+      pattern: 'i will get to it later',
+      rebuttal: 'Act now.',
+      category: 'deferral',
+      keywords: ['later'],
+    };
+    const entries = [
+      valid,
+      { pattern: 42 },
+      { pattern: 'x', rebuttal: 'y', category: 'not-a-category', keywords: [] },
+      { pattern: 'x', rebuttal: 'y', category: 'deferral', keywords: ['a', 7] },
+      { pattern: '   ', rebuttal: 'y', category: 'deferral', keywords: [] },
+      null,
+      'just a string',
+      ['nested'],
+    ];
+    fs.writeFileSync(path.join(base, 'custom-excuses.json'), JSON.stringify(entries));
+    assert.deepStrictEqual(loadCustomExcuses(dir), [valid]);
+  });
 });
 
 describe('listSightings', () => {
