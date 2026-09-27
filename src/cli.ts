@@ -8,6 +8,7 @@ import type { ExcuseCategory, Excuse } from './types.js';
 import { Watcher } from './watcher.js';
 import type { WatcherDetection } from './watcher.js';
 import { discoverSessions, attach, type SessionInfo } from '@hivecommons/pluk';
+import { sanitizeForTerminal } from './sanitize.js';
 import fs from 'node:fs';
 
 const ANSI_RED = '\x1b[31m';
@@ -194,9 +195,9 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
     if (!match.excuse) continue;
     const category = CATEGORY_LABELS[match.excuse.category];
     console.log(`  ${colorConfidence(match.confidence)} ${ANSI_BOLD}${category}${ANSI_RESET}`);
-    console.log(`     Pattern:  "${match.excuse.pattern}"`);
-    console.log(`     Matched:  "${match.matchedText}"`);
-    console.log(`     Rebuttal: ${match.excuse.rebuttal}`);
+    console.log(`     Pattern:  "${sanitizeForTerminal(match.excuse.pattern)}"`);
+    console.log(`     Matched:  "${sanitizeForTerminal(match.matchedText)}"`);
+    console.log(`     Rebuttal: ${sanitizeForTerminal(match.excuse.rebuttal)}`);
     console.log();
   }
 
@@ -265,8 +266,8 @@ function cmdList(flags: Record<string, string>): void {
   for (const [category, excuses] of grouped) {
     console.log(`\n${ANSI_BOLD}${category}${ANSI_RESET}`);
     for (const excuse of excuses) {
-      console.log(`  ${ANSI_CYAN}•${ANSI_RESET} ${excuse.pattern}`);
-      console.log(`    ${ANSI_DIM}→ ${excuse.rebuttal}${ANSI_RESET}`);
+      console.log(`  ${ANSI_CYAN}•${ANSI_RESET} ${sanitizeForTerminal(excuse.pattern)}`);
+      console.log(`    ${ANSI_DIM}→ ${sanitizeForTerminal(excuse.rebuttal)}${ANSI_RESET}`);
     }
   }
   console.log();
@@ -380,8 +381,8 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
       for (const match of detection.matches) {
         if (!match.excuse) continue;
         const category = CATEGORY_LABELS[match.excuse.category];
-        console.log(`${ANSI_RED}⚠${ANSI_RESET} ${colorConfidence(match.confidence)} ${ANSI_BOLD}${category}${ANSI_RESET} — "${match.matchedText}"`);
-        console.log(`  ${ANSI_DIM}Rebuttal:${ANSI_RESET} ${match.excuse.rebuttal}`);
+        console.log(`${ANSI_RED}⚠${ANSI_RESET} ${colorConfidence(match.confidence)} ${ANSI_BOLD}${category}${ANSI_RESET} — "${sanitizeForTerminal(match.matchedText)}"`);
+        console.log(`  ${ANSI_DIM}Rebuttal:${ANSI_RESET} ${sanitizeForTerminal(match.excuse.rebuttal)}`);
 
         if (rebuttalMode === 'send') {
           if (sentPatterns.has(match.excuse.pattern)) {
@@ -427,7 +428,7 @@ function cmdSightings(flags: Record<string, string>): void {
       ? `${ANSI_GREEN}promoted${ANSI_RESET}`
       : `${s.count}/3`;
     const category = CATEGORY_LABELS[s.suggestedCategory];
-    console.log(`  ${ANSI_BOLD}${s.count}×${ANSI_RESET} "${s.text}" ${ANSI_DIM}[${category}]${ANSI_RESET} ${status}`);
+    console.log(`  ${ANSI_BOLD}${s.count}×${ANSI_RESET} "${sanitizeForTerminal(s.text)}" ${ANSI_DIM}[${category}]${ANSI_RESET} ${status}`);
   }
   console.log();
 }

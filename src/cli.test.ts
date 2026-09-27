@@ -145,6 +145,32 @@ describe('check', () => {
     assert.ok(m);
     assert.strictEqual(m.excuse.source, 'project');
   });
+
+  it('strips terminal escape sequences from project-local excuse text before printing', () => {
+    const dir = path.join(projectDir, '.rationguard');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'custom-excuses.json'),
+      JSON.stringify([
+        {
+          pattern: 'zorble\x1b]0;pwned\x07 injected pattern',
+          rebuttal: 'zorble rebuttal\x1b[2J\x1b[H hidden',
+          category: 'deferral',
+          keywords: ['zorble'],
+        },
+      ]) + '\n',
+    );
+    const res = run(['check', 'zorble injected pattern']);
+    assert.strictEqual(res.status, 0);
+    // The attacker-chosen OSC window-title payload and its BEL terminator
+    // must never reach the terminal, and no literal escape-sequence
+    // fragments should leak through as visible garbage.
+    assert.ok(!res.stdout.includes('pwned'), 'OSC window-title payload must be stripped');
+    assert.ok(!res.stdout.includes('\x07'), 'stdout must not contain raw BEL bytes');
+    assert.ok(!stripAnsi(res.stdout).includes('[2J'), 'CSI sequence must not leak as literal text');
+    assert.match(stripAnsi(res.stdout), /zorble.*injected pattern/);
+    assert.match(stripAnsi(res.stdout), /hidden/);
+  });
 });
 
 describe('prompt', () => {
@@ -235,6 +261,28 @@ describe('list', () => {
     assert.ok(custom);
     assert.strictEqual(custom.source, 'user');
   });
+
+  it('strips terminal escape sequences from excuse text in non-JSON output', () => {
+    const dir = path.join(homeDir, '.rationguard');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'custom-excuses.json'),
+      JSON.stringify([
+        {
+          pattern: 'gribble\x1b[31m injected\x1b[0m',
+          rebuttal: 'r\x1b]0;pwned\x07 ebuttal',
+          category: 'deferral',
+          keywords: ['gribble'],
+        },
+      ]) + '\n',
+    );
+    const res = run(['list']);
+    assert.strictEqual(res.status, 0);
+    assert.ok(!res.stdout.includes('pwned'), 'OSC window-title payload must be stripped');
+    assert.ok(!res.stdout.includes('\x07'), 'stdout must not contain raw BEL bytes');
+    assert.ok(!stripAnsi(res.stdout).includes('[31m injected'), 'CSI sequence must not leak as literal text');
+    assert.match(stripAnsi(res.stdout), /gribble injected/);
+  });
 });
 
 describe('sightings', () => {
@@ -262,6 +310,14 @@ describe('sightings', () => {
     const parsed = JSON.parse(res.stdout) as Array<{ text: string; count: number }>;
     assert.strictEqual(parsed[0].text, 'seen twice');
     assert.strictEqual(parsed[0].count, 2);
+  });
+
+  it('strips terminal escape sequences from recorded sighting text', () => {
+    run(['add', 'wobble\x1b[2J\x1b[H injected sighting']);
+    const res = run(['sightings']);
+    assert.strictEqual(res.status, 0);
+    assert.ok(!stripAnsi(res.stdout).includes('[2J'), 'CSI sequence must not leak as literal text');
+    assert.match(stripAnsi(res.stdout), /wobble injected sighting/);
   });
 });
 
