@@ -8,6 +8,7 @@ import type { ExcuseCategory, Excuse } from './types.js';
 import { Watcher } from './watcher.js';
 import type { WatcherDetection } from './watcher.js';
 import { discoverSessions, attach, type SessionInfo } from '@hivecommons/pluk';
+import { sanitizeForTerminal } from './sanitize.js';
 import fs from 'node:fs';
 
 const ANSI_RED = '\x1b[31m';
