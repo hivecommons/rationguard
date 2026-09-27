@@ -544,3 +544,65 @@ describe('watch (live subscribe)', () => {
     assert.match(h.stderr(), /EISDIR|illegal operation on a directory/i);
   });
 });
+
+describe('terminal escape sanitization', () => {
+  const ESC_PAYLOAD = '\u001b]0;pwned\u0007';
+
+  it('strips control characters from project-excuse rebuttals in check output', () => {
+    const dir = path.join(projectDir, '.rationguard');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'custom-excuses.json'),
+      JSON.stringify([
+        {
+          pattern: 'zorble escape excuse',
+          rebuttal: `before${ESC_PAYLOAD}after`,
+          category: 'deferral',
+          keywords: ['zorble'],
+        },
+      ]) + '\n',
+    );
+    const res = run(['check', 'zorble escape excuse']);
+    assert.strictEqual(res.status, 0);
+    assert.ok(!res.stdout.includes('\u001b]'), 'OSC escape must not reach the terminal');
+    assert.ok(!res.stdout.includes('\u0007'), 'BEL must not reach the terminal');
+    assert.match(stripAnsi(res.stdout), /before \]0;pwned after/);
+  });
+
+  it('strips control characters from matched text in check output', () => {
+    const res = run(['check'], `no work found${ESC_PAYLOAD}`);
+    assert.strictEqual(res.status, 0);
+    assert.ok(!res.stdout.includes('\u001b]'), 'OSC escape must not reach the terminal');
+    assert.ok(!res.stdout.includes('\u0007'), 'BEL must not reach the terminal');
+  });
+
+  it('strips control characters from patterns and rebuttals in list output', () => {
+    const dir = path.join(projectDir, '.rationguard');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'custom-excuses.json'),
+      JSON.stringify([
+        {
+          pattern: `pat${ESC_PAYLOAD}tern`,
+          rebuttal: `reb${ESC_PAYLOAD}uttal`,
+          category: 'deferral',
+          keywords: ['zorble'],
+        },
+      ]) + '\n',
+    );
+    const res = run(['list']);
+    assert.strictEqual(res.status, 0);
+    assert.ok(!res.stdout.includes('\u001b]'), 'OSC escape must not reach the terminal');
+    assert.ok(!res.stdout.includes('\u0007'), 'BEL must not reach the terminal');
+    assert.match(stripAnsi(res.stdout), /pat \]0;pwned tern/);
+  });
+
+  it('strips control characters from sighting text in sightings output', () => {
+    run(['add', `sight${ESC_PAYLOAD}ing text`, '--category=deferral']);
+    const res = run(['sightings']);
+    assert.strictEqual(res.status, 0);
+    assert.ok(!res.stdout.includes('\u001b]'), 'OSC escape must not reach the terminal');
+    assert.ok(!res.stdout.includes('\u0007'), 'BEL must not reach the terminal');
+    assert.match(stripAnsi(res.stdout), /sight \]0;pwned ing text/);
+  });
+});
