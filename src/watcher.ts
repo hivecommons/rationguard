@@ -1,8 +1,8 @@
 import { EventEmitter } from 'node:events';
 import { execFileSync } from 'node:child_process';
 import { check } from './checker.js';
-import { DEFAULT_EXCUSES } from './defaults.js';
-import { loadCustomExcuses, recordSighting } from './learner.js';
+import { recordSighting } from './learner.js';
+import { getAllExcuses } from './excuses.js';
 import type { Excuse, CheckResult, MatchResult } from './types.js';
 import type { PlukEvent, PlukEventType, Subscriber, WatchOptions } from '@hivecommons/pluk';
 
@@ -31,15 +31,6 @@ export interface WatcherOptions {
   quiet?: boolean;
   verbose?: boolean;
   onDetection?: (detection: WatcherDetection) => void;
-}
-
-function getAllExcuses(): Excuse[] {
-  const custom = loadCustomExcuses().map((e): Excuse => ({ ...e, source: 'user' }));
-  // Project-local excuses come from the (potentially untrusted) working
-  // directory — keep them for detection but mark them so their rebuttals
-  // are never auto-sent into an agent session.
-  const projectCustom = loadCustomExcuses('.').map((e): Excuse => ({ ...e, source: 'project' }));
-  return [...DEFAULT_EXCUSES, ...custom, ...projectCustom];
 }
 
 const SESSION_NAME_RE = /^[a-zA-Z0-9_.-]+$/;
