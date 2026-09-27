@@ -622,7 +622,8 @@ describe('terminal escape sanitization', () => {
     assert.strictEqual(res.status, 0);
     assert.ok(!res.stdout.includes('\u001b]'), 'OSC escape must not reach the terminal');
     assert.ok(!res.stdout.includes('\u0007'), 'BEL must not reach the terminal');
-    assert.match(stripAnsi(res.stdout), /before \]0;pwned after/);
+    assert.ok(!res.stdout.includes('pwned'), 'OSC payload text must be stripped');
+    assert.match(stripAnsi(res.stdout), /before after/);
   });
 
   it('strips control characters from matched text in check output', () => {
@@ -650,7 +651,8 @@ describe('terminal escape sanitization', () => {
     assert.strictEqual(res.status, 0);
     assert.ok(!res.stdout.includes('\u001b]'), 'OSC escape must not reach the terminal');
     assert.ok(!res.stdout.includes('\u0007'), 'BEL must not reach the terminal');
-    assert.match(stripAnsi(res.stdout), /pat \]0;pwned tern/);
+    assert.ok(!res.stdout.includes('pwned'), 'OSC payload text must be stripped');
+    assert.match(stripAnsi(res.stdout), /pat tern/);
   });
 
   it('strips control characters from sighting text in sightings output', () => {
@@ -659,6 +661,7 @@ describe('terminal escape sanitization', () => {
     assert.strictEqual(res.status, 0);
     assert.ok(!res.stdout.includes('\u001b]'), 'OSC escape must not reach the terminal');
     assert.ok(!res.stdout.includes('\u0007'), 'BEL must not reach the terminal');
-    assert.match(stripAnsi(res.stdout), /sight \]0;pwned ing text/);
+    assert.ok(!res.stdout.includes('pwned'), 'OSC payload text must be stripped');
+    assert.match(stripAnsi(res.stdout), /sight ing text/);
   });
 });
