@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
 import { check, generatePromptBlock } from './checker.js';
-import { DEFAULT_EXCUSES } from './defaults.js';
-import { recordSighting, loadCustomExcuses, listSightings } from './learner.js';
+import { recordSighting, listSightings } from './learner.js';
+import { getAllExcuses } from './excuses.js';
 import { CATEGORY_LABELS } from './types.js';
 import type { ExcuseCategory, Excuse } from './types.js';
 import { Watcher } from './watcher.js';
@@ -21,14 +21,6 @@ const ANSI_RESET = '\x1b[0m';
 
 const CONFIDENCE_HIGH = 0.7;
 const CONFIDENCE_MEDIUM = 0.4;
-
-function getAllExcuses(): Excuse[] {
-  const custom = loadCustomExcuses().map((e): Excuse => ({ ...e, source: 'user' }));
-  // Project-local excuses are repo-controlled (untrusted): used for
-  // detection/display here, never for auto-sent rebuttals (see watcher.ts).
-  const projectCustom = loadCustomExcuses('.').map((e): Excuse => ({ ...e, source: 'project' }));
-  return [...DEFAULT_EXCUSES, ...custom, ...projectCustom];
-}
 
 function colorConfidence(confidence: number): string {
   if (confidence >= CONFIDENCE_HIGH) return `${ANSI_RED}${(confidence * 100).toFixed(0)}%${ANSI_RESET}`;
