@@ -175,6 +175,38 @@ describe('loadCustomExcuses', () => {
   });
 });
 
+describe('trusted store home resolution', () => {
+  const originalHome = process.env['HOME'];
+
+  afterEach(() => {
+    if (originalHome === undefined) delete process.env['HOME'];
+    else process.env['HOME'] = originalHome;
+  });
+
+  it('uses HOME for the trusted store when it is an absolute path', () => {
+    process.env['HOME'] = dir;
+    const res = recordSighting('home store sighting');
+    assert.strictEqual(res.isNew, true);
+    assert.strictEqual(res.count, 1);
+    assert.ok(fs.existsSync(path.join(dir, '.rationguard', 'sightings.json')));
+  });
+
+  it('does not fall back to the cwd when HOME is a relative path', () => {
+    process.env['HOME'] = '.';
+    const res = recordSighting('must not land in cwd');
+    assert.strictEqual(res.count, 0);
+    assert.strictEqual(res.autoPromoted, false);
+    assert.ok(!fs.existsSync(path.join(process.cwd(), '.rationguard')));
+    assert.deepStrictEqual(listSightings(), []);
+  });
+
+  it('never loads the project store as trusted when HOME is relative', () => {
+    process.env['HOME'] = '.';
+    // Attacker-style project-local excuse in a directory posing as cwd/home.
+    assert.deepStrictEqual(loadCustomExcuses(), []);
+  });
+});
+
 describe('listSightings', () => {
   it('returns an empty array for a fresh store', () => {
     assert.deepStrictEqual(listSightings(dir), []);

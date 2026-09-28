@@ -234,6 +234,11 @@ function cmdAdd(positional: string[], flags: Record<string, string>): void {
 
   const result = recordSighting(excuse, category, rebuttal);
 
+  if (result.count === 0) {
+    console.error(`${ANSI_RED}Error:${ANSI_RESET} Could not determine a home directory for the trusted store; sighting not recorded.`);
+    process.exit(1);
+  }
+
   if (result.autoPromoted && result.excuse) {
     console.log(`${ANSI_GREEN}⬆${ANSI_RESET} Auto-promoted to custom excuse! (seen ${result.count} times)`);
     console.log(`   Category: ${CATEGORY_LABELS[result.excuse.category]}`);
