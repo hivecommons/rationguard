@@ -37,11 +37,11 @@ interface RunResult {
   stderr: string;
 }
 
-function run(args: string[], input?: string): RunResult {
+function run(args: string[], input?: string, envOverrides?: Record<string, string>): RunResult {
   const res = spawnSync(process.execPath, [CLI, ...args], {
     input,
     cwd: projectDir,
-    env: { ...process.env, HOME: homeDir },
+    env: { ...process.env, HOME: homeDir, ...envOverrides },
     encoding: 'utf-8',
     timeout: 15_000,
   });
@@ -286,6 +286,16 @@ describe('add', () => {
       fs.readFileSync(path.join(homeDir, '.rationguard', 'custom-excuses.json'), 'utf-8'),
     ) as Array<{ pattern: string }>;
     assert.strictEqual(custom[0].pattern, 'circling back on this soon');
+  });
+
+  it('exits 1 when no trusted store can be resolved (relative HOME)', () => {
+    // A relative HOME means learner refuses to resolve a trusted store
+    // (recordSighting returns count 0): the CLI must report it and exit 1,
+    // and nothing may be written to the untrusted cwd.
+    const res = run(['add', 'circling back on this soon'], undefined, { HOME: '.' });
+    assert.strictEqual(res.status, 1);
+    assert.match(stripAnsi(res.stderr), /Could not determine a home directory for the trusted store/);
+    assert.ok(!fs.existsSync(path.join(projectDir, '.rationguard')));
   });
 
   it('accepts --excuse, --category and --rebuttal flags', () => {

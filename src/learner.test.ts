@@ -205,6 +205,26 @@ describe('trusted store home resolution', () => {
     // Attacker-style project-local excuse in a directory posing as cwd/home.
     assert.deepStrictEqual(loadCustomExcuses(), []);
   });
+
+  it('falls back to os.homedir() when HOME is empty and refuses a non-absolute result', () => {
+    // On POSIX an empty HOME makes os.homedir() return '' — not absolute, so
+    // the trusted store must resolve to null and the sighting must be dropped
+    // without touching the cwd.
+    process.env['HOME'] = '';
+    const res = recordSighting('empty home sighting');
+    assert.strictEqual(res.count, 0);
+    assert.strictEqual(res.isNew, false);
+    assert.strictEqual(res.autoPromoted, false);
+    assert.ok(!fs.existsSync(path.join(process.cwd(), '.rationguard')));
+  });
+
+  it('resolves the trusted store via os.homedir() when HOME is unset', () => {
+    // With HOME deleted, getTrustedBase must consult os.homedir(). Only make
+    // read-only calls here: the fallback resolves the real home directory.
+    delete process.env['HOME'];
+    assert.ok(Array.isArray(listSightings()));
+    assert.ok(Array.isArray(loadCustomExcuses()));
+  });
 });
 
 describe('listSightings', () => {
