@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { CATEGORY_LABELS } from './types.js';
 import type { Excuse, ExcuseCategory } from './types.js';
@@ -20,11 +21,35 @@ interface SightingsStore {
   sightings: Sighting[];
 }
 
-function getStorePath(projectDir?: string): string {
-  const base = projectDir
-    ? path.join(projectDir, '.rationguard')
-    : path.join(process.env['HOME'] ?? '.', '.rationguard');
-  return path.join(base, SIGHTINGS_FILE);
+/**
+ * Resolves the trusted per-user store directory (~/.rationguard), or null
+ * when no home directory can be determined. This must NEVER fall back to
+ * the current working directory: the cwd is an untrusted project checkout,
+ * and excuses loaded from the no-projectDir path are tagged `source: 'user'`
+ * (trusted) by getAllExcuses — a cwd fallback would let a cloned repo's
+ * .rationguard/custom-excuses.json bypass every project-source guard
+ * (rebuttal auto-send, prompt-block inclusion, sighting auto-promotion).
+ */
+function getTrustedBase(): string | null {
+  let home = process.env['HOME'];
+  if (!home) {
+    try {
+      home = os.homedir();
+    } catch {
+      home = undefined;
+    }
+  }
+  if (!home || !path.isAbsolute(home)) return null;
+  return path.join(home, '.rationguard');
+}
+
+function getBaseDir(projectDir?: string): string | null {
+  return projectDir ? path.join(projectDir, '.rationguard') : getTrustedBase();
+}
+
+function getStorePath(projectDir?: string): string | null {
+  const base = getBaseDir(projectDir);
+  return base ? path.join(base, SIGHTINGS_FILE) : null;
 }
 
 function loadStore(storePath: string): SightingsStore {
@@ -114,6 +139,11 @@ export function recordSighting(
   projectDir?: string,
 ): { isNew: boolean; count: number; autoPromoted: boolean; excuse: Excuse | null } {
   const storePath = getStorePath(projectDir);
+  if (!storePath) {
+    // No resolvable home directory — refuse to persist rather than writing
+    // a "trusted" store into the untrusted working directory.
+    return { isNew: false, count: 0, autoPromoted: false, excuse: null };
+  }
   const store = loadStore(storePath);
   const normalized = normalizeForDedup(text);
   const now = new Date().toISOString();
@@ -167,11 +197,9 @@ function promoteToExcuse(sighting: Sighting): Excuse {
   };
 }
 
-function getCustomExcusesPath(projectDir?: string): string {
-  const base = projectDir
-    ? path.join(projectDir, '.rationguard')
-    : path.join(process.env['HOME'] ?? '.', '.rationguard');
-  return path.join(base, 'custom-excuses.json');
+function getCustomExcusesPath(projectDir?: string): string | null {
+  const base = getBaseDir(projectDir);
+  return base ? path.join(base, 'custom-excuses.json') : null;
 }
 
 /**
@@ -197,6 +225,7 @@ function isValidExcuse(value: unknown): value is Excuse {
 
 export function loadCustomExcuses(projectDir?: string): Excuse[] {
   const filePath = getCustomExcusesPath(projectDir);
+  if (!filePath) return [];
   try {
     const raw = fs.readFileSync(filePath, 'utf-8');
     const parsed: unknown = JSON.parse(raw);
@@ -208,14 +237,16 @@ export function loadCustomExcuses(projectDir?: string): Excuse[] {
 }
 
 function addToCustomExcuses(excuse: Excuse, projectDir?: string): void {
+  const filePath = getCustomExcusesPath(projectDir);
+  if (!filePath) return;
   const excuses = loadCustomExcuses(projectDir);
   excuses.push(excuse);
-  const filePath = getCustomExcusesPath(projectDir);
   writeJsonAtomic(filePath, excuses);
 }
 
 export function listSightings(projectDir?: string): Sighting[] {
   const storePath = getStorePath(projectDir);
+  if (!storePath) return [];
   const store = loadStore(storePath);
   return store.sightings.sort((a, b) => b.count - a.count);
 }
