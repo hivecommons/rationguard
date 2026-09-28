@@ -116,6 +116,22 @@ describe('recordSighting', () => {
   });
 });
 
+describe('atomic store writes', () => {
+  it('leaves no leftover temp files after writing sightings.json', () => {
+    recordSighting('leftover tmp check', undefined, undefined, dir);
+    const base = path.join(dir, '.rationguard');
+    const entries = fs.readdirSync(base);
+    assert.deepStrictEqual(entries, ['sightings.json']);
+  });
+
+  it('leaves no leftover temp files after writing custom-excuses.json', () => {
+    for (let i = 0; i < 3; i++) recordSighting('promote me please now', undefined, undefined, dir);
+    const base = path.join(dir, '.rationguard');
+    const entries = fs.readdirSync(base).sort();
+    assert.deepStrictEqual(entries, ['custom-excuses.json', 'sightings.json']);
+  });
+});
+
 describe('loadCustomExcuses', () => {
   it('returns an empty array when the file does not exist', () => {
     assert.deepStrictEqual(loadCustomExcuses(dir), []);
