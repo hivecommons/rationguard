@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { Watcher, createWatcher, type WatcherDetection, type WatcherOptions } from './watcher.js';
-import type { PlukEvent } from '@hivecommons/pluk';
+import type { PlukEvent, Subscriber } from '@hivecommons/pluk';
 
 // The Watcher reads user excuses from $HOME/.rationguard and project excuses
 // from ./.rationguard, and its detections write sightings back to $HOME.
@@ -412,6 +412,30 @@ describe('rebuttal sending', () => {
     assert.strictEqual(fs.existsSync(argsFile), false);
   });
 
+  it('sends nothing when the rebuttal sanitizes to an empty string', () => {
+    // A control-character-only rebuttal collapses to '' after sanitization.
+    // sendRebuttal must bail out instead of delivering a bare Enter keypress
+    // (an empty submit) to the agent session.
+    process.env['PATH'] = `${binDir}:${savedPath}`;
+    writeUserExcuses([
+      {
+        pattern: 'zorble empty rebuttal',
+        rebuttal: '\x01\x02\r\n\t \x7f',
+        category: 'deferral',
+        keywords: ['zorble empty'],
+      },
+    ]);
+    const { watcher, detections } = makeWatcher({ rebuttal: 'send' });
+    const w = internals(watcher);
+    w.handleEvent(rawOutput('test-session', 'zorble empty rebuttal'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    watcher.stop();
+
+    assert.strictEqual(detections.length, 1);
+    assert.strictEqual(detections[0].sentRebuttals, undefined);
+    assert.strictEqual(fs.existsSync(argsFile), false, 'pluk-send must not be invoked for an empty rebuttal');
+  });
+
   it('logs pluk-send success when verbose is enabled', () => {
     process.env['PATH'] = `${binDir}:${savedPath}`;
     const logs: string[] = [];
@@ -550,6 +574,76 @@ describe('subscribe-mode start()', () => {
     assert.ok(detected, 'expected at least one detection from the tailed log');
     assert.ok(detections.length >= 1);
     assert.ok(detections[0].matches.some(m => m.excuse?.pattern === 'no work found'));
+  });
+});
+
+describe('subscribe-mode error forwarding', () => {
+  it('re-emits subscriber errors as watcher "error" events', async () => {
+    const runDir = path.join(sandbox, 'run-error-forward');
+    const logsDir = path.join(runDir, 'logs');
+    fs.mkdirSync(logsDir, { recursive: true });
+    fs.writeFileSync(path.join(logsDir, 'test-session.jsonl'), '');
+
+    const { watcher } = makeWatcher({ runDir });
+    const errors: Error[] = [];
+    watcher.on('error', (err: Error) => errors.push(err));
+    const started = watcher.start();
+
+    // Wait for start() to construct the subscriber, then simulate a tail
+    // failure on it — the watcher must forward it to its own listeners.
+    const w = watcher as unknown as { subscriber: Subscriber | null };
+    for (let i = 0; i < 40 && !w.subscriber; i++) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    }
+    assert.ok(w.subscriber, 'expected a subscriber after start() in subscribe mode');
+    w.subscriber.emit('error', new Error('simulated tail failure'));
+
+    watcher.stop();
+    await started;
+
+    assert.strictEqual(errors.length, 1);
+    assert.match(errors[0].message, /simulated tail failure/);
+  });
+});
+
+describe('verbose flush logging', () => {
+  it('truncates long flush previews to 200 chars with an ellipsis', () => {
+    const logs: string[] = [];
+    const savedError = console.error;
+    console.error = (...args: unknown[]) => { logs.push(args.map(String).join(' ')); };
+    try {
+      const { watcher } = makeWatcher({ verbose: true });
+      const w = internals(watcher);
+      w.handleEvent(rawOutput('test-session', 'x'.repeat(300)));
+      w.handleEvent(stateChange('test-session', 'working', 'idle'));
+      watcher.stop();
+    } finally {
+      console.error = savedError;
+    }
+
+    const previewLog = logs.find(l => l.includes(': text: "'));
+    assert.ok(previewLog, `expected a flush preview log, got: ${logs.join(' | ')}`);
+    assert.match(previewLog, /x{200}\.\.\."/, 'preview must be cut at 200 chars and end with an ellipsis');
+    assert.ok(!previewLog.includes('x'.repeat(201)), 'preview must not exceed 200 chars of text');
+  });
+
+  it('does not append an ellipsis for previews at or under 200 chars', () => {
+    const logs: string[] = [];
+    const savedError = console.error;
+    console.error = (...args: unknown[]) => { logs.push(args.map(String).join(' ')); };
+    try {
+      const { watcher } = makeWatcher({ verbose: true });
+      const w = internals(watcher);
+      w.handleEvent(rawOutput('test-session', 'y'.repeat(120)));
+      w.handleEvent(stateChange('test-session', 'working', 'idle'));
+      watcher.stop();
+    } finally {
+      console.error = savedError;
+    }
+
+    const previewLog = logs.find(l => l.includes(': text: "'));
+    assert.ok(previewLog, `expected a flush preview log, got: ${logs.join(' | ')}`);
+    assert.match(previewLog, /y{120}"$/, 'short preview must be printed whole with no ellipsis');
   });
 });
 
