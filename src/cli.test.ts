@@ -90,6 +90,40 @@ describe('check', () => {
     assert.ok(store.sightings.some(s => s.text === 'no work found'));
   });
 
+  it('does not record a sighting for medium-confidence keyword matches', () => {
+    // 'the queue is empty' hits exactly one keyword of the builtin
+    // 'no work found' excuse → confidence 0.45: reported (yellow tier),
+    // but below the 0.7 auto-record threshold.
+    const res = run(['check', 'the queue is empty']);
+    assert.strictEqual(res.status, 0);
+    const out = stripAnsi(res.stdout);
+    assert.match(out, /45%/);
+    assert.match(out, /False Completion/);
+    assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'sightings.json')));
+  });
+
+  it('never records sightings for project-local excuse matches, even at full confidence', () => {
+    // Project excuses are attacker-controlled (a cloned repo writes them);
+    // recordSighting auto-promotes into the trusted HOME store, so matches
+    // on source=project must never feed it.
+    const dir = path.join(projectDir, '.rationguard');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'custom-excuses.json'),
+      JSON.stringify([
+        { pattern: 'zorble sighting bait', rebuttal: 'r', category: 'deferral', keywords: ['zorble sighting bait'] },
+      ]) + '\n',
+    );
+    const json = run(['check', 'zorble sighting bait', '--json']);
+    const parsed = JSON.parse(json.stdout) as { matches: Array<{ excuse: { source?: string }; confidence: number }> };
+    assert.ok(parsed.matches.some(m => m.excuse.source === 'project' && m.confidence >= 0.7));
+
+    // Human-readable path is the one that runs the auto-record loop.
+    const res = run(['check', 'zorble sighting bait']);
+    assert.strictEqual(res.status, 0);
+    assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'sightings.json')));
+  });
+
   it('outputs machine-readable JSON with --json', () => {
     const res = run(['check', 'no work found', '--json']);
     assert.strictEqual(res.status, 0);
