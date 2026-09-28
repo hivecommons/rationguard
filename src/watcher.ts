@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { check } from './checker.js';
 import { recordSighting } from './learner.js';
 import { getAllExcuses } from './excuses.js';
+import { stripTerminalEscapes } from './sanitize.js';
 import type { Excuse, CheckResult, MatchResult } from './types.js';
 import type { PlukEvent, PlukEventType, Subscriber, WatchOptions } from '@hivecommons/pluk';
 
@@ -193,14 +194,11 @@ export class Watcher extends EventEmitter {
       this.flushTimer = null;
     }
 
-    const stripped = text
-      .replace(/\x1b\[[0-9;?]*[a-zA-Z$]/g, '')
-      .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
-      .replace(/\x1bP[^\x1b]*\x1b\\/g, '')
-      .replace(/\x1b[()][A-Z0-9]/g, '')
-      .replace(/\x1b[=>]/g, '')
-      .replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
-      .trim();
+    // Only used to build the human-readable log preview below; pattern
+    // matching runs against the raw, unstripped `text`. Uses the shared
+    // escape-stripping helper from sanitize.ts so this cleanup can't drift
+    // out of sync with the operator-facing print-safety boundary.
+    const stripped = stripTerminalEscapes(text, '').trim();
     const preview = stripped.slice(0, 200).replace(/\n/g, ' ');
     this.log(`flush #${this.flushCount}: checking ${lineCount} lines (${text.length} chars)`);
     this.log(`flush #${this.flushCount}: text: "${preview}${stripped.length > 200 ? '...' : ''}"`);
