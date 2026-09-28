@@ -36,12 +36,29 @@ function loadStore(storePath: string): SightingsStore {
   }
 }
 
-function saveStore(storePath: string, store: SightingsStore): void {
-  const dir = path.dirname(storePath);
+/**
+ * Writes JSON to disk atomically: serialize to a temp file in the same
+ * directory, then rename it over the destination. `rename(2)` is atomic on
+ * POSIX filesystems, so a reader always sees either the fully-old or
+ * fully-new file — never a partial write. Both sightings.json and
+ * custom-excuses.json are written from `rationguard check` (one-shot) and
+ * `rationguard watch`/`attach` (long-running) concurrently, so a bare
+ * writeFileSync risks leaving a truncated file if the process is killed
+ * mid-write; loadStore/loadCustomExcuses would then silently treat the
+ * corrupted file as empty and discard all prior history.
+ */
+function writeJsonAtomic(filePath: string, data: unknown): void {
+  const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });
   }
-  fs.writeFileSync(storePath, JSON.stringify(store, null, 2) + '\n');
+  const tmpPath = path.join(dir, `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
+  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n');
+  fs.renameSync(tmpPath, filePath);
+}
+
+function saveStore(storePath: string, store: SightingsStore): void {
+  writeJsonAtomic(storePath, store);
 }
 
 function normalizeForDedup(text: string): string {
@@ -194,11 +211,7 @@ function addToCustomExcuses(excuse: Excuse, projectDir?: string): void {
   const excuses = loadCustomExcuses(projectDir);
   excuses.push(excuse);
   const filePath = getCustomExcusesPath(projectDir);
-  const dir = path.dirname(filePath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  fs.writeFileSync(filePath, JSON.stringify(excuses, null, 2) + '\n');
+  writeJsonAtomic(filePath, excuses);
 }
 
 export function listSightings(projectDir?: string): Sighting[] {
