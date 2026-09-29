@@ -40,6 +40,10 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Coverage gate
+        if: matrix.node-version == 24
+        run: node --test --experimental-test-coverage --test-coverage-lines=98 --test-coverage-branches=88 --test-coverage-functions=94 dist/*.test.js
+
       - name: CLI smoke test
         run: |
           node dist/cli.js help
