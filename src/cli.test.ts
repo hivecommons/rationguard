@@ -709,3 +709,88 @@ describe('terminal escape sanitization', () => {
     assert.match(stripAnsi(res.stdout), /sight ing text/);
   });
 });
+
+describe('watch (live stdin classification)', () => {
+  it('classifies piped stdin in --mode=watch and stops cleanly on SIGINT', async () => {
+    const session = 'watch-stdin';
+    const child = spawn(process.execPath, [CLI, 'watch', session, '--mode=watch', '--cli=claude'], {
+      cwd: projectDir,
+      env: { ...process.env, HOME: homeDir },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout!.on('data', (d: Buffer) => { stdout += d.toString(); });
+    child.stderr!.on('data', (d: Buffer) => { stderr += d.toString(); });
+
+    // Detections flush on the watcher's 2s raw-output timer, so keep writing
+    // the excuse line until the subprocess reports it (or give up after ~10s).
+    for (let i = 0; i < 40 && !stdout.includes('Rebuttal:'); i++) {
+      child.stdin!.write('no work found\n');
+      await sleep(250);
+    }
+
+    child.kill('SIGINT');
+    const code = await waitForExit(child);
+    assert.strictEqual(code, 0);
+
+    const out = stripAnsi(stdout);
+    assert.match(out, /watching watch-stdin \(mode=watch, rebuttal=log\)/, `stderr: ${stderr}`);
+    assert.match(out, /False Completion — "no work found"/);
+    assert.match(out, /Rebuttal:/);
+    assert.match(out, /Stopped watching\./);
+  });
+});
+
+describe('attach (stubbed pluk toolchain)', () => {
+  it('creates the tmux session, attaches pipe-pane, and starts the watcher child', () => {
+    const session = 'attach-sess';
+    const attachDir = path.join(sandbox, 'attach-stubs');
+    const binDir = path.join(attachDir, 'bin');
+    const runDir = path.join(attachDir, 'run');
+    fs.mkdirSync(binDir, { recursive: true });
+    fs.mkdirSync(runDir, { recursive: true });
+    const stubLog = path.join(attachDir, 'stub.log');
+
+    // Stub every external binary attach() shells out to. tmux logs its argv
+    // and reports "no such session" for has-session so attach takes the
+    // create-session path; pgrep finds no existing watchers; pluk exists on
+    // PATH so pipe-pane wiring is attempted; rationguard records its argv and
+    // exits so the spawned watcher child terminates immediately.
+    const stubs: Record<string, string> = {
+      tmux: '#!/bin/sh\necho "tmux $*" >> "$STUB_LOG"\ncase "$1" in has-session) exit 1;; esac\nexit 0\n',
+      pluk: '#!/bin/sh\nexit 0\n',
+      pgrep: '#!/bin/sh\nexit 1\n',
+      rationguard: '#!/bin/sh\necho "rationguard $*" >> "$STUB_LOG"\nexit 0\n',
+    };
+    for (const [name, body] of Object.entries(stubs)) {
+      const p = path.join(binDir, name);
+      fs.writeFileSync(p, body);
+      fs.chmodSync(p, 0o755);
+    }
+
+    const res = run(
+      [
+        'attach', session,
+        '--no-open', '--dangerous',
+        '--cli=claude', '--rebuttal=send',
+        `--dir=${projectDir}`, `--run-dir=${runDir}`,
+      ],
+      undefined,
+      { PATH: `${binDir}:${process.env['PATH'] ?? ''}`, STUB_LOG: stubLog },
+    );
+
+    assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
+    const out = stripAnsi(res.stdout);
+    assert.match(out, /Creating tmux session: attach-sess/);
+    assert.match(out, /Starting claude: claude --dangerously-skip-permissions/);
+    assert.match(out, /Attaching pluk pipe-pane: claude/);
+    assert.match(out, /Starting rationguard watcher in this terminal/);
+
+    const log = fs.readFileSync(stubLog, 'utf-8');
+    assert.match(log, new RegExp(`tmux new-session -d -s ${session} -c ${projectDir}`));
+    assert.match(log, new RegExp(`tmux send-keys -t ${session} claude --dangerously-skip-permissions Enter`));
+    assert.match(log, new RegExp(`tmux pipe-pane -t ${session} -o .*pluk watch ${session} --cli=claude --include-raw`));
+    assert.match(log, new RegExp(`rationguard watch ${session} --run-dir=${runDir} --cli=claude --rebuttal=send`));
+  });
+});
