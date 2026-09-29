@@ -1,0 +1,1 @@
+- Test coverage for the CLI stdin-TTY guard and watch-mode error forwarding

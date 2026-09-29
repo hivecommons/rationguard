@@ -794,3 +794,50 @@ describe('attach (stubbed pluk toolchain)', () => {
     assert.match(log, new RegExp(`rationguard watch ${session} --run-dir=${runDir} --cli=claude --rebuttal=send`));
   });
 });
+
+// The remaining cli.ts paths cannot be reached through a plain subprocess
+// invocation: a piped child never has a TTY stdin, and the watch-mode error
+// forwarder only fires when a constructed Watcher emits after start(). Both
+// tests below run the CLI through an --input-type=module eval wrapper that
+// prepares process state (and, for watch, patches the shared Watcher module
+// instance) before dynamically importing the compiled cli.js.
+function runEval(script: string): RunResult {
+  const res = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
+    cwd: projectDir,
+    env: { ...process.env, HOME: homeDir },
+    encoding: 'utf-8',
+    timeout: 15_000,
+  });
+  return { status: res.status, stdout: res.stdout ?? '', stderr: res.stderr ?? '' };
+}
+
+describe('check with a TTY stdin', () => {
+  it('treats interactive stdin as no piped input and exits 1 for bare "check"', () => {
+    const cliUrl = new URL('./cli.js', import.meta.url).href;
+    const res = runEval(`
+      process.argv = [process.argv[0], 'cli.js', 'check'];
+      process.stdin.isTTY = true;
+      await import(${JSON.stringify(cliUrl)});
+    `);
+    assert.strictEqual(res.status, 1, `stdout: ${res.stdout} stderr: ${res.stderr}`);
+    assert.match(stripAnsi(res.stderr), /No input\. Provide text, --file=<path>, or pipe input\./);
+  });
+});
+
+describe('watch runtime error forwarding', () => {
+  it('prints watcher "error" events to stderr without crashing the watch loop', () => {
+    const cliUrl = new URL('./cli.js', import.meta.url).href;
+    const watcherUrl = new URL('./watcher.js', import.meta.url).href;
+    const res = runEval(`
+      process.argv = [process.argv[0], 'cli.js', 'watch', 'err-sess'];
+      const { Watcher } = await import(${JSON.stringify(watcherUrl)});
+      Watcher.prototype.start = async function () {
+        this.emit('error', new Error('simulated tail failure'));
+      };
+      await import(${JSON.stringify(cliUrl)});
+    `);
+    assert.strictEqual(res.status, 0, `stdout: ${res.stdout} stderr: ${res.stderr}`);
+    assert.match(stripAnsi(res.stdout), /watching err-sess/);
+    assert.match(stripAnsi(res.stderr), /Error:.*simulated tail failure/);
+  });
+});
