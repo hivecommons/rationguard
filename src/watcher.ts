@@ -1,5 +1,8 @@
 import { EventEmitter } from 'node:events';
 import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { check } from './checker.js';
 import { recordSighting } from './learner.js';
 import { getAllExcuses } from './excuses.js';
@@ -36,6 +39,32 @@ export interface WatcherOptions {
 
 const SESSION_NAME_RE = /^[a-zA-Z0-9_.-]+$/;
 
+/**
+ * Resolve the pluk-send binary that matches the @hivecommons/pluk version
+ * this package actually depends on, instead of trusting whatever `pluk-send`
+ * happens to be first on PATH — a shelled-out lookup can silently diverge
+ * from the npm-pinned dependency `Subscriber`/`watch`/`discoverSessions`/
+ * `attach` are resolved against (hivecommons/rationguard#77).
+ *
+ * `RATIONGUARD_PLUK_SEND_BIN` is an internal test hook; it is not documented
+ * for end users.
+ */
+export function resolvePlukSendBin(): string {
+  const override = process.env['RATIONGUARD_PLUK_SEND_BIN'];
+  if (override) return override;
+  try {
+    const require = createRequire(import.meta.url);
+    const pkgJsonPath = require.resolve('@hivecommons/pluk/package.json');
+    const nodeModulesDir = dirname(dirname(dirname(pkgJsonPath)));
+    const binPath = join(nodeModulesDir, '.bin', 'pluk-send');
+    if (existsSync(binPath)) return binPath;
+  } catch {
+    // @hivecommons/pluk isn't resolvable from here (e.g. an unusual install
+    // layout) — fall back to whatever pluk-send is first on PATH.
+  }
+  return 'pluk-send';
+}
+
 function validateSession(session: string): void {
   if (!SESSION_NAME_RE.test(session)) {
     throw new Error(`Invalid session name: ${session}`);
@@ -60,7 +89,7 @@ function sendRebuttal(session: string, rebuttalRaw: string, verbose = false): bo
     console.error(`\x1b[2m[rationguard]\x1b[0m sendRebuttal: trying pluk-send`);
   }
   try {
-    execFileSync('pluk-send', [`--session=${session}`, `--text=${rebuttal}`, '--enter'], { stdio: 'pipe' });
+    execFileSync(resolvePlukSendBin(), [`--session=${session}`, `--text=${rebuttal}`, '--enter'], { stdio: 'pipe' });
     if (verbose) {
       console.error(`\x1b[2m[rationguard]\x1b[0m sendRebuttal: pluk-send succeeded`);
     }

@@ -4,7 +4,7 @@ import { once } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { Watcher, createWatcher, type WatcherDetection, type WatcherOptions } from './watcher.js';
+import { Watcher, createWatcher, resolvePlukSendBin, type WatcherDetection, type WatcherOptions } from './watcher.js';
 import type { PlukEvent, Subscriber } from '@hivecommons/pluk';
 
 // The Watcher reads user excuses from $HOME/.rationguard and project excuses
@@ -15,10 +15,12 @@ let homeDir: string;
 let projectDir: string;
 let binDir: string;
 let argsFile: string;
+let fakePlukSend: string;
 let tmuxBinDir: string;
 let tmuxArgsFile: string;
 const savedHome = process.env['HOME'];
 const savedPath = process.env['PATH'];
+const savedPlukSendBin = process.env['RATIONGUARD_PLUK_SEND_BIN'];
 const savedCwd = process.cwd();
 
 before(() => {
@@ -30,7 +32,7 @@ before(() => {
   fs.mkdirSync(homeDir, { recursive: true });
   fs.mkdirSync(projectDir, { recursive: true });
   fs.mkdirSync(binDir, { recursive: true });
-  const fakePlukSend = path.join(binDir, 'pluk-send');
+  fakePlukSend = path.join(binDir, 'pluk-send');
   fs.writeFileSync(fakePlukSend, '#!/bin/sh\nprintf \'%s\\n\' "$@" > "$RG_TEST_ARGS_FILE"\n');
   fs.chmodSync(fakePlukSend, 0o755);
   // A bin dir that has tmux but NOT pluk-send, to exercise the fallback path.
@@ -51,6 +53,8 @@ after(() => {
   if (savedHome === undefined) delete process.env['HOME'];
   else process.env['HOME'] = savedHome;
   process.env['PATH'] = savedPath;
+  if (savedPlukSendBin === undefined) delete process.env['RATIONGUARD_PLUK_SEND_BIN'];
+  else process.env['RATIONGUARD_PLUK_SEND_BIN'] = savedPlukSendBin;
   delete process.env['RG_TEST_ARGS_FILE'];
   delete process.env['RG_TEST_TMUX_ARGS_FILE'];
   fs.rmSync(sandbox, { recursive: true, force: true });
@@ -63,6 +67,7 @@ beforeEach(() => {
   fs.rmSync(argsFile, { force: true });
   fs.rmSync(tmuxArgsFile, { force: true });
   process.env['PATH'] = savedPath;
+  delete process.env['RATIONGUARD_PLUK_SEND_BIN'];
 });
 
 interface WatcherInternals {
@@ -273,9 +278,31 @@ describe('post-rebuttal quiet period', () => {
   });
 });
 
+describe('resolvePlukSendBin', () => {
+  afterEach(() => {
+    delete process.env['RATIONGUARD_PLUK_SEND_BIN'];
+  });
+
+  it('honors the RATIONGUARD_PLUK_SEND_BIN override', () => {
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = '/some/custom/pluk-send';
+    assert.strictEqual(resolvePlukSendBin(), '/some/custom/pluk-send');
+  });
+
+  it("resolves the pluk-send bin pinned by this package's @hivecommons/pluk dependency", () => {
+    delete process.env['RATIONGUARD_PLUK_SEND_BIN'];
+    const resolved = resolvePlukSendBin();
+    assert.ok(
+      resolved.endsWith(path.join('.bin', 'pluk-send')),
+      `expected the local node_modules/.bin path, not a bare PATH lookup, got: ${resolved}`,
+    );
+    assert.ok(fs.existsSync(resolved), `expected ${resolved} to exist`);
+  });
+});
+
 describe('rebuttal sending', () => {
   it('sends rebuttals via pluk-send and records them on the detection', () => {
     process.env['PATH'] = `${binDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
     const { watcher, detections } = makeWatcher({ rebuttal: 'send' });
     const w = internals(watcher);
     w.handleEvent(rawOutput('test-session', 'no work found'));
@@ -294,6 +321,7 @@ describe('rebuttal sending', () => {
 
   it('sanitizes rebuttals to a single line before sending', () => {
     process.env['PATH'] = `${binDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
     writeUserExcuses([
       {
         pattern: 'zorble excuse alpha',
@@ -317,6 +345,7 @@ describe('rebuttal sending', () => {
 
   it('deduplicates identical rebuttal texts within one flush', () => {
     process.env['PATH'] = `${binDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
     writeUserExcuses([
       { pattern: 'zorble one', rebuttal: 'shared rebuttal text', category: 'deferral', keywords: ['zorble one'] },
       { pattern: 'zorble two', rebuttal: 'shared rebuttal text', category: 'deferral', keywords: ['zorble two'] },
@@ -334,6 +363,7 @@ describe('rebuttal sending', () => {
 
   it('honors the per-excuse cooldown across flushes', () => {
     process.env['PATH'] = `${binDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
     const { watcher, detections } = makeWatcher({ rebuttal: 'send' });
     const w = internals(watcher);
     w.handleEvent(rawOutput('test-session', 'no work found'));
@@ -354,6 +384,7 @@ describe('rebuttal sending', () => {
 
   it('never auto-sends rebuttals for project-local (untrusted) excuses', () => {
     process.env['PATH'] = `${binDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
     writeProjectExcuses([
       {
         pattern: 'quux project excuse',
@@ -377,6 +408,7 @@ describe('rebuttal sending', () => {
   it('reports no sent rebuttals when both pluk-send and tmux are unavailable', () => {
     process.env['PATH'] = binDir.replace(/bin$/, 'empty-bin');
     fs.mkdirSync(process.env['PATH'], { recursive: true });
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = path.join(sandbox, 'no-such-pluk-send');
     const { watcher, detections } = makeWatcher({ rebuttal: 'send' });
     const w = internals(watcher);
     w.handleEvent(rawOutput('test-session', 'no work found'));
@@ -389,6 +421,7 @@ describe('rebuttal sending', () => {
 
   it('rejects session names with characters outside [a-zA-Z0-9_.-]', () => {
     process.env['PATH'] = `${binDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
     const { watcher } = makeWatcher({ rebuttal: 'send', session: 'bad;session' });
     const w = internals(watcher);
     w.handleEvent(rawOutput('bad;session', 'no work found'));
@@ -401,6 +434,7 @@ describe('rebuttal sending', () => {
 
   it('logs instead of sending when rebuttal mode is not "send"', () => {
     process.env['PATH'] = `${binDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
     const { watcher, detections } = makeWatcher({ rebuttal: 'log' });
     const w = internals(watcher);
     w.handleEvent(rawOutput('test-session', 'no work found'));
@@ -417,6 +451,7 @@ describe('rebuttal sending', () => {
     // sendRebuttal must bail out instead of delivering a bare Enter keypress
     // (an empty submit) to the agent session.
     process.env['PATH'] = `${binDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
     writeUserExcuses([
       {
         pattern: 'zorble empty rebuttal',
@@ -438,6 +473,7 @@ describe('rebuttal sending', () => {
 
   it('logs pluk-send success when verbose is enabled', () => {
     process.env['PATH'] = `${binDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
     const logs: string[] = [];
     const savedError = console.error;
     console.error = (...args: unknown[]) => { logs.push(args.map(String).join(' ')); };
@@ -486,6 +522,7 @@ describe('rebuttal delivery fallback', () => {
   it('falls back to tmux send-keys when pluk-send is unavailable', () => {
     // tmuxBinDir has a fake tmux but no pluk-send.
     process.env['PATH'] = tmuxBinDir;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = path.join(sandbox, 'no-such-pluk-send');
     const { watcher, detections } = makeWatcher({ rebuttal: 'send' });
     const w = internals(watcher);
     w.handleEvent(rawOutput('test-session', 'no work found'));
@@ -505,6 +542,7 @@ describe('rebuttal delivery fallback', () => {
 
   it('verbose mode logs the pluk-send failure and the tmux fallback', () => {
     process.env['PATH'] = tmuxBinDir;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = path.join(sandbox, 'no-such-pluk-send');
     const logs: string[] = [];
     const originalError = console.error;
     console.error = (...args: unknown[]) => { logs.push(args.join(' ')); };
