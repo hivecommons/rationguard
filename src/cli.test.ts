@@ -605,7 +605,7 @@ describe('watch (live subscribe)', () => {
 
     const h = spawnWatch(
       [session, `--run-dir=${runDir}`, '--rebuttal=send'],
-      { PATH: `${binDir}:${process.env['PATH'] ?? ''}` },
+      { PATH: `${binDir}:${process.env['PATH'] ?? ''}`, RATIONGUARD_PLUK_SEND_BIN: fakePlukSend },
     );
 
     const lines = jsonlLines([
