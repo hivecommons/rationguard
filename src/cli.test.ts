@@ -382,6 +382,18 @@ describe('sightings', () => {
     assert.match(out, /2\/3/);
   });
 
+  it('shows "promoted" instead of the count fraction once a sighting is promoted', () => {
+    run(['add', 'seen thrice']);
+    run(['add', 'seen thrice']);
+    run(['add', 'seen thrice']);
+    const res = run(['sightings']);
+    assert.strictEqual(res.status, 0);
+    const out = stripAnsi(res.stdout);
+    assert.match(out, /3× "seen thrice"/);
+    assert.match(out, /promoted/);
+    assert.doesNotMatch(out, /3\/3/);
+  });
+
   it('outputs JSON sorted by count with --json', () => {
     run(['add', 'seen once']);
     run(['add', 'seen twice']);
@@ -416,6 +428,14 @@ describe('sessions', () => {
     const res = run(['sessions', `--run-dir=${emptyRunDir}`, '--json']);
     assert.strictEqual(res.status, 0);
     assert.deepStrictEqual(JSON.parse(res.stdout), []);
+  });
+
+  it('falls back to PLUK_RUN_DIR when --run-dir is not given', () => {
+    const emptyRunDir = path.join(sandbox, 'env-run-dir');
+    fs.mkdirSync(emptyRunDir, { recursive: true });
+    const res = run(['sessions'], undefined, { PLUK_RUN_DIR: emptyRunDir });
+    assert.strictEqual(res.status, 0);
+    assert.match(stripAnsi(res.stdout), /No active pluk sessions found/);
   });
 });
 
@@ -494,6 +514,39 @@ describe('sessions with discovered sessions', () => {
     assert.match(out, /SESSION\s+CLI\s+STATE\s+TMUX\s+LAST ACTIVITY\s*EVENTS/);
     assert.match(out, /my-agent\s+claude\s+working/);
     assert.match(out, /rationguard watch <session> to start monitoring/);
+  });
+
+  it('renders idle/unknown state colors and the live-tmux dot per session', () => {
+    const runDir = path.join(sandbox, 'sessions-mixed-run-dir');
+    const logsDir = path.join(runDir, 'logs');
+    fs.mkdirSync(logsDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(logsDir, 'idle-agent.jsonl'),
+      jsonlLines([plukEvent('idle-agent', 'state_change', { from: 'working', to: 'idle', cli: 'claude' })]),
+    );
+    fs.writeFileSync(
+      path.join(logsDir, 'mystery-agent.jsonl'),
+      jsonlLines([plukEvent('mystery-agent', 'raw_output', { line: 'hello' })]),
+    );
+
+    // Stub tmux so getTmuxSessions() reports idle-agent as alive.
+    const binDir = path.join(sandbox, 'sessions-mixed-bin');
+    fs.mkdirSync(binDir, { recursive: true });
+    const tmuxStub = path.join(binDir, 'tmux');
+    fs.writeFileSync(tmuxStub, '#!/bin/sh\necho idle-agent\n');
+    fs.chmodSync(tmuxStub, 0o755);
+
+    const res = run(['sessions', `--run-dir=${runDir}`], undefined, {
+      PATH: `${binDir}:${process.env['PATH'] ?? ''}`,
+    });
+    assert.strictEqual(res.status, 0);
+    const out = stripAnsi(res.stdout);
+    assert.match(out, /idle-agent\s+claude\s+idle\s+●/);
+    assert.match(out, /mystery-agent\s+unknown\s+unknown\s+○/);
+    // idle state renders cyan, unknown renders dim, and the live dot is green.
+    assert.ok(res.stdout.includes('\x1b[36midle'), 'idle state should be cyan');
+    assert.ok(res.stdout.includes('\x1b[2munknown'), 'unknown state should be dim');
+    assert.ok(res.stdout.includes('\x1b[32m●'), 'live tmux dot should be green');
   });
 
   it('reports the discovered session in --json output', () => {
@@ -792,6 +845,43 @@ describe('attach (stubbed pluk toolchain)', () => {
     assert.match(log, new RegExp(`tmux send-keys -t ${session} claude --dangerously-skip-permissions Enter`));
     assert.match(log, new RegExp(`tmux pipe-pane -t ${session} -o .*pluk watch ${session} --cli=claude --include-raw`));
     assert.match(log, new RegExp(`rationguard watch ${session} --run-dir=${runDir} --cli=claude --rebuttal=send`));
+  });
+
+  it('defaults to --cli=claude and --rebuttal=log when neither flag is given', () => {
+    const session = 'attach-defaults';
+    const attachDir = path.join(sandbox, 'attach-default-stubs');
+    const binDir = path.join(attachDir, 'bin');
+    const runDir = path.join(attachDir, 'run');
+    fs.mkdirSync(binDir, { recursive: true });
+    fs.mkdirSync(runDir, { recursive: true });
+    const stubLog = path.join(attachDir, 'stub.log');
+
+    const stubs: Record<string, string> = {
+      tmux: '#!/bin/sh\necho "tmux $*" >> "$STUB_LOG"\ncase "$1" in has-session) exit 1;; esac\nexit 0\n',
+      pluk: '#!/bin/sh\nexit 0\n',
+      pgrep: '#!/bin/sh\nexit 1\n',
+      rationguard: '#!/bin/sh\necho "rationguard $*" >> "$STUB_LOG"\nexit 0\n',
+    };
+    for (const [name, body] of Object.entries(stubs)) {
+      const p = path.join(binDir, name);
+      fs.writeFileSync(p, body);
+      fs.chmodSync(p, 0o755);
+    }
+
+    const res = run(
+      ['attach', session, '--no-open', `--dir=${projectDir}`, `--run-dir=${runDir}`],
+      undefined,
+      { PATH: `${binDir}:${process.env['PATH'] ?? ''}`, STUB_LOG: stubLog },
+    );
+
+    assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
+    const out = stripAnsi(res.stdout);
+    assert.match(out, /Creating tmux session: attach-defaults/);
+    assert.match(out, /Starting claude: claude/);
+
+    const log = fs.readFileSync(stubLog, 'utf-8');
+    assert.match(log, new RegExp(`tmux pipe-pane -t ${session} -o .*pluk watch ${session} --cli=claude`));
+    assert.match(log, new RegExp(`rationguard watch ${session} --run-dir=${runDir} --cli=claude --rebuttal=log`));
   });
 });
 
