@@ -630,7 +630,13 @@ describe('watch (live subscribe)', () => {
     h.child.kill('SIGINT');
     const code = await waitForExit(h.child);
     assert.strictEqual(code, 0);
-    assert.match(stripAnsi(h.stdout()), /Stopped watching\./);
+    assert.match(stripAnsi(h.stderr()), /Stopped watching\./);
+
+    const nonEmpty = h.stdout().split('\n').filter(l => l.trim() !== '');
+    assert.ok(nonEmpty.length > 0);
+    for (const line of nonEmpty) {
+      assert.doesNotThrow(() => JSON.parse(line), `stdout line is not JSON: ${line}`);
+    }
   });
 
   it('prints detections with sent/suppressed rebuttal status in send mode', async () => {
