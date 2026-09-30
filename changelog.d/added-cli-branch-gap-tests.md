@@ -1,0 +1,1 @@
+- Cover cli branch gaps: attach --cli/--rebuttal defaults, sessions PLUK_RUN_DIR fallback and state/tmux rendering, promoted sightings display
