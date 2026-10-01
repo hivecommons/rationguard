@@ -533,9 +533,10 @@ describe('rebuttal delivery fallback', () => {
     assert.ok(detections[0].sentRebuttals);
     assert.ok(detections[0].sentRebuttals.includes('no work found'));
 
-    // Two invocations: literal text, then Enter.
+    // Two invocations: literal text (after an end-of-options marker), then Enter.
     const args = fs.readFileSync(tmuxArgsFile, 'utf-8').trim().split('\n');
-    assert.deepStrictEqual(args.slice(0, 4), ['send-keys', '-l', '-t', 'test-session']);
+    assert.deepStrictEqual(args.slice(0, 5), ['send-keys', '-l', '-t', 'test-session', '--']);
+    assert.ok(args[5].startsWith('Verify by checking'));
     assert.strictEqual(args[args.length - 1], 'Enter');
     assert.strictEqual(args[args.length - 2], 'test-session');
   });
