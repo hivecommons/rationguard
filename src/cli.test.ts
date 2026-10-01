@@ -314,6 +314,36 @@ describe('add', () => {
     assert.strictEqual(res.status, 1);
     assert.match(stripAnsi(res.stderr), /Provide excuse text/);
   });
+
+  it('rejects an unknown --category before recording anything', () => {
+    const res = run(['add', 'I bogus thing', '--category=nonsense']);
+    assert.strictEqual(res.status, 1);
+    const err = stripAnsi(res.stderr);
+    assert.match(err, /Unknown category "nonsense"/);
+    assert.match(err, /false-completion/);
+    assert.match(err, /lane-confusion/);
+    assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'sightings.json')));
+  });
+
+  it('never promotes an excuse with an unknown category on the third sighting', () => {
+    for (let i = 0; i < 3; i++) run(['add', 'I bogus thing', '--category=nonsense']);
+    assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'custom-excuses.json')));
+  });
+
+  it('explains the --category=<name> form when "--category <name>" is passed bare', () => {
+    const res = run(['add', 'I bogus thing', '--category', 'deferral']);
+    assert.strictEqual(res.status, 1);
+    const err = stripAnsi(res.stderr);
+    assert.match(err, /Unknown category "true"/);
+    assert.match(err, /--category=<name>/);
+    assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'sightings.json')));
+  });
+
+  it('does not treat inherited Object keys as categories', () => {
+    const res = run(['add', 'I bogus thing', '--category=constructor']);
+    assert.strictEqual(res.status, 1);
+    assert.match(stripAnsi(res.stderr), /Unknown category "constructor"/);
+  });
 });
 
 describe('list', () => {
