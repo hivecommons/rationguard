@@ -47,6 +47,9 @@ rationguard attach my-agent --cli=copilot --rebuttal=send
 
 # Pass extra CLI arguments
 rationguard attach my-agent --cli=claude --cli-args="--model opus" --dangerous
+
+# Don't open a terminal window, and print debug output for each step
+rationguard attach my-agent --cli=claude --no-open --verbose
 ```
 
 ### `--dangerous` flag
@@ -72,6 +75,11 @@ helper           claude    idle      ●     45s ago       892
 # Watch one
 rationguard watch scanner --rebuttal=send
 ```
+
+`sessions` and `watch` look for pluk logs in `/var/run/pluk` by default. Point them
+elsewhere with `--run-dir=/path/to/pluk/run` or by setting the `PLUK_RUN_DIR`
+environment variable (the flag takes precedence if both are set). Add
+`--verbose` to `watch` to print debug output.
 
 When rationguard detects an excuse, it prints the match and sends the rebuttal directly to the agent:
 
@@ -146,9 +154,12 @@ Generate a defense table and inject it into your agent's system prompt. The agen
 
 ```bash
 rationguard prompt
+
+# Output as a YAML block instead of markdown
+rationguard prompt --format=yaml
 ```
 
-Outputs a markdown table you paste into CLAUDE.md, system prompt, or instructions file.
+Outputs a markdown table (or YAML block with `--format=yaml`) you paste into CLAUDE.md, system prompt, or instructions file.
 
 ---
 
@@ -223,6 +234,9 @@ const block = generatePromptBlock();
 | `rationguard check <text>` | Check for excuse patterns |
 | `rationguard check --file=<path>` | Check file contents |
 | `rationguard prompt` | Generate defense table for system prompts |
+| `rationguard prompt --format=yaml` | Generate defense table as YAML instead of markdown |
+| `rationguard sessions --run-dir=<path>` / `watch --run-dir=<path>` | Point at pluk logs elsewhere (or set `PLUK_RUN_DIR`) |
+| `rationguard attach <session> --no-open --verbose` | Skip opening a terminal window and print debug output |
 | `rationguard add "excuse" --category=...` | Record an excuse sighting |
 | `rationguard list` | Show all known excuses |
 | `rationguard sightings` | Show recorded sightings and counts |
