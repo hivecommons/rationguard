@@ -225,11 +225,23 @@ function cmdAdd(positional: string[], flags: Record<string, string>): void {
   const excuse = positional.join(' ') || flags['excuse'];
   if (!excuse) {
     console.error(`${ANSI_RED}Error:${ANSI_RESET} Provide excuse text as an argument or --excuse="<text>".`);
-    console.error(`  rationguard add "I already handled that" --category false-completion`);
+    console.error(`  rationguard add "I already handled that" --category=false-completion`);
     process.exit(1);
   }
 
-  const category = (flags['category'] as ExcuseCategory) || undefined;
+  // An unknown category would be stored on the sighting as-is and, on the
+  // third sighting, promoted into an excuse with no rebuttal that
+  // isValidExcuse then silently drops — so reject it up front.
+  const rawCategory = flags['category'];
+  if (rawCategory !== undefined && !Object.prototype.hasOwnProperty.call(CATEGORY_LABELS, rawCategory)) {
+    const valid = Object.keys(CATEGORY_LABELS).join(', ');
+    console.error(`${ANSI_RED}Error:${ANSI_RESET} Unknown category "${sanitizeForTerminal(rawCategory)}". Valid categories: ${valid}.`);
+    if (rawCategory === 'true') {
+      console.error(`  Note: write --category=<name> (with '='); "--category <name>" is parsed as a bare flag and <name> becomes excuse text.`);
+    }
+    process.exit(1);
+  }
+  const category = rawCategory as ExcuseCategory | undefined;
   const rebuttal = flags['rebuttal'] || undefined;
 
   const result = recordSighting(excuse, category, rebuttal);
