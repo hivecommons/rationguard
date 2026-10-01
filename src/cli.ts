@@ -363,8 +363,10 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
   const jsonOutput = flags['json'] === 'true';
   const verbose = flags['verbose'] === 'true';
 
-  console.log(`${ANSI_BOLD}rationguard${ANSI_RESET} watching ${ANSI_CYAN}${session}${ANSI_RESET} (mode=${mode}, rebuttal=${rebuttalMode})`);
-  console.log(`${ANSI_DIM}Press Ctrl+C to stop.${ANSI_RESET}\n`);
+  // In JSON mode stdout carries only JSON Lines, so status text goes to stderr.
+  const status = jsonOutput ? console.error : console.log;
+  status(`${ANSI_BOLD}rationguard${ANSI_RESET} watching ${ANSI_CYAN}${session}${ANSI_RESET} (mode=${mode}, rebuttal=${rebuttalMode})`);
+  status(`${ANSI_DIM}Press Ctrl+C to stop.${ANSI_RESET}\n`);
 
   const watcher = new Watcher({
     session,
@@ -416,7 +418,7 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
 
   process.on('SIGINT', () => {
     watcher.stop();
-    console.log(`\n${ANSI_DIM}Stopped watching.${ANSI_RESET}`);
+    status(`\n${ANSI_DIM}Stopped watching.${ANSI_RESET}`);
     process.exit(0);
   });
 
