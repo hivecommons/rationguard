@@ -77,6 +77,24 @@ describe('check', () => {
     assert.strictEqual(result.clean, false);
     assert.strictEqual(result.matches[0].excuse?.pattern, 'synergizing');
   });
+
+  it('does not match every input when a keyword reduces to nothing but filler', () => {
+    // promoteToExcuse derives keywords from sighting text with a length>3
+    // filter, so "will address" yields ['will', 'address']; 'will' is a
+    // filler word that reduceText strips to ''.
+    const promoted = {
+      pattern: 'will address',
+      rebuttal: 'Act now.',
+      category: 'deferral' as const,
+      keywords: ['will', 'address', '', '   ', 'just should'],
+    };
+    const clean = check('Opened PR #12 with the fix and tests.', { excuses: [promoted] });
+    assert.strictEqual(clean.clean, true, `unexpected matches: ${JSON.stringify(clean.matches)}`);
+
+    const hit = check('I will address that in a follow-up.', { excuses: [promoted] });
+    assert.strictEqual(hit.clean, false);
+    assert.strictEqual(hit.matches[0].matchedText, 'will address');
+  });
 });
 
 describe('generatePromptBlock', () => {

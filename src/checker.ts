@@ -38,8 +38,12 @@ function scoreExcuse(text: string, excuse: Excuse): MatchResult {
   let bestMatch = '';
   for (const kw of excuse.keywords) {
     const kwNorm = normalizeText(kw);
+    if (kwNorm.length === 0) continue;
+    // A keyword made only of filler words ("will", "just", "should") reduces
+    // to '', and '' is a substring of every string — never let an empty
+    // reduced form count as a hit.
     const kwReduced = reduceText(kw);
-    if (normalized.includes(kwNorm) || reduced.includes(kwReduced)) {
+    if (normalized.includes(kwNorm) || (kwReduced.length > 0 && reduced.includes(kwReduced))) {
       keywordHits++;
       if (kw.length > bestMatch.length) bestMatch = kw;
     }

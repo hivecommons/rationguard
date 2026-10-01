@@ -1,0 +1,1 @@
+- Ignore excuse keywords that reduce to nothing but filler words (`will`, `just`, `should`, …) in the checker; such a keyword matched every input, so an auto-promoted "will address" sighting flagged all output as Deferral
