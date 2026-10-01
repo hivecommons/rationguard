@@ -1,0 +1,1 @@
+- `watch --rebuttal=send`: the tmux `send-keys` fallback now passes `--` before the rebuttal text, so a rebuttal beginning with `-` is typed literally instead of being parsed as send-keys flags.

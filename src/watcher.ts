@@ -101,7 +101,9 @@ function sendRebuttal(session: string, rebuttalRaw: string, verbose = false): bo
       console.error(`\x1b[2m[rationguard]\x1b[0m sendRebuttal: falling back to tmux send-keys`);
     }
     try {
-      execFileSync('tmux', ['send-keys', '-l', '-t', session, rebuttal], { stdio: 'pipe' });
+      // `--` ends option parsing: tmux otherwise reads a rebuttal that starts
+      // with '-' as send-keys flags (-R/-X/-N) instead of literal text.
+      execFileSync('tmux', ['send-keys', '-l', '-t', session, '--', rebuttal], { stdio: 'pipe' });
       execFileSync('tmux', ['send-keys', '-t', session, 'Enter'], { stdio: 'pipe' });
       if (verbose) {
         console.error(`\x1b[2m[rationguard]\x1b[0m sendRebuttal: tmux send-keys succeeded`);
