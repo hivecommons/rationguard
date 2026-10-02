@@ -1,0 +1,1 @@
+- Test the watcher raw_output path when a pluk event carries no `line`, so the empty-string fallback is covered.
