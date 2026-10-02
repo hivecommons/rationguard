@@ -1,1 +1,0 @@
-- Resolve the `pluk-send` binary from the pinned `@hivecommons/pluk` dependency instead of a bare PATH lookup, closing a version-skew gap between the imported library and the shelled-out binary
