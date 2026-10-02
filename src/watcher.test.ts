@@ -153,6 +153,17 @@ describe('event buffering and flushing', () => {
     watcher.stop();
   });
 
+  it('buffers an empty string when a raw_output event carries no line', () => {
+    const { watcher, detections } = makeWatcher();
+    const w = internals(watcher);
+    const event = rawOutput('test-session', 'ignored');
+    delete (event.data as Record<string, unknown>)['line'];
+    w.handleEvent(event);
+    assert.deepStrictEqual(w.buffer, ['']);
+    assert.strictEqual(detections.length, 0);
+    watcher.stop();
+  });
+
   it('flushes on state_change to idle and emits a detection for excuse text', () => {
     const { watcher, detections } = makeWatcher();
     const w = internals(watcher);
