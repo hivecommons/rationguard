@@ -40,6 +40,13 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Tarball excludes tests
+        run: |
+          if npm pack --dry-run --json | grep -q '"path": "dist/[^"]*\.test\.'; then
+            echo "::error::npm tarball contains compiled test files; check the files field in package.json"
+            exit 1
+          fi
+
       - name: Coverage gate
         if: matrix.node-version == 24
         run: node --test --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=94 --test-coverage-functions=97 dist/*.test.js
