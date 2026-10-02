@@ -1,1 +1,0 @@
-- Keep `watch --json` stdout parseable as JSON Lines by routing the startup banner and shutdown line to stderr

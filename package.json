@@ -1,6 +1,6 @@
 {
   "name": "@hivecommons/rationguard",
-  "version": "0.10.4",
+  "version": "0.11.0",
   "description": "Detect and rebut rationalization patterns in AI agent output",
   "type": "module",
   "main": "dist/index.js",

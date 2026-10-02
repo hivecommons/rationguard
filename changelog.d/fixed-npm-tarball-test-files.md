@@ -1,1 +1,0 @@
-- Exclude compiled test artifacts (`dist/*.test.js`, `.js.map`, `.d.ts`) from the published npm tarball via `files` negation globs in `package.json`, and add a CI guard that fails the build if a `.test.` file ever reappears in `npm pack --dry-run` output.

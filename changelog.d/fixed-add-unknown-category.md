@@ -1,1 +1,0 @@
-- Reject an unknown `--category` in `rationguard add` up front instead of crashing on the third sighting and persisting a rebuttal-less excuse that is then silently dropped
