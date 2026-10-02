@@ -119,6 +119,33 @@ function sendRebuttal(session: string, rebuttalRaw: string, verbose = false): bo
 const ANSI_DIM = '\x1b[2m';
 const ANSI_RESET = '\x1b[0m';
 
+/**
+ * Bounded counters a long-lived watch session accumulates. Every field is a
+ * fixed-cardinality count — never a raw message, pattern, or session name —
+ * so this is safe to snapshot into `--diagnostics` output.
+ */
+export interface WatcherStats {
+  flushCount: number;
+  cleanCount: number;
+  matchCount: number;
+  rebuttalSent: number;
+  rebuttalFailed: number;
+  rebuttalSuppressed: number;
+  bufferFlushedFull: number;
+}
+
+export function emptyWatcherStats(): WatcherStats {
+  return {
+    flushCount: 0,
+    cleanCount: 0,
+    matchCount: 0,
+    rebuttalSent: 0,
+    rebuttalFailed: 0,
+    rebuttalSuppressed: 0,
+    bufferFlushedFull: 0,
+  };
+}
+
 export class Watcher extends EventEmitter {
   private excuses: Excuse[];
   private opts: WatcherOptions;
@@ -130,6 +157,7 @@ export class Watcher extends EventEmitter {
   private flushCount = 0;
   private rebuttalCooldowns: Map<string, number> = new Map();
   private lastRebuttalSentAt = 0;
+  private stats_: WatcherStats = emptyWatcherStats();
 
   constructor(opts: WatcherOptions) {
     super();
@@ -142,6 +170,11 @@ export class Watcher extends EventEmitter {
     if (this.verbose) {
       console.error(`${ANSI_DIM}[rationguard]${ANSI_RESET} ${msg}`);
     }
+  }
+
+  /** Snapshot of bounded counters since the watcher started (see WatcherStats). */
+  stats(): WatcherStats {
+    return { ...this.stats_ };
   }
 
   async start(): Promise<void> {
@@ -188,6 +221,7 @@ export class Watcher extends EventEmitter {
 
       if (this.buffer.length >= RAW_OUTPUT_BUFFER_MAX_LINES) {
         this.log(`buffer full (${RAW_OUTPUT_BUFFER_MAX_LINES} lines), flushing`);
+        this.stats_.bufferFlushedFull++;
         this.flushBuffer();
       }
       return;
@@ -215,6 +249,7 @@ export class Watcher extends EventEmitter {
     if (this.buffer.length === 0) return;
 
     this.flushCount++;
+    this.stats_.flushCount++;
     const lineCount = this.buffer.length;
     const text = this.buffer.join('\n');
     this.buffer = [];
@@ -236,16 +271,19 @@ export class Watcher extends EventEmitter {
 
     if (result.clean) {
       this.log(`flush #${this.flushCount}: clean`);
+      this.stats_.cleanCount++;
     }
 
     const quietRemaining = POST_REBUTTAL_QUIET_MS - (Date.now() - this.lastRebuttalSentAt);
     if (!result.clean && quietRemaining > 0) {
       this.log(`flush #${this.flushCount}: ${result.matches.length} match(es) suppressed (post-rebuttal quiet period, ${Math.round(quietRemaining / 1000)}s remaining)`);
+      this.stats_.rebuttalSuppressed += result.matches.length;
       return;
     }
 
     if (!result.clean) {
       this.log(`flush #${this.flushCount}: ${result.matches.length} match(es) found`);
+      this.stats_.matchCount += result.matches.length;
       const detection: WatcherDetection = {
         event: {
           v: 1,
@@ -284,11 +322,13 @@ export class Watcher extends EventEmitter {
           const lastSent = this.rebuttalCooldowns.get(key) ?? 0;
           if (now - lastSent < REBUTTAL_COOLDOWN_MS) {
             this.log(`skipping rebuttal for "${key}" (cooldown, ${Math.round((REBUTTAL_COOLDOWN_MS - (now - lastSent)) / 1000)}s remaining)`);
+            this.stats_.rebuttalSuppressed++;
             continue;
           }
           if (sentTexts.has(match.excuse.rebuttal)) {
             this.log(`skipping duplicate rebuttal text for "${key}"`);
             this.rebuttalCooldowns.set(key, now);
+            this.stats_.rebuttalSuppressed++;
             continue;
           }
           this.rebuttalCooldowns.set(key, now);
@@ -296,8 +336,11 @@ export class Watcher extends EventEmitter {
           const ok = sendRebuttal(this.opts.session, match.excuse.rebuttal, this.verbose);
           this.log(`rebuttal ${ok ? 'DELIVERED' : 'FAILED'}`);
           if (ok) {
+            this.stats_.rebuttalSent++;
             sent.push(key);
             sentTexts.add(match.excuse.rebuttal);
+          } else {
+            this.stats_.rebuttalFailed++;
           }
         }
         if (sent.length > 0) {

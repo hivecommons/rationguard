@@ -94,6 +94,13 @@ elsewhere with `--run-dir=/path/to/pluk/run` or by setting the `PLUK_RUN_DIR`
 environment variable (the flag takes precedence if both are set). Add
 `--verbose` to `watch` to print debug output.
 
+Add `--diagnostics` (or `--diagnostics=<seconds>`) to `watch` for opt-in,
+local-only health visibility on a long-running session: a bounded JSON
+summary (flush/match/rebuttal counts) is printed to stderr on a fixed
+interval (default 60s) and once more when the watcher stops. It never
+includes the session name, raw output, or excuse text — only fixed counter
+categories — and nothing is sent anywhere.
+
 When rationguard detects an excuse, it prints the match and sends the rebuttal directly to the agent:
 
 ```
