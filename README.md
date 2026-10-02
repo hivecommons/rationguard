@@ -50,7 +50,20 @@ rationguard attach my-agent --cli=claude --cli-args="--model opus" --dangerous
 
 # Don't open a terminal window, and print debug output for each step
 rationguard attach my-agent --cli=claude --no-open --verbose
+
+# Launch a custom executable instead of the default resolved from --cli
+rationguard attach my-agent --command=/usr/local/bin/my-claude-wrapper
+
+# Omit raw terminal bytes from the pluk event log
+rationguard attach my-agent --cli=claude --no-raw
 ```
+
+`attach` also accepts:
+
+- `--command=<path>` — override the CLI executable/command to launch, bypassing
+  the default resolved from `--cli`.
+- `--no-raw` — don't include raw terminal bytes in the pluk event log (omits
+  `--include-raw` from the internal `pluk watch` invocation).
 
 ### `--dangerous` flag
 
