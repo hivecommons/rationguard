@@ -1,8 +1,12 @@
-<p align="center"><img src="docs/assets/rationguard-logo.svg" alt="RationGuard logo" width="160"></p>
+<p align="center">
+  <img src="docs/assets/rationguard-logo.svg" alt="RationGuard" width="120" height="120">
+</p>
 
-# rationguard
+# RationGuard
 
-**Detect and rebut rationalization patterns in AI agent output.**
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
+Detect and rebut rationalization patterns in AI agent output.
 
 AI agents make excuses. "Standing by for instructions." "Too complex to fix." "I'll handle it next pass." These sound reasonable but mean the agent stopped working.
 
