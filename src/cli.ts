@@ -9,6 +9,7 @@ import { Watcher } from './watcher.js';
 import type { WatcherDetection } from './watcher.js';
 import { discoverSessions, attach, type SessionInfo } from '@hivecommons/pluk';
 import { sanitizeForTerminal } from './sanitize.js';
+import { startDiagnostics } from './diagnostics.js';
 import fs from 'node:fs';
 
 const ANSI_RED = '\x1b[31m';
@@ -58,6 +59,7 @@ ${ANSI_BOLD}USAGE${ANSI_RESET}
     --run-dir=/var/run/pluk            Pluk run directory
     --json                             Output detections as JSON
     --verbose                          Show debug output
+    --diagnostics[=secs]               Periodic bounded health summary on stderr (default 60s)
 
   ${ANSI_CYAN}rationguard prompt${ANSI_RESET}                 Generate a defense table for agent prompts
   ${ANSI_CYAN}rationguard prompt${ANSI_RESET} --format=yaml   Output as YAML block
@@ -410,12 +412,15 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
     },
   });
 
+  const stopDiagnostics = startDiagnostics('watch', () => ({ ...watcher.stats() }), flags['diagnostics']);
+
   watcher.on('error', (err: Error) => {
     console.error(`${ANSI_RED}Error:${ANSI_RESET} ${err.message}`);
   });
 
   process.on('SIGINT', () => {
     watcher.stop();
+    stopDiagnostics();
     status(`\n${ANSI_DIM}Stopped watching.${ANSI_RESET}`);
     process.exit(0);
   });

@@ -4,7 +4,7 @@ import { once } from 'node:events';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { Watcher, createWatcher, resolvePlukSendBin, type WatcherDetection, type WatcherOptions } from './watcher.js';
+import { Watcher, createWatcher, resolvePlukSendBin, emptyWatcherStats, type WatcherDetection, type WatcherOptions } from './watcher.js';
 import type { PlukEvent, Subscriber } from '@hivecommons/pluk';
 
 // The Watcher reads user excuses from $HOME/.rationguard and project excuses
@@ -712,5 +712,77 @@ describe('live watch mode (stdin classification)', () => {
 
     // stop() must not throw when releasing the readline-backed handle.
     watcher.stop();
+  });
+});
+
+describe('bounded stats (#diagnostics)', () => {
+  it('start at zero and are a snapshot, not a live reference', () => {
+    const { watcher } = makeWatcher();
+    assert.deepStrictEqual(watcher.stats(), emptyWatcherStats());
+    const s = watcher.stats();
+    s.flushCount = 999;
+    assert.strictEqual(watcher.stats().flushCount, 0);
+    watcher.stop();
+  });
+
+  it('counts clean and matched flushes', () => {
+    const { watcher } = makeWatcher();
+    const w = internals(watcher);
+    w.handleEvent(rawOutput('test-session', 'purple elephants dance gracefully'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    watcher.stop();
+
+    const s = watcher.stats();
+    assert.strictEqual(s.flushCount, 2);
+    assert.strictEqual(s.cleanCount, 1);
+    assert.strictEqual(s.matchCount, 1);
+  });
+
+  it('counts buffer-full flushes', () => {
+    const { watcher } = makeWatcher();
+    const w = internals(watcher);
+    for (let i = 0; i < 19; i++) {
+      w.handleEvent(rawOutput('test-session', `line ${i}`));
+    }
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    watcher.stop();
+    assert.strictEqual(watcher.stats().bufferFlushedFull, 1);
+  });
+
+  it('counts sent, failed, and suppressed rebuttals', () => {
+    process.env['PATH'] = `${binDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
+    const { watcher } = makeWatcher({ rebuttal: 'send' });
+    const w = internals(watcher);
+
+    // Sent.
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    // Suppressed by per-excuse cooldown (same pattern, same quiet-period-reset).
+    w.lastRebuttalSentAt = 0;
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    watcher.stop();
+
+    const s = watcher.stats();
+    assert.strictEqual(s.rebuttalSent, 1);
+    assert.ok(s.rebuttalSuppressed >= 1, `expected a suppressed rebuttal, got ${JSON.stringify(s)}`);
+  });
+
+  it('counts a failed rebuttal when both pluk-send and tmux are unavailable', () => {
+    process.env['PATH'] = binDir.replace(/bin$/, 'empty-bin');
+    fs.mkdirSync(process.env['PATH'], { recursive: true });
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = path.join(sandbox, 'no-such-pluk-send');
+    const { watcher } = makeWatcher({ rebuttal: 'send' });
+    const w = internals(watcher);
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    watcher.stop();
+
+    const s = watcher.stats();
+    assert.strictEqual(s.rebuttalSent, 0);
+    assert.strictEqual(s.rebuttalFailed, 1);
   });
 });
