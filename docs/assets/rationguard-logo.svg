@@ -1,0 +1,15 @@
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">RationGuard logo</title>
+  <desc id="desc">A warm gold shield catching an excuse speech bubble with a teal check mark.</desc>
+  <path d="M128 20 220 56v62c0 58-36 99-92 118-56-19-92-60-92-118V56z" fill="#1A1510"/>
+  <path d="M128 38 202 67v52c0 45-28 79-74 97-46-18-74-52-74-97V67z" fill="#E0B04F"/>
+  <path d="M128 57 184 79v41c0 33-20 59-56 75-36-16-56-42-56-75V79z" fill="#1A1510"/>
+  <path d="M88 90h80c13 0 24 10 24 23v24c0 13-11 23-24 23h-35l-25 20v-20H88c-13 0-24-10-24-23v-24c0-13 11-23 24-23z" fill="#FFF4D5"/>
+  <circle cx="103" cy="125" r="7" fill="#1A1510" opacity="0.75"/>
+  <circle cx="128" cy="125" r="7" fill="#1A1510" opacity="0.75"/>
+  <circle cx="153" cy="125" r="7" fill="#1A1510" opacity="0.75"/>
+  <path d="M79 169 178 82" stroke="#E0B04F" stroke-width="18" stroke-linecap="round" opacity="0.95"/>
+  <path d="M80 168 178 82" stroke="#1A1510" stroke-width="10" stroke-linecap="round" opacity="0.95"/>
+  <path d="M84 142 113 171 179 96" fill="none" stroke="#1F7A8C" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
