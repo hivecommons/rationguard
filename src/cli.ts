@@ -39,6 +39,8 @@ ${ANSI_BOLD}QUICK START${ANSI_RESET}
     --dir=/path/to/project             Working directory for the agent
     --no-open                          Don't open a terminal window
     --verbose                          Show debug output for each step
+    --command=<path>                   Override the CLI executable (bypasses --cli resolution)
+    --no-raw                           Don't include raw terminal bytes in the pluk event log
 
 ${ANSI_BOLD}USAGE${ANSI_RESET}
 
