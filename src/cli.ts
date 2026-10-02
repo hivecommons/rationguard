@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { check, generatePromptBlock } from './checker.js';
-import { recordSighting, listSightings } from './learner.js';
+import { recordSighting, recordSightingIfEligible, listSightings, AUTO_LEARN_CONFIDENCE_THRESHOLD } from './learner.js';
 import { getAllExcuses } from './excuses.js';
 import { CATEGORY_LABELS } from './types.js';
 import type { ExcuseCategory, Excuse } from './types.js';
@@ -19,11 +19,10 @@ const ANSI_DIM = '\x1b[2m';
 const ANSI_BOLD = '\x1b[1m';
 const ANSI_RESET = '\x1b[0m';
 
-const CONFIDENCE_HIGH = 0.7;
 const CONFIDENCE_MEDIUM = 0.4;
 
 function colorConfidence(confidence: number): string {
-  if (confidence >= CONFIDENCE_HIGH) return `${ANSI_RED}${(confidence * 100).toFixed(0)}%${ANSI_RESET}`;
+  if (confidence >= AUTO_LEARN_CONFIDENCE_THRESHOLD) return `${ANSI_RED}${(confidence * 100).toFixed(0)}%${ANSI_RESET}`;
   if (confidence >= CONFIDENCE_MEDIUM) return `${ANSI_YELLOW}${(confidence * 100).toFixed(0)}%${ANSI_RESET}`;
   return `${ANSI_DIM}${(confidence * 100).toFixed(0)}%${ANSI_RESET}`;
 }
@@ -195,13 +194,10 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
     console.log();
   }
 
-  // Auto-record sightings for high-confidence matches. Project-local excuses
-  // are excluded: their patterns are attacker-controlled and recordSighting
-  // auto-promotes into the trusted HOME store (see watcher.ts).
+  // Eligibility (confidence threshold, project-source exclusion) is decided
+  // once in learner.ts and shared with watcher.ts — see recordSightingIfEligible.
   for (const match of result.matches) {
-    if (match.excuse && match.excuse.source !== 'project' && match.confidence >= CONFIDENCE_HIGH) {
-      recordSighting(match.matchedText, match.excuse.category);
-    }
+    recordSightingIfEligible(match);
   }
 }
 

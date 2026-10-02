@@ -2,10 +2,17 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { CATEGORY_LABELS } from './types.js';
-import type { Excuse, ExcuseCategory } from './types.js';
+import type { Excuse, ExcuseCategory, MatchResult } from './types.js';
 
 const SIGHTINGS_FILE = 'sightings.json';
 const AUTO_ADD_THRESHOLD = 3;
+
+/**
+ * Minimum confidence for a match to be eligible for auto-learning. Shared by
+ * every call site that decides whether to call `recordSighting` so the
+ * threshold can't drift between them (see `recordSightingIfEligible`).
+ */
+export const AUTO_LEARN_CONFIDENCE_THRESHOLD = 0.7;
 
 interface Sighting {
   text: string;
@@ -249,4 +256,24 @@ export function listSightings(projectDir?: string): Sighting[] {
   if (!storePath) return [];
   const store = loadStore(storePath);
   return store.sightings.sort((a, b) => b.count - a.count);
+}
+
+/**
+ * The single gate deciding whether a detected match is eligible for
+ * auto-learning. Call this instead of `recordSighting` directly from
+ * detection call sites (`rationguard check`, `Watcher.flushBuffer`) so the
+ * eligibility rule can't drift between them.
+ *
+ * Project-local excuses (`source === 'project'`) are excluded: their
+ * patterns come from the (potentially untrusted) project working directory,
+ * and `recordSighting` auto-promotes a pattern into the trusted
+ * `~/.rationguard` store after `AUTO_ADD_THRESHOLD` sightings — letting an
+ * untrusted pattern count toward auto-send-eligible status would defeat the
+ * project/user trust boundary enforced elsewhere (see `source` on `Excuse`).
+ */
+export function recordSightingIfEligible(match: MatchResult): void {
+  if (!match.excuse) return;
+  if (match.excuse.source === 'project') return;
+  if (match.confidence < AUTO_LEARN_CONFIDENCE_THRESHOLD) return;
+  recordSighting(match.matchedText, match.excuse.category);
 }

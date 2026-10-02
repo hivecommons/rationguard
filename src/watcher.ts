@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { check } from './checker.js';
-import { recordSighting } from './learner.js';
+import { recordSightingIfEligible } from './learner.js';
 import { getAllExcuses } from './excuses.js';
 import { stripTerminalEscapes } from './sanitize.js';
 import type { Excuse, CheckResult, MatchResult } from './types.js';
@@ -12,7 +12,6 @@ import type { PlukEvent, PlukEventType, Subscriber, WatchOptions } from '@hiveco
 
 const RAW_OUTPUT_BUFFER_MAX_LINES = 20;
 const RAW_OUTPUT_FLUSH_MS = 2_000;
-const CONFIDENCE_HIGH = 0.7;
 const REBUTTAL_COOLDOWN_MS = 30_000;
 const POST_REBUTTAL_QUIET_MS = 60_000;
 
@@ -265,13 +264,10 @@ export class Watcher extends EventEmitter {
       };
 
       for (const match of result.matches) {
-        // Never record sightings for project-local excuses: their patterns are
-        // attacker-controlled (untrusted working directory), and recordSighting
-        // auto-promotes into the trusted HOME store after 3 sightings — which
-        // would make them auto-send eligible in every future session.
-        if (match.excuse && match.excuse.source !== 'project' && match.confidence >= CONFIDENCE_HIGH) {
-          recordSighting(match.matchedText, match.excuse.category);
-        }
+        // Eligibility (confidence threshold, project-source exclusion) is
+        // decided once in learner.ts and shared with cli.ts — see
+        // recordSightingIfEligible.
+        recordSightingIfEligible(match);
       }
 
       if (this.opts.rebuttal === 'send') {

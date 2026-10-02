@@ -1,0 +1,1 @@
+- Extract the auto-learning eligibility gate (confidence threshold + project-source exclusion) duplicated in `cli.ts` and `watcher.ts` into a single `recordSightingIfEligible` helper in `learner.ts`
