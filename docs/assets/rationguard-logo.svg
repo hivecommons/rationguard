@@ -1,0 +1,15 @@
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-labelledby="title desc">
+  <title id="title">RationGuard logo</title>
+  <desc id="desc">A warm gold shield guarding a ration gauge with a teal fill.</desc>
+  <path d="M128 20 220 56v62c0 58-36 99-92 118-56-19-92-60-92-118V56z" fill="#1A1510"/>
+  <path d="M128 37 202 66v53c0 46-28 80-74 98-46-18-74-52-74-98V66z" fill="#E0B04F"/>
+  <path d="M128 55 184 77v43c0 34-20 61-56 77-36-16-56-43-56-77V77z" fill="#1A1510" opacity="0.92"/>
+  <rect x="72" y="91" width="112" height="74" rx="16" fill="#FFF4D5"/>
+  <rect x="86" y="118" width="84" height="20" rx="10" fill="#1A1510"/>
+  <path d="M96 118h45a10 10 0 0 1 10 10 10 10 0 0 1-10 10H96a10 10 0 0 1-10-10 10 10 0 0 1 10-10z" fill="#1F7A8C"/>
+  <circle cx="160" cy="105" r="7" fill="#1F7A8C"/>
+  <circle cx="96" cy="105" r="7" fill="#E0B04F"/>
+  <path d="M94 152h68" stroke="#1A1510" stroke-width="10" stroke-linecap="round" opacity="0.55"/>
+  <path d="M128 55v142" stroke="#E0B04F" stroke-width="6" stroke-linecap="round" opacity="0.2"/>
+</svg>

@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/assets/rationguard-logo.svg" alt="RationGuard logo" width="160"></p>
+
 # rationguard
 
 **Detect and rebut rationalization patterns in AI agent output.**
