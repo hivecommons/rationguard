@@ -10,8 +10,25 @@ permissions:
   id-token: write
 
 jobs:
+  verify-tag:
+    name: Tag matches package.json version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Compare tag to package.json version
+        run: |
+          pkg="$(node -p "require('./package.json').version")"
+          tag="${GITHUB_REF_NAME#v}"
+          if [ "$pkg" != "$tag" ]; then
+            echo "::error::tag v${tag} does not match package.json version ${pkg}; bump package.json before tagging"
+            exit 1
+          fi
+
   test:
     name: Test (${{ matrix.node-version }})
+    needs: verify-tag
     runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
@@ -36,6 +53,22 @@ jobs:
 
       - name: Test
         run: npm test
+
+      - name: Tarball excludes tests
+        run: |
+          if npm pack --dry-run --json | grep -q '"path": "dist/[^"]*\.test\.'; then
+            echo "::error::npm tarball contains compiled test files; check the files field in package.json"
+            exit 1
+          fi
+
+      - name: Coverage gate
+        if: matrix.node-version == 24
+        run: node --test --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=94 --test-coverage-functions=97 dist/*.test.js
+
+      - name: CLI smoke test
+        run: |
+          node dist/cli.js help
+          node dist/cli.js check "all good here"
 
   publish:
     name: Publish to npm
