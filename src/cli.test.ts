@@ -669,6 +669,48 @@ describe('watch (live subscribe)', () => {
     }
   });
 
+  it('--diagnostics reports live watcher stats on stderr and a final summary on SIGINT', async () => {
+    const session = 'watch-diag';
+    const { runDir, logFile } = makeRunDir('watch-diag-run-dir', session, []);
+    // 1s interval so a periodic report lands within the test budget.
+    const h = spawnWatch([session, `--run-dir=${runDir}`, '--json', '--diagnostics=1']);
+
+    const diagLines = (): Array<Record<string, unknown>> =>
+      h.stderr().split('\n')
+        .filter(l => l.startsWith('{'))
+        .map(l => JSON.parse(l) as Record<string, unknown>)
+        .filter(p => p['rationguard_diagnostics'] === 1);
+
+    await appendUntil(logFile, session, () => h.stdout().includes('"matches"'));
+    assert.ok(h.stdout().includes('"matches"'), `no JSON detection in: ${h.stdout()} ${h.stderr()}`);
+
+    for (let i = 0; i < 40 && !diagLines().some(p => p['final'] === false && (p['matchCount'] as number) >= 1); i++) {
+      await sleep(250);
+    }
+    const periodic = diagLines().find(p => p['final'] === false && (p['matchCount'] as number) >= 1);
+    assert.ok(periodic, `no periodic diagnostics line with a match in stderr: ${h.stderr()}`);
+    assert.strictEqual(periodic['command'], 'watch');
+    for (const key of ['flushCount', 'cleanCount', 'matchCount', 'rebuttalSent', 'rebuttalFailed', 'rebuttalSuppressed', 'bufferFlushedFull', 'uptime_s']) {
+      assert.strictEqual(typeof periodic[key], 'number', `${key} should be a numeric watcher stat`);
+    }
+    assert.ok((periodic['flushCount'] as number) >= (periodic['matchCount'] as number));
+
+    h.child.kill('SIGINT');
+    const code = await waitForExit(h.child);
+    assert.strictEqual(code, 0);
+
+    const finals = diagLines().filter(p => p['final'] === true);
+    assert.strictEqual(finals.length, 1, `expected exactly one final diagnostics line: ${h.stderr()}`);
+    assert.ok((finals[0]['matchCount'] as number) >= (periodic['matchCount'] as number));
+    assert.match(stripAnsi(h.stderr()), /Stopped watching\./);
+
+    // Diagnostics must stay off stdout, which carries the --json detections.
+    for (const line of h.stdout().split('\n').filter(l => l.trim() !== '')) {
+      const parsed = JSON.parse(line) as Record<string, unknown>;
+      assert.notStrictEqual(parsed['rationguard_diagnostics'], 1, `diagnostics leaked to stdout: ${line}`);
+    }
+  });
+
   it('prints detections with sent/suppressed rebuttal status in send mode', async () => {
     const session = 'watch-send';
     const { runDir, logFile } = makeRunDir('watch-send-run-dir', session, []);
