@@ -24,6 +24,13 @@ npm run build
 npm test
 ```
 
+CI also enforces a coverage gate (99% lines / 94% branches / 97% functions)
+on top of `npm test`. Check it locally before pushing:
+
+```bash
+node --test --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=94 --test-coverage-functions=97 dist/*.test.js
+```
+
 The package ships compiled files from `dist/`, but `dist/` is generated and intentionally not committed. `npm publish` runs `npm run build` through `prepublishOnly`.
 
 ## Releases
@@ -59,7 +66,8 @@ This adds a `Signed-off-by:` trailer confirming you have the right to contribute
 Before submitting:
 
 1. Rebase on the latest `main`.
-2. Run `npm run lint`, `npm run build`, and `npm test`.
+2. Run `npm run lint`, `npm run build`, and `npm test` (and the coverage-gate
+   command from "Local setup" if you touched code paths).
 3. Use a clear PR title, preferably with the repository convention: ✨ feature, 🐛 bug fix, 📖 docs, 🌱 infra/tests, or ⚠️ breaking.
 4. Link related issues with `Fixes #123` when the PR fully resolves them.
 
