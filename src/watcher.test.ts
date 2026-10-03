@@ -544,6 +544,50 @@ describe('rebuttal sending', () => {
       `expected verbose success log, got: ${logs.join(' | ')}`,
     );
   });
+
+  it('strips terminal escapes from untrusted project-local patterns and pluk fields in verbose logs', () => {
+    process.env['PATH'] = `${binDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
+    // OSC title spoof, CSI screen clear, and OSC 52 clipboard write — all
+    // sourced from the repo-controlled .rationguard/custom-excuses.json.
+    const hostile = 'quux\x1b]0;PWNED\x07\x1b[2J\x1b]52;c;SGVsbG8=\x07 project excuse';
+    writeProjectExcuses([
+      { pattern: hostile, rebuttal: 'x', category: 'deferral', keywords: ['quux'] },
+    ]);
+    const logs: string[] = [];
+    const savedError = console.error;
+    console.error = (...args: unknown[]) => { logs.push(args.map(String).join(' ')); };
+    try {
+      const { watcher, detections } = makeWatcher({ rebuttal: 'send', verbose: true });
+      const w = internals(watcher);
+      w.handleEvent(rawOutput('test-session', 'quux here and no work found'));
+      w.handleEvent(stateChange('test-session', 'work\x1b[2Jing', 'id\x1b]0;X\x07le'));
+      // A second flush exercises the cooldown and duplicate-skip log lines
+      // for the trusted builtin that was just sent.
+      w.handleEvent(rawOutput('test-session', 'no work found'));
+      w.handleEvent(rawOutput('test-session', 'no work found'));
+      w.handleEvent(stateChange('test-session', 'working', 'idle'));
+      watcher.stop();
+      assert.strictEqual(detections.length, 1);
+    } finally {
+      console.error = savedError;
+    }
+
+    const skipLine = logs.find(l => l.includes('project-local excuse'));
+    assert.ok(skipLine, `expected project-local skip log, got: ${logs.join(' | ')}`);
+    assert.ok(skipLine.includes('quux'), skipLine);
+    const stateLine = logs.find(l => l.includes('state_change:'));
+    assert.ok(stateLine, 'expected state_change log');
+    assert.ok(stateLine.includes('work ing') && stateLine.includes('id le'), stateLine);
+    // Only rationguard's own dim/reset prefix may contain ESC; every
+    // interpolated value must be clean.
+    const prefix = `\x1b[2m[rationguard]\x1b[0m `;
+    for (const line of logs) {
+      assert.ok(line.startsWith(prefix), `unexpected log shape: ${JSON.stringify(line)}`);
+      const body = line.slice(prefix.length);
+      assert.ok(!/[\x00-\x08\x0b-\x1f\x7f-\x9f]/.test(body), `control char leaked: ${JSON.stringify(body)}`);
+    }
+  });
 });
 
 describe('custom excuse loading', () => {

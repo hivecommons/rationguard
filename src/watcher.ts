@@ -6,7 +6,7 @@ import { dirname, join } from 'node:path';
 import { check } from './checker.js';
 import { recordSightingIfEligible } from './learner.js';
 import { getAllExcuses } from './excuses.js';
-import { stripTerminalEscapes } from './sanitize.js';
+import { sanitizeForTerminal, stripTerminalEscapes } from './sanitize.js';
 import type { Excuse, CheckResult, MatchResult } from './types.js';
 import type { PlukEvent, PlukEventType, Subscriber, WatchOptions } from '@hivecommons/pluk';
 
@@ -172,6 +172,16 @@ export class Watcher extends EventEmitter {
     }
   }
 
+  /**
+   * Print-safety boundary for values interpolated into verbose log lines
+   * that rationguard does not own: excuse patterns/rebuttals (the
+   * project-local store is repo-controlled) and pluk event fields. Same
+   * rule cli.ts applies to everything it prints.
+   */
+  private safe(value: unknown): string {
+    return sanitizeForTerminal(String(value ?? ''));
+  }
+
   /** Snapshot of bounded counters since the watcher started (see WatcherStats). */
   stats(): WatcherStats {
     return { ...this.stats_ };
@@ -228,7 +238,7 @@ export class Watcher extends EventEmitter {
     }
 
     if (event.type === 'state_change') {
-      this.log(`state_change: ${event.data['from']} → ${event.data['to']}`);
+      this.log(`state_change: ${this.safe(event.data['from'])} → ${this.safe(event.data['to'])}`);
       if (event.data['to'] === 'idle') {
         this.flushBuffer();
       }
@@ -315,24 +325,24 @@ export class Watcher extends EventEmitter {
         for (const match of result.matches) {
           if (!match.excuse) continue;
           if (match.excuse.source === 'project') {
-            this.log(`skipping rebuttal for "${match.excuse.pattern}" (project-local excuse — untrusted working directory, detection only)`);
+            this.log(`skipping rebuttal for "${this.safe(match.excuse.pattern)}" (project-local excuse — untrusted working directory, detection only)`);
             continue;
           }
           const key = match.excuse.pattern;
           const lastSent = this.rebuttalCooldowns.get(key) ?? 0;
           if (now - lastSent < REBUTTAL_COOLDOWN_MS) {
-            this.log(`skipping rebuttal for "${key}" (cooldown, ${Math.round((REBUTTAL_COOLDOWN_MS - (now - lastSent)) / 1000)}s remaining)`);
+            this.log(`skipping rebuttal for "${this.safe(key)}" (cooldown, ${Math.round((REBUTTAL_COOLDOWN_MS - (now - lastSent)) / 1000)}s remaining)`);
             this.stats_.rebuttalSuppressed++;
             continue;
           }
           if (sentTexts.has(match.excuse.rebuttal)) {
-            this.log(`skipping duplicate rebuttal text for "${key}"`);
+            this.log(`skipping duplicate rebuttal text for "${this.safe(key)}"`);
             this.rebuttalCooldowns.set(key, now);
             this.stats_.rebuttalSuppressed++;
             continue;
           }
           this.rebuttalCooldowns.set(key, now);
-          this.log(`sending rebuttal to ${this.opts.session}: "${match.excuse.rebuttal.slice(0, 80)}..."`);
+          this.log(`sending rebuttal to ${this.opts.session}: "${this.safe(match.excuse.rebuttal.slice(0, 80))}..."`);
           const ok = sendRebuttal(this.opts.session, match.excuse.rebuttal, this.verbose);
           this.log(`rebuttal ${ok ? 'DELIVERED' : 'FAILED'}`);
           if (ok) {
@@ -346,7 +356,7 @@ export class Watcher extends EventEmitter {
         if (sent.length > 0) {
           this.lastRebuttalSentAt = Date.now();
           detection.sentRebuttals = sent;
-          this.log(`sent ${sent.length} unique rebuttal(s) for: ${sent.join(', ')} (quiet period: ${POST_REBUTTAL_QUIET_MS / 1000}s)`);
+          this.log(`sent ${sent.length} unique rebuttal(s) for: ${this.safe(sent.join(', '))} (quiet period: ${POST_REBUTTAL_QUIET_MS / 1000}s)`);
         }
       }
 
