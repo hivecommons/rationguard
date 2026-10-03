@@ -41,6 +41,29 @@ describe('startDiagnostics', () => {
     assert.equal(lines.length, 1, 'bad period means no periodic line within 30ms, only the final one');
   });
 
+  it('writes to stderr by default, never stdout', () => {
+    const stderrLines: string[] = [];
+    const stdoutLines: string[] = [];
+    const origErr = process.stderr.write;
+    const origOut = process.stdout.write;
+    process.stderr.write = ((chunk: string | Uint8Array) => { stderrLines.push(String(chunk)); return true; }) as typeof process.stderr.write;
+    process.stdout.write = ((chunk: string | Uint8Array) => { stdoutLines.push(String(chunk)); return true; }) as typeof process.stdout.write;
+    try {
+      const stop = startDiagnostics('watch', () => ({ flushCount: 0 }), 'true');
+      stop();
+    } finally {
+      process.stderr.write = origErr;
+      process.stdout.write = origOut;
+    }
+    assert.deepEqual(stdoutLines, [], 'diagnostics must never reach stdout (it may carry --json detections)');
+    assert.equal(stderrLines.length, 1);
+    assert.ok(stderrLines[0].endsWith('\n'), 'default writer must terminate the line');
+    const parsed = JSON.parse(stderrLines[0]);
+    assert.equal(parsed.rationguard_diagnostics, 1);
+    assert.equal(parsed.final, true);
+    assert.equal(parsed.flushCount, 0);
+  });
+
   it('never includes a session name or raw output', async () => {
     const lines: string[] = [];
     const stop = startDiagnostics('watch', () => ({ flushCount: 3, matchCount: 1 }), '0.02', l => lines.push(l));
