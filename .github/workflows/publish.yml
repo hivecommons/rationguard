@@ -11,11 +11,13 @@ permissions:
 
 jobs:
   verify-tag:
-    name: Tag matches package.json version
+    name: Tag matches package.json version and is on main
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
 
       - name: Compare tag to package.json version
         run: |
@@ -26,12 +28,20 @@ jobs:
             exit 1
           fi
 
+      - name: Tag commit must be on main
+        run: |
+          git fetch --no-tags origin main
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then
+            echo "::error::tag ${GITHUB_REF_NAME} points at ${GITHUB_SHA}, which is not reachable from main"
+            exit 1
+          fi
+
       - name: CHANGELOG has a section for this version
         run: |
           ver="${GITHUB_REF_NAME#v}"
           awk -v h="## $ver" 'index($0, h " ")==1 || $0==h {f=1; next} f && /^## /{exit} f' CHANGELOG.md > /tmp/release-notes.md
-          if [ ! -s /tmp/release-notes.md ]; then
-            echo "::error::CHANGELOG.md has no '## ${ver}' section; roll changelog.d/ fragments and bump before tagging"
+          if ! grep -q '[^[:space:]]' /tmp/release-notes.md; then
+            echo "::error::CHANGELOG.md has no nonempty '## ${ver}' section; roll changelog.d/ fragments and bump before tagging"
             exit 1
           fi
 
