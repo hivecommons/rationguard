@@ -26,6 +26,15 @@ jobs:
             exit 1
           fi
 
+      - name: CHANGELOG has a section for this version
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          awk -v h="## $ver" 'index($0, h " ")==1 || $0==h {f=1; next} f && /^## /{exit} f' CHANGELOG.md > /tmp/release-notes.md
+          if [ ! -s /tmp/release-notes.md ]; then
+            echo "::error::CHANGELOG.md has no '## ${ver}' section; roll changelog.d/ fragments and bump before tagging"
+            exit 1
+          fi
+
   test:
     name: Test (${{ matrix.node-version }})
     needs: verify-tag
@@ -92,3 +101,30 @@ jobs:
         run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  release:
+    name: GitHub release
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: publish
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Extract release notes from CHANGELOG.md
+        run: |
+          ver="${GITHUB_REF_NAME#v}"
+          awk -v h="## $ver" 'index($0, h " ")==1 || $0==h {f=1; next} f && /^## /{exit} f' CHANGELOG.md > release-notes.md
+          test -s release-notes.md
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "release $GITHUB_REF_NAME already exists; leaving it untouched"
+            exit 0
+          fi
+          gh release create "$GITHUB_REF_NAME" --verify-tag \
+            --title "$GITHUB_REF_NAME" --notes-file release-notes.md
