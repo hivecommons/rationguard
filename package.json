@@ -50,6 +50,6 @@
     "typescript": "^5.7.0"
   },
   "dependencies": {
-    "@hivecommons/pluk": "^0.8.0"
+    "@hivecommons/pluk": "^0.9.0"
   }
 }

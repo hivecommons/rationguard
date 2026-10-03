@@ -872,14 +872,14 @@ describe('attach (stubbed pluk toolchain)', () => {
     assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
     const out = stripAnsi(res.stdout);
     assert.match(out, /Creating tmux session: attach-sess/);
-    assert.match(out, /Starting claude: claude --dangerously-skip-permissions/);
+    assert.match(out, /Starting claude: 'claude' '--dangerously-skip-permissions'/);
     assert.match(out, /Attaching pluk pipe-pane: claude/);
     assert.match(out, /Starting rationguard watcher in this terminal/);
 
     const log = fs.readFileSync(stubLog, 'utf-8');
     assert.match(log, new RegExp(`tmux new-session -d -s ${session} -c ${projectDir}`));
-    assert.match(log, new RegExp(`tmux send-keys -t ${session} claude --dangerously-skip-permissions Enter`));
-    assert.match(log, new RegExp(`tmux pipe-pane -t ${session} -o .*pluk watch ${session} --cli=claude --include-raw`));
+    assert.match(log, new RegExp(`tmux send-keys -t ${session} 'claude' '--dangerously-skip-permissions' Enter`));
+    assert.match(log, new RegExp(`tmux pipe-pane -t ${session} .*pluk'? watch '${session}' --cli='claude' --include-raw`));
     assert.match(log, new RegExp(`rationguard watch ${session} --run-dir=${runDir} --cli=claude --rebuttal=send`));
   });
 
@@ -913,10 +913,10 @@ describe('attach (stubbed pluk toolchain)', () => {
     assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
     const out = stripAnsi(res.stdout);
     assert.match(out, /Creating tmux session: attach-defaults/);
-    assert.match(out, /Starting claude: claude/);
+    assert.match(out, /Starting claude: 'claude'/);
 
     const log = fs.readFileSync(stubLog, 'utf-8');
-    assert.match(log, new RegExp(`tmux pipe-pane -t ${session} -o .*pluk watch ${session} --cli=claude`));
+    assert.match(log, new RegExp(`tmux pipe-pane -t ${session} .*pluk'? watch '${session}' --cli='claude'`));
     assert.match(log, new RegExp(`rationguard watch ${session} --run-dir=${runDir} --cli=claude --rebuttal=log`));
   });
 });
