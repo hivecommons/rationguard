@@ -1,9 +1,11 @@
 import { describe, it, before, after, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert';
 import { once } from 'node:events';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Watcher, createWatcher, resolvePlukSendBin, emptyWatcherStats, type WatcherDetection, type WatcherOptions } from './watcher.js';
 import type { PlukEvent, Subscriber } from '@hivecommons/pluk';
 
@@ -307,6 +309,43 @@ describe('resolvePlukSendBin', () => {
       `expected the local node_modules/.bin path, not a bare PATH lookup, got: ${resolved}`,
     );
     assert.ok(fs.existsSync(resolved), `expected ${resolved} to exist`);
+  });
+
+  // The fallback branches depend on where watcher.js sits relative to
+  // node_modules, which cannot be changed in-process: copy the compiled
+  // module (and its relative imports) into a sandbox with a controlled
+  // node_modules layout and resolve from there.
+  function resolveFromLayout(layout: 'no-pluk' | 'pluk-without-bin'): string {
+    const distDir = path.dirname(fileURLToPath(import.meta.url));
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), `rationguard-resolve-${layout}-`));
+    try {
+      const copyDir = path.join(root, 'dist');
+      fs.mkdirSync(copyDir);
+      for (const f of fs.readdirSync(distDir)) {
+        if (f.endsWith('.js') && !f.endsWith('.test.js')) fs.copyFileSync(path.join(distDir, f), path.join(copyDir, f));
+      }
+      if (layout === 'pluk-without-bin') {
+        const pkgDir = path.join(root, 'node_modules', '@hivecommons', 'pluk');
+        fs.mkdirSync(pkgDir, { recursive: true });
+        fs.writeFileSync(path.join(pkgDir, 'package.json'), JSON.stringify({ name: '@hivecommons/pluk', version: '0.0.0' }));
+      }
+      const script = "import('./dist/watcher.js').then(m => process.stdout.write(m.resolvePlukSendBin()))";
+      const env: NodeJS.ProcessEnv = { ...process.env, NODE_PATH: '' };
+      delete env['RATIONGUARD_PLUK_SEND_BIN'];
+      const res = spawnSync(process.execPath, ['--input-type=module', '-e', script], { cwd: root, env, encoding: 'utf8' });
+      assert.strictEqual(res.status, 0, `child failed: ${res.stderr}`);
+      return res.stdout;
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  }
+
+  it('falls back to a bare pluk-send when @hivecommons/pluk is not resolvable', () => {
+    assert.strictEqual(resolveFromLayout('no-pluk'), 'pluk-send');
+  });
+
+  it('falls back to a bare pluk-send when the resolved pluk has no .bin/pluk-send shim', () => {
+    assert.strictEqual(resolveFromLayout('pluk-without-bin'), 'pluk-send');
   });
 });
 
