@@ -659,6 +659,37 @@ describe('rebuttal delivery fallback', () => {
   });
 });
 
+describe('rebuttal delivery failure log', () => {
+  it('logs a sanitized, bounded one-liner when both delivery methods fail', () => {
+    const failBinDir = path.join(sandbox, 'tmux-fail-bin');
+    fs.mkdirSync(failBinDir, { recursive: true });
+    const failTmux = path.join(failBinDir, 'tmux');
+    fs.writeFileSync(failTmux, `#!/bin/sh\nprintf '\\033]0;pwned\\007\\033[31m' >&2\nhead -c 1000 /dev/zero | tr '\\0' 'x' >&2\nexit 1\n`);
+    fs.chmodSync(failTmux, 0o755);
+    process.env['PATH'] = failBinDir;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = path.join(sandbox, 'no-such-pluk-send');
+    const logs: string[] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => { logs.push(args.join(' ')); };
+    try {
+      const { watcher } = makeWatcher({ rebuttal: 'send' });
+      const w = internals(watcher);
+      w.handleEvent(rawOutput('test-session', 'no work found'));
+      w.handleEvent(stateChange('test-session', 'working', 'idle'));
+      watcher.stop();
+    } finally {
+      console.error = originalError;
+    }
+
+    const failed = logs.filter(l => l.includes('FAILED both methods'));
+    assert.strictEqual(failed.length, 1);
+    const detail = failed[0].split('FAILED both methods: ')[1];
+    assert.ok(!detail.includes('\x1b'), 'escape sequences must be stripped');
+    assert.ok(!detail.includes('\x07'), 'control characters must be stripped');
+    assert.ok(detail.length <= 200, `expected <= 200 chars, got ${detail.length}`);
+  });
+});
+
 describe('timed flush', () => {
   it('flushes buffered raw output when the flush timer elapses', async () => {
     const { watcher, detections } = makeWatcher();

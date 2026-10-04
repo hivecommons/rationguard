@@ -110,7 +110,7 @@ function sendRebuttal(session: string, rebuttalRaw: string, verbose = false): bo
       return true;
     } catch (err2) {
       const errMsg2 = err2 instanceof Error ? err2.message : String(err2);
-      console.error(`\x1b[2m[rationguard]\x1b[0m sendRebuttal: FAILED both methods: ${errMsg2}`);
+      console.error(`\x1b[2m[rationguard]\x1b[0m sendRebuttal: FAILED both methods: ${sanitizeForTerminal(errMsg2).slice(0, 200)}`);
       return false;
     }
   }
