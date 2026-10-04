@@ -271,6 +271,16 @@ const block = generatePromptBlock();
 
 ---
 
+## Runbooks
+
+Operational procedures live in [`runbooks/`](runbooks/):
+
+- [`watch-session-degraded.md`](runbooks/watch-session-degraded.md) — `rationguard watch` is quiet or rebuttals are not arriving
+- [`release-rollback.md`](runbooks/release-rollback.md) — rolling back a bad release
+- [`postmortem-template.md`](runbooks/postmortem-template.md) — incident postmortem template
+
+---
+
 ## Works With
 
 - **[@hivecommons/pluk](https://www.npmjs.com/package/@hivecommons/pluk)** — structured event streaming from AI agent terminals
