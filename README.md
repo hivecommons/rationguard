@@ -81,6 +81,8 @@ Maps to the correct permission-skip flag per CLI:
 | `codex` | `--full-auto` |
 | `goose` | `--non-interactive` |
 
+For other CLIs (`copilot`, `gemini`, or any `--command` wrapper) `--dangerous` is a no-op: no flag is added, so pass the CLI's own auto-approve option via `--cli-args`. If the tmux session already exists, `attach` does not restart the CLI; it prints a warning with the command to restart it with the flag.
+
 ### Already have sessions running?
 
 ```bash
