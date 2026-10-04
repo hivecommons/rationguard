@@ -50,7 +50,7 @@ jobs:
 
       - name: Coverage gate
         if: matrix.node-version == 24
-        run: node --test --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=94 --test-coverage-functions=97 dist/*.test.js
+        run: node --test --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=95 --test-coverage-functions=100 dist/*.test.js
 
       - name: CLI smoke test
         run: |
