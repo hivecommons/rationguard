@@ -58,8 +58,9 @@ release as user-impacting, not just a packaging nit.
    process.
 3. Tag `vX.Y.Z` on `main` once merged; `publish.yml` runs the test suite
    against that tag and publishes automatically.
-4. Add a `changelog.d/fixed-<slug>.md` fragment describing the regression and
-   the fix, following the existing entries in `changelog.d/`.
+4. Add a `## X.Y.Z` section to `CHANGELOG.md` (with a `### Fixed` entry)
+   describing the regression and the fix; `publish.yml` refuses to publish a
+   tag whose version has no nonempty section there.
 
 ## After
 
