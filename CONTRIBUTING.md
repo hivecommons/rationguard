@@ -6,7 +6,7 @@ Thanks for helping improve rationguard. This project follows the Hive Commons co
 
 Prerequisites:
 
-- Node.js 18 or newer
+- Node.js 20 or newer
 - npm
 
 Install dependencies and build from source:
