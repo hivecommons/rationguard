@@ -24,11 +24,11 @@ npm run build
 npm test
 ```
 
-CI also enforces a coverage gate (99% lines / 94% branches / 97% functions)
+CI also enforces a coverage gate (99% lines / 95% branches / 100% functions)
 on top of `npm test`. Check it locally before pushing:
 
 ```bash
-node --test --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=94 --test-coverage-functions=97 dist/*.test.js
+node --test --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=95 --test-coverage-functions=100 dist/*.test.js
 ```
 
 The package ships compiled files from `dist/`, but `dist/` is generated and intentionally not committed. `npm publish` runs `npm run build` through `prepublishOnly`.
