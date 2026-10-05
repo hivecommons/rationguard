@@ -56,3 +56,26 @@ jobs:
         run: |
           node dist/cli.js help
           node dist/cli.js check "all good here"
+
+  changelog-guard:
+    if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Shipped code changes need a CHANGELOG entry
+        run: |
+          range="origin/${{ github.base_ref }}...HEAD"
+          files=$(git diff --name-only "$range")
+          shipped=$(echo "$files" | grep -E '^src/.*\.ts$' | grep -vE '\.test\.ts$|(^|/)(__tests__|test)/' || true)
+          if git diff -U0 "$range" -- package.json | grep -E '^[+-]\s+"' | grep -qv '^+++\|^---' \
+            && node -e 'const b=require("child_process").execSync("git show origin/${{ github.base_ref }}:package.json").toString();const h=require("./package.json");process.exit(JSON.stringify(JSON.parse(b).dependencies||{})===JSON.stringify(h.dependencies||{})?1:0)'; then
+            shipped="$shipped package.json dependencies"
+          fi
+          if [ -n "${shipped// /}" ] && ! echo "$files" | grep -qx 'CHANGELOG.md'; then
+            echo "::error::Shipped code changed but CHANGELOG.md was not updated; add a line under '## Unreleased' or apply the 'skip-changelog' label"
+            exit 1
+          fi
