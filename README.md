@@ -14,6 +14,15 @@ rationguard catches these patterns and provides rebuttals — in real-time via [
 
 ---
 
+## Prerequisites
+
+- Node.js 20 or newer (`engines.node` in `package.json`)
+- [pluk](https://www.npmjs.com/package/@hivecommons/pluk), installed alongside rationguard below
+- `tmux`, for `rationguard attach` and for watching live sessions
+- The AI CLI you want to supervise (`claude`, `copilot`, `gemini`, `goose` or `codex`), already installed and authenticated
+
+`rationguard check` and `rationguard prompt` only need Node.js.
+
 ## Install
 
 ```bash
