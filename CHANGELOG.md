@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## Unreleased
+
+### Fixed
+
+- `watch --verbose`: route excuse patterns, rebuttals, and pluk state fields through `sanitizeForTerminal` before they reach the stderr log, so a project-local pattern can no longer inject OSC/CSI escape sequences into the operator's terminal (#127)
+- Bump `@hivecommons/pluk` to `^0.9.0`: the bundled 0.8.6 `Subscriber` read zero bytes forever after `pluk watch` rotated the session log in place, silently stopping detection (#129)
+- Sanitize and bound the `sendRebuttal` failure log line so an unbounded or escape-laden error message cannot flood or corrupt the terminal (#147)
+
 ## 0.11.0 - 2026-10-02
 
 ### Added
