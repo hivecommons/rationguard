@@ -71,4 +71,6 @@ Before submitting:
 3. Use a clear PR title, preferably with the repository convention: ✨ feature, 🐛 bug fix, 📖 docs, 🌱 infra/tests, or ⚠️ breaking.
 4. Link related issues with `Fixes #123` when the PR fully resolves them.
 
+PRs that change shipped code (`src/**/*.ts` other than tests, or `dependencies` in `package.json`) must add a line under `## Unreleased` in `CHANGELOG.md`; CI fails otherwise. Maintainers can apply the `skip-changelog` label to opt a PR out.
+
 Maintainers review PRs for correctness, tests, security impact, and compatibility with the CLI behavior documented in `README.md`.

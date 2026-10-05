@@ -41,7 +41,7 @@ jobs:
           ver="${GITHUB_REF_NAME#v}"
           awk -v h="## $ver" 'index($0, h " ")==1 || $0==h {f=1; next} f && /^## /{exit} f' CHANGELOG.md > /tmp/release-notes.md
           if ! grep -q '[^[:space:]]' /tmp/release-notes.md; then
-            echo "::error::CHANGELOG.md has no nonempty '## ${ver}' section; roll changelog.d/ fragments and bump before tagging"
+            echo "::error::CHANGELOG.md has no nonempty '## ${ver}' section; move the '## Unreleased' entries into a '## ${ver} - date' section before tagging"
             exit 1
           fi
 
