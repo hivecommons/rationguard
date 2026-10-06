@@ -55,8 +55,10 @@ jobs:
 
       - name: CLI smoke test
         run: |
+          set -euo pipefail
           node dist/cli.js help
-          node dist/cli.js check "all good here"
+          node dist/cli.js check --json "all good here" | node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));if(r.clean!==true||r.matches.length!==0)process.exit(1)'
+          node dist/cli.js check --json "that's out of scope for this PR" | node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));if(r.clean!==false||r.matches.length===0)process.exit(1)'
 
       - name: Packed tarball smoke test
         run: |
@@ -67,7 +69,8 @@ jobs:
           npm init -y >/dev/null
           npm install --no-audit --no-fund "$dest"/hivecommons-rationguard-*.tgz
           npx --no-install rationguard help
-          npx --no-install rationguard check "all good here"
+          npx --no-install rationguard check --json "all good here" | node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));if(r.clean!==true||r.matches.length!==0)process.exit(1)'
+          npx --no-install rationguard check --json "that's out of scope for this PR" | node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));if(r.clean!==false||r.matches.length===0)process.exit(1)'
 
   changelog-guard:
     if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
