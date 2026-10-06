@@ -48,46 +48,10 @@ jobs:
   test:
     name: Test (${{ matrix.node-version }})
     needs: verify-tag
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      matrix:
-        node-version: [20, 22, 24, 26]
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: npm
-
-      - run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Build
-        run: npm run build
-
-      - name: Test
-        run: npm test
-
-      - name: Tarball excludes tests
-        run: |
-          if npm pack --dry-run --json | grep -q '"path": "dist/[^"]*\.test\.'; then
-            echo "::error::npm tarball contains compiled test files; check the files field in package.json"
-            exit 1
-          fi
-
-      - name: Coverage gate
-        if: matrix.node-version == 24
-        run: node --test --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=95 --test-coverage-functions=100 dist/*.test.js
-
-      - name: CLI smoke test
-        run: |
-          node dist/cli.js help
-          node dist/cli.js check "all good here"
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+      packages: read
 
   publish:
     name: Publish to npm
