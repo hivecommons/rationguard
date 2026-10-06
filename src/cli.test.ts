@@ -83,6 +83,12 @@ describe('check', () => {
     assert.match(out, /Rebuttal:/);
   });
 
+  it('renders a single-keyword match in the dim tier', () => {
+    const res = run(['check', 'the queue is empty']);
+    assert.strictEqual(res.status, 0);
+    assert.ok(res.stdout.includes('\x1b[2m45%\x1b[0m'), res.stdout);
+  });
+
   it('records a sighting in $HOME for high-confidence matches', () => {
     run(['check', 'no work found']);
     const raw = fs.readFileSync(path.join(homeDir, '.rationguard', 'sightings.json'), 'utf-8');
@@ -92,7 +98,7 @@ describe('check', () => {
 
   it('does not record a sighting for medium-confidence keyword matches', () => {
     // 'the queue is empty' hits exactly one keyword of the builtin
-    // 'no work found' excuse → confidence 0.45: reported (yellow tier),
+    // 'no work found' excuse → confidence 0.45: reported (dim tier),
     // but below the 0.7 auto-record threshold.
     const res = run(['check', 'the queue is empty']);
     assert.strictEqual(res.status, 0);

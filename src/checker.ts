@@ -55,7 +55,8 @@ function scoreExcuse(text: string, excuse: Excuse): MatchResult {
 
   const confidence = Math.min(EXACT_MATCH_CONFIDENCE, keywordHits * KEYWORD_WEIGHT + MIN_KEYWORD_CONFIDENCE);
   return {
-    matched: confidence >= MIN_KEYWORD_CONFIDENCE,
+    // keywordHits > 0 here, so confidence is always >= the single-hit floor.
+    matched: true,
     excuse,
     confidence,
     matchedText: bestMatch,

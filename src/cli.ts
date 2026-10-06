@@ -20,7 +20,9 @@ const ANSI_DIM = '\x1b[2m';
 const ANSI_BOLD = '\x1b[1m';
 const ANSI_RESET = '\x1b[0m';
 
-const CONFIDENCE_MEDIUM = 0.4;
+// One keyword hit scores 0.45 (the matcher's floor) and renders dim; two hits
+// (0.6) render yellow.
+const CONFIDENCE_MEDIUM = 0.6;
 
 function colorConfidence(confidence: number): string {
   if (confidence >= AUTO_LEARN_CONFIDENCE_THRESHOLD) return `${ANSI_RED}${(confidence * 100).toFixed(0)}%${ANSI_RESET}`;
