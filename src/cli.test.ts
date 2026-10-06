@@ -102,6 +102,28 @@ describe('check', () => {
     assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'sightings.json')));
   });
 
+  it('never auto-promotes detection sightings into the trusted HOME store (count-only)', () => {
+    // Three ≥0.7 keyword matches on a builtin deferral excuse. matchedText
+    // is the bare builtin keyword "will address"; promoting it would land
+    // {keywords: ["will", "address"]} in ~/.rationguard/custom-excuses.json
+    // as a source=user (auto-send eligible) excuse that matches any prose
+    // containing "will".
+    for (let i = 0; i < 3; i++) {
+      run(['check', 'I will address this later, in the next pass, defer and revisit']);
+    }
+    assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'custom-excuses.json')));
+    const store = JSON.parse(
+      fs.readFileSync(path.join(homeDir, '.rationguard', 'sightings.json'), 'utf-8'),
+    ) as { sightings: Array<{ text: string; count: number; promoted: boolean }> };
+    const s = store.sightings.find(x => x.text === 'will address');
+    assert.ok(s);
+    assert.strictEqual(s.count, 3);
+    assert.strictEqual(s.promoted, false);
+
+    const res = run(['check', 'Opened PR #12 with the fix and tests. CI will run on push.']);
+    assert.match(stripAnsi(res.stdout), /Clean/);
+  });
+
   it('never records sightings for project-local excuse matches, even at full confidence', () => {
     // Project excuses are attacker-controlled (a cloned repo writes them);
     // recordSighting auto-promotes into the trusted HOME store, so matches

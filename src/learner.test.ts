@@ -70,6 +70,28 @@ describe('recordSighting', () => {
     assert.strictEqual(custom[0].pattern, 'circling back on this soon');
   });
 
+  it('promote: false counts the sighting but never writes custom-excuses.json', () => {
+    let res = { count: 0, autoPromoted: false, excuse: null as unknown };
+    for (let i = 0; i < 4; i++) {
+      res = recordSighting('will', 'deferral', undefined, dir, { promote: false });
+    }
+    assert.strictEqual(res.count, 4);
+    assert.strictEqual(res.autoPromoted, false);
+    assert.strictEqual(res.excuse, null);
+    assert.strictEqual(loadCustomExcuses(dir).length, 0);
+    assert.ok(!fs.existsSync(path.join(dir, '.rationguard', 'custom-excuses.json')));
+    const [s] = listSightings(dir);
+    assert.strictEqual(s.count, 4);
+    assert.strictEqual(s.promoted, false);
+  });
+
+  it('an explicit (promote: true) sighting still promotes once the threshold is reached', () => {
+    for (let i = 0; i < 3; i++) recordSighting('will', 'deferral', undefined, dir, { promote: false });
+    const res = recordSighting('will', 'deferral', undefined, dir);
+    assert.strictEqual(res.autoPromoted, true);
+    assert.strictEqual(loadCustomExcuses(dir).length, 1);
+  });
+
   it('does not promote the same sighting twice', () => {
     for (let i = 0; i < 3; i++) recordSighting('promoted once only', undefined, undefined, dir);
     const res = recordSighting('promoted once only', undefined, undefined, dir);
