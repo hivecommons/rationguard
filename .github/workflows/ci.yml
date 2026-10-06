@@ -58,6 +58,17 @@ jobs:
           node dist/cli.js help
           node dist/cli.js check "all good here"
 
+      - name: Packed tarball smoke test
+        run: |
+          set -euo pipefail
+          dest="$(mktemp -d)"
+          npm pack --pack-destination "$dest" --silent
+          cd "$(mktemp -d)"
+          npm init -y >/dev/null
+          npm install --no-audit --no-fund "$dest"/hivecommons-rationguard-*.tgz
+          npx --no-install rationguard help
+          npx --no-install rationguard check "all good here"
+
   changelog-guard:
     if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'skip-changelog')
     runs-on: ubuntu-latest
