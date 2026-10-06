@@ -89,6 +89,17 @@ describe('check', () => {
     assert.ok(res.stdout.includes('\x1b[2m45%\x1b[0m'), res.stdout);
   });
 
+  it('renders a two-keyword match in the yellow medium tier', () => {
+    // 'queue is empty' + 'nothing to do' are two keywords of the builtin
+    // 'no work found' excuse → 2 * 0.15 + 0.3 = 0.6, the CONFIDENCE_MEDIUM
+    // boundary: yellow, not dim, and still below the 0.7 red/auto-record tier.
+    const res = run(['check', 'the queue is empty, nothing to do']);
+    assert.strictEqual(res.status, 0);
+    assert.ok(res.stdout.includes('\x1b[33m60%\x1b[0m'), res.stdout);
+    assert.ok(!res.stdout.includes('\x1b[2m60%'), 'medium tier must not render dim');
+    assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'sightings.json')));
+  });
+
   it('records a sighting in $HOME for high-confidence matches', () => {
     run(['check', 'no work found']);
     const raw = fs.readFileSync(path.join(homeDir, '.rationguard', 'sightings.json'), 'utf-8');
