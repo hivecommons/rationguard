@@ -139,12 +139,26 @@ function generateRebuttal(category: ExcuseCategory): string {
   return rebuttals[category];
 }
 
+export interface RecordSightingOptions {
+  /**
+   * Whether reaching AUTO_ADD_THRESHOLD may promote the sighting into
+   * custom-excuses.json. Defaults to true (explicit `rationguard add`).
+   * Detection call sites pass false: a detection is, by construction, a
+   * match on an excuse that already exists, so promoting its matchedText
+   * (often a single builtin keyword such as "will") only writes a
+   * degraded duplicate into the trusted store.
+   */
+  promote?: boolean;
+}
+
 export function recordSighting(
   text: string,
   category?: ExcuseCategory,
   rebuttal?: string,
   projectDir?: string,
+  opts: RecordSightingOptions = {},
 ): { isNew: boolean; count: number; autoPromoted: boolean; excuse: Excuse | null } {
+  const promote = opts.promote ?? true;
   const storePath = getStorePath(projectDir);
   if (!storePath) {
     // No resolvable home directory — refuse to persist rather than writing
@@ -166,7 +180,7 @@ export function recordSighting(
     let autoPromoted = false;
     let excuse: Excuse | null = null;
 
-    if (existing.count >= AUTO_ADD_THRESHOLD && !existing.promoted) {
+    if (promote && existing.count >= AUTO_ADD_THRESHOLD && !existing.promoted) {
       existing.promoted = true;
       autoPromoted = true;
       excuse = promoteToExcuse(existing);
@@ -270,10 +284,17 @@ export function listSightings(projectDir?: string): Sighting[] {
  * `~/.rationguard` store after `AUTO_ADD_THRESHOLD` sightings — letting an
  * untrusted pattern count toward auto-send-eligible status would defeat the
  * project/user trust boundary enforced elsewhere (see `source` on `Excuse`).
+ *
+ * Eligible matches are recorded count-only (`promote: false`). The text
+ * being recorded is `matchedText` — the excuse pattern or, for keyword
+ * matches, a single builtin keyword — so promotion could only ever add a
+ * degraded duplicate of a known excuse to the trusted store, and that
+ * duplicate would be `source: 'user'` and therefore auto-send eligible.
+ * Only an explicit `rationguard add` may promote.
  */
 export function recordSightingIfEligible(match: MatchResult): void {
   if (!match.excuse) return;
   if (match.excuse.source === 'project') return;
   if (match.confidence < AUTO_LEARN_CONFIDENCE_THRESHOLD) return;
-  recordSighting(match.matchedText, match.excuse.category);
+  recordSighting(match.matchedText, match.excuse.category, undefined, undefined, { promote: false });
 }

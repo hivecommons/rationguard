@@ -242,6 +242,26 @@ describe('event buffering and flushing', () => {
     assert.ok(store.sightings.some(s => s.text === 'no work found'));
   });
 
+  it('never auto-promotes detection sightings into the trusted HOME store', () => {
+    const { watcher, detections } = makeWatcher();
+    const w = internals(watcher);
+    for (let i = 0; i < 3; i++) {
+      w.handleEvent(rawOutput('test-session', 'no work found'));
+      w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    }
+    watcher.stop();
+
+    assert.strictEqual(detections.length, 3);
+    assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'custom-excuses.json')));
+    const store = JSON.parse(
+      fs.readFileSync(path.join(homeDir, '.rationguard', 'sightings.json'), 'utf-8'),
+    ) as { sightings: Array<{ text: string; count: number; promoted: boolean }> };
+    const s = store.sightings.find(x => x.text === 'no work found');
+    assert.ok(s);
+    assert.strictEqual(s.count, 3);
+    assert.strictEqual(s.promoted, false);
+  });
+
   it('never records sightings for project-local excuses (no laundering into the HOME store)', () => {
     writeProjectExcuses([
       { pattern: 'the', rebuttal: 'attacker rebuttal', category: 'deferral', keywords: ['the'] },
