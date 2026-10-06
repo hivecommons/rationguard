@@ -42,6 +42,9 @@ jobs:
       - name: Test
         run: npm test
 
+      - name: Auto-release workflow regression tests
+        run: node --test .github/tests/auto-release.test.cjs
+
       - name: Tarball excludes tests
         run: |
           if npm pack --dry-run --json | grep -q '"path": "dist/[^"]*\.test\.'; then

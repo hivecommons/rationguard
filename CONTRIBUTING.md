@@ -35,12 +35,22 @@ The package ships compiled files from `dist/`, but `dist/` is generated and inte
 
 ## Releases
 
-Maintainers publish by pushing a version tag that matches `v*`, for example `v0.10.5`. The tag-triggered publish workflow runs lint, build, and tests before publishing to npm with provenance:
+Prepare a release PR against `main` that bumps the version in both `package.json`
+and `package-lock.json` (for example, `npm version 0.12.0 --no-git-tag-version`)
+and moves the `## Unreleased` entries into a nonempty `## 0.12.0 - YYYY-MM-DD`
+section in `CHANGELOG.md`, leaving an empty `## Unreleased` section for future changes.
 
-```bash
-git tag v0.10.5
-git push origin v0.10.5
-```
+On merge, Auto Release creates the missing `v<version>` tag at that commit and
+explicitly dispatches Publish on the tag. An existing tag or a missing/empty
+changelog section is a no-op. Publish checks the version, main ancestry and
+changelog, then runs lint, build and tests before publishing to npm with provenance.
+Manual `v*` tag pushes remain supported.
+
+If tagging succeeds but dispatch fails, do not delete or move the tag: a maintainer
+can retry with `gh workflow run publish.yml --ref refs/tags/v0.12.0`. Auto Release
+skips existing tags, so rerunning it will not retry publishing. Before retrying a
+failed Publish run, check whether npm already published that version; if so,
+retry only the failed GitHub release job rather than republishing.
 
 The repository must have an `NPM_TOKEN` Actions secret with permission to publish `@hivecommons/rationguard`; the workflow uses it as `NODE_AUTH_TOKEN` for `npm publish --provenance --access public`.
 

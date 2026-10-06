@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -46,7 +47,7 @@ jobs:
           fi
 
   test:
-    name: Test (${{ matrix.node-version }})
+    name: Test
     needs: verify-tag
     uses: ./.github/workflows/ci.yml
     permissions:
