@@ -150,7 +150,12 @@ rationguard watch my-agent --rebuttal=send
 
 # JSON output for dashboards
 rationguard watch my-agent --json
+
+# Classify stdin through pluk's pattern matcher instead of tailing the JSONL log
+rationguard watch my-agent --mode=watch
 ```
+
+`--mode` accepts `subscribe` (default: tail the pluk JSONL log) or `watch` (classify stdin via pluk's `watch()`); any other value exits with an error.
 
 ### Mode 2: Post-response detection
 
