@@ -364,6 +364,21 @@ describe('add', () => {
     assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'sightings.json')));
   });
 
+  it('rejects an invalid --mode or --rebuttal in watch and attach', () => {
+    for (const cmd of ['watch', 'attach']) {
+      const bad = run([cmd, 'sess', '--rebuttal=sent']);
+      assert.strictEqual(bad.status, 1);
+      assert.match(stripAnsi(bad.stderr), /Unknown --rebuttal "sent"\. Valid values: log, send\./);
+      const bare = run([cmd, 'sess', '--rebuttal']);
+      assert.strictEqual(bare.status, 1);
+      assert.match(stripAnsi(bare.stderr), /bare --rebuttal/);
+    }
+    const mode = run(['watch', 'sess', '--mode=subcribe']);
+    assert.strictEqual(mode.status, 1);
+    assert.match(stripAnsi(mode.stderr), /Unknown --mode "subcribe"\. Valid modes: subscribe, watch\./);
+    assert.match(stripAnsi(run(['watch', 'sess', '--mode']).stderr), /bare --mode/);
+  });
+
   it('never promotes an excuse with an unknown category on the third sighting', () => {
     for (let i = 0; i < 3; i++) run(['add', 'I bogus thing', '--category=nonsense']);
     assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'custom-excuses.json')));
