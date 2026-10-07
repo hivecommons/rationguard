@@ -3,8 +3,8 @@ import assert from 'node:assert';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { recordSighting, loadCustomExcuses, listSightings } from './learner.js';
-import type { Excuse } from './types.js';
+import { recordSighting, recordSightingIfEligible, loadCustomExcuses, listSightings, AUTO_LEARN_CONFIDENCE_THRESHOLD } from './learner.js';
+import type { Excuse, MatchResult } from './types.js';
 
 let dir: string;
 
@@ -246,6 +246,104 @@ describe('trusted store home resolution', () => {
     delete process.env['HOME'];
     assert.ok(Array.isArray(listSightings()));
     assert.ok(Array.isArray(loadCustomExcuses()));
+  });
+});
+
+describe('recordSightingIfEligible', () => {
+  // recordSightingIfEligible always targets the trusted ~/.rationguard store,
+  // so point HOME at the per-test temp dir and inspect that.
+  const originalHome = process.env['HOME'];
+  const sightingsPath = () => path.join(dir, '.rationguard', 'sightings.json');
+  const customExcusesPath = () => path.join(dir, '.rationguard', 'custom-excuses.json');
+
+  function makeMatch(overrides: Partial<MatchResult> = {}, excuse: Partial<Excuse> | null = {}): MatchResult {
+    const base: Excuse = {
+      pattern: 'out of scope',
+      rebuttal: 'Scope is what the task says it is.',
+      category: 'deferral',
+      keywords: ['out', 'scope'],
+      source: 'user',
+    };
+    return {
+      matched: true,
+      excuse: excuse === null ? null : { ...base, ...excuse },
+      confidence: AUTO_LEARN_CONFIDENCE_THRESHOLD,
+      matchedText: "that's out of scope for this PR",
+      ...overrides,
+    };
+  }
+
+  beforeEach(() => {
+    process.env['HOME'] = dir;
+  });
+
+  afterEach(() => {
+    if (originalHome === undefined) delete process.env['HOME'];
+    else process.env['HOME'] = originalHome;
+  });
+
+  it('ignores a result with no excuse without touching the store', () => {
+    recordSightingIfEligible(makeMatch({ matched: false, confidence: 0, matchedText: '' }, null));
+    assert.ok(!fs.existsSync(path.join(dir, '.rationguard')));
+    assert.deepStrictEqual(listSightings(), []);
+  });
+
+  it('never records a project-local (untrusted) excuse, even at full confidence', () => {
+    recordSightingIfEligible(makeMatch({ confidence: 1 }, { source: 'project' }));
+    assert.ok(!fs.existsSync(path.join(dir, '.rationguard')));
+    assert.deepStrictEqual(listSightings(), []);
+  });
+
+  it('drops matches below AUTO_LEARN_CONFIDENCE_THRESHOLD', () => {
+    recordSightingIfEligible(makeMatch({ confidence: AUTO_LEARN_CONFIDENCE_THRESHOLD - 0.01 }));
+    assert.ok(!fs.existsSync(sightingsPath()));
+    assert.deepStrictEqual(listSightings(), []);
+  });
+
+  it('records a user excuse at exactly the threshold under its category', () => {
+    recordSightingIfEligible(makeMatch());
+    const sightings = listSightings();
+    assert.strictEqual(sightings.length, 1);
+    assert.strictEqual(sightings[0].text, "that's out of scope for this PR");
+    assert.strictEqual(sightings[0].count, 1);
+    assert.strictEqual(sightings[0].suggestedCategory, 'deferral');
+    assert.ok(fs.existsSync(sightingsPath()));
+  });
+
+  it('records builtin excuses (source undefined) like user excuses', () => {
+    recordSightingIfEligible(makeMatch({ confidence: 0.9 }, { source: undefined }));
+    recordSightingIfEligible(makeMatch({ confidence: 0.9 }, { source: 'builtin' }));
+    const sightings = listSightings();
+    assert.strictEqual(sightings.length, 1);
+    assert.strictEqual(sightings[0].count, 2);
+  });
+
+  it('counts repeat sightings but never promotes them into custom-excuses.json', () => {
+    for (let i = 0; i < 5; i++) recordSightingIfEligible(makeMatch({ confidence: 1 }));
+    const sightings = listSightings();
+    assert.strictEqual(sightings.length, 1);
+    assert.strictEqual(sightings[0].count, 5);
+    assert.ok(!sightings[0].promoted, 'detection sightings must stay count-only');
+    assert.ok(!fs.existsSync(customExcusesPath()), 'auto-learn must not write the trusted excuse store');
+    assert.deepStrictEqual(loadCustomExcuses(), []);
+  });
+
+  it('leaves an explicit `rationguard add` promotion free to proceed afterwards', () => {
+    for (let i = 0; i < 3; i++) recordSightingIfEligible(makeMatch({ confidence: 1 }));
+    // Same text through the explicit path (promote defaults to true) crosses
+    // AUTO_ADD_THRESHOLD and promotes exactly once.
+    const res = recordSighting("that's out of scope for this PR", 'deferral');
+    assert.strictEqual(res.autoPromoted, true);
+    const custom = loadCustomExcuses();
+    assert.strictEqual(custom.length, 1);
+    assert.strictEqual(custom[0].category, 'deferral');
+  });
+
+  it('is a no-op when no trusted home directory can be resolved', () => {
+    process.env['HOME'] = '.';
+    recordSightingIfEligible(makeMatch({ confidence: 1 }));
+    assert.ok(!fs.existsSync(path.join(process.cwd(), '.rationguard')));
+    assert.deepStrictEqual(listSightings(), []);
   });
 });
 
