@@ -42,8 +42,8 @@ jobs:
       - name: Test
         run: npm test
 
-      - name: Auto-release workflow regression tests
-        run: node --test .github/tests/auto-release.test.cjs
+      - name: Workflow regression tests
+        run: node --test .github/tests/*.test.cjs
 
       - name: Tarball excludes tests
         run: |
