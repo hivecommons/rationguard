@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - `watch`/`attach`: reject unknown `--mode` and `--rebuttal` values with exit 1 instead of silently running watch mode or never sending rebuttals (#176)
+- `sightings --json` now prints `[]` instead of ANSI-colored prose when no sightings are recorded (#175)
 - `check`/`watch`: single-keyword matches (45%) now render in the dim tier instead of yellow, making the previously unreachable dim branch of the confidence colouring live; the checker's `matched` flag is now a constant `true` for scored matches (#165)
 - Detection-derived sightings (`check`, `watch`) are now count-only: they no longer auto-promote a matched builtin keyword such as `will` into the trusted `~/.rationguard/custom-excuses.json` as a `source: user` excuse whose rebuttal `watch --rebuttal=send` would then type into the agent on every flush. Only an explicit `rationguard add` promotes (#161)
 - `watch --verbose`: route excuse patterns, rebuttals, and pluk state fields through `sanitizeForTerminal` before they reach the stderr log, so a project-local pattern can no longer inject OSC/CSI escape sequences into the operator's terminal (#127)
