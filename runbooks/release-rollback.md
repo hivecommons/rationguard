@@ -1,7 +1,10 @@
 # Runbook: rolling back a bad rationguard release
 
-`publish.yml` runs `npm test` against the tagged ref and then publishes to npm
-on every `v*` tag push. Tests reduce risk but cannot catch every regression
+Merging a version bump to `main` makes `auto-release.yml` create the `v<version>`
+tag and dispatch `publish.yml` on it (a manual `v*` tag push also triggers
+`publish.yml`). Publish verifies the tag matches `package.json`, is on `main`,
+and has a nonempty `CHANGELOG.md` section, then runs lint, build and tests
+before publishing to npm. Tests reduce risk but cannot catch every regression
 (for example, a pattern-matching false positive/negative that only shows up
 against real agent transcripts, a `pluk-send`/tmux interaction that only
 breaks in a live session, or an environment-specific failure). This runbook
@@ -54,13 +57,18 @@ release as user-impacting, not just a packaging nit.
 
 1. Branch from `main`, fix the regression, and add a regression test per
    `CONTRIBUTING.md`.
-2. Bump the version in `package.json` and land the fix through the normal PR
-   process.
-3. Tag `vX.Y.Z` on `main` once merged; `publish.yml` runs the test suite
-   against that tag and publishes automatically.
-4. Add a `## X.Y.Z` section to `CHANGELOG.md` (with a `### Fixed` entry)
-   describing the regression and the fix; `publish.yml` refuses to publish a
-   tag whose version has no nonempty section there.
+2. Bump the version in `package.json` and `package-lock.json`
+   (`npm version <X.Y.Z> --no-git-tag-version`), and move the fix entry from
+   `## Unreleased` into a nonempty `## X.Y.Z - YYYY-MM-DD` section of
+   `CHANGELOG.md` (with a `### Fixed` entry describing the regression and the
+   fix), in the same PR.
+3. Merge through the normal PR process. `auto-release.yml` tags `vX.Y.Z` and
+   dispatches `publish.yml`; do not tag by hand. An existing tag or an empty
+   changelog section makes Auto Release a no-op, so the release would silently
+   not happen.
+4. If the tag was created but Publish did not run, do not delete or move the
+   tag. Check `npm view @hivecommons/rationguard versions --json` first, then
+   retry with `gh workflow run publish.yml --ref refs/tags/vX.Y.Z`.
 
 ## After
 
