@@ -289,6 +289,15 @@ function cmdList(flags: Record<string, string>): void {
   console.log();
 }
 
+function requireOneOf(flag: string, raw: string | undefined, valid: string[], label: string): void {
+  if (raw === undefined || valid.includes(raw)) return;
+  console.error(`${ANSI_RED}Error:${ANSI_RESET} Unknown --${flag} "${sanitizeForTerminal(raw)}". ${label}: ${valid.join(', ')}.`);
+  if (raw === 'true') {
+    console.error(`  Note: write --${flag}=<value> (with '='); a bare --${flag} is parsed as "true".`);
+  }
+  process.exit(1);
+}
+
 function cmdAttach(positional: string[], flags: Record<string, string>): void {
   const session = positional[0];
 
@@ -297,6 +306,8 @@ function cmdAttach(positional: string[], flags: Record<string, string>): void {
     console.error('  rationguard attach my-agent --cli=claude --rebuttal=send');
     process.exit(1);
   }
+
+  requireOneOf('rebuttal', flags['rebuttal'], ['log', 'send'], 'Valid values');
 
   attach({
     session,
@@ -360,6 +371,8 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
     process.exit(1);
   }
 
+  requireOneOf('mode', flags['mode'], ['subscribe', 'watch'], 'Valid modes');
+  requireOneOf('rebuttal', flags['rebuttal'], ['log', 'send'], 'Valid values');
   const mode = (flags['mode'] ?? 'subscribe') as 'subscribe' | 'watch';
   const rebuttalMode = (flags['rebuttal'] ?? 'log') as 'log' | 'send';
   const jsonOutput = flags['json'] === 'true';
