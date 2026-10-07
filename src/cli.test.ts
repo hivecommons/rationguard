@@ -488,6 +488,12 @@ describe('sightings', () => {
     assert.strictEqual(parsed[0].count, 2);
   });
 
+  it('outputs an empty JSON array with --json when there are no sightings', () => {
+    const res = run(['sightings', '--json']);
+    assert.strictEqual(res.status, 0);
+    assert.deepStrictEqual(JSON.parse(res.stdout), []);
+  });
+
   it('strips terminal escape sequences from recorded sighting text', () => {
     run(['add', 'wobble\x1b[2J\x1b[H injected sighting']);
     const res = run(['sightings']);

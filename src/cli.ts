@@ -446,13 +446,13 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
 function cmdSightings(flags: Record<string, string>): void {
   const sightings = listSightings();
 
-  if (sightings.length === 0) {
-    console.log(`${ANSI_DIM}No sightings recorded yet. Use ${ANSI_CYAN}rationguard add${ANSI_RESET}${ANSI_DIM} to record excuses.${ANSI_RESET}`);
+  if (flags['json'] === 'true') {
+    console.log(JSON.stringify(sightings, null, 2));
     return;
   }
 
-  if (flags['json'] === 'true') {
-    console.log(JSON.stringify(sightings, null, 2));
+  if (sightings.length === 0) {
+    console.log(`${ANSI_DIM}No sightings recorded yet. Use ${ANSI_CYAN}rationguard add${ANSI_RESET}${ANSI_DIM} to record excuses.${ANSI_RESET}`);
     return;
   }
 
