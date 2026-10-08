@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `check`/`watch`: match builtin keywords on word boundaries instead of raw substrings (e.g. `later` no longer hits `belated`), and drop the bare `awaiting` keyword whose reduced form `await` flagged JS/TS `await` in code (#199)
 - `learner`: treat a wrong-shape sightings.json (`{}`, `[]`, `null`) as empty instead of crashing check/sightings/add/watch (#195)
 - `watch --rebuttal=send`: no longer auto-sends rebuttals for matches below the 0.7 confidence threshold (e.g. single-keyword hits); they are still reported and counted as suppressed (#190)
 - `check`/`watch`: fold curly apostrophes (U+2018/U+2019/U+02BC) and curly double quotes into ASCII before matching; the previous normalization was a no-op (#185)

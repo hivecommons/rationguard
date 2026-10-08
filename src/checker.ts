@@ -20,6 +20,14 @@ function reduceText(text: string): string {
     .trim();
 }
 
+// Substring match that requires non-alphanumeric characters (or string edges)
+// around the hit, so "later" does not match "belated". Lookarounds are used
+// instead of \b because keywords may start or end with punctuation.
+function containsKeyword(haystack: string, needle: string): boolean {
+  const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`(?<![\\p{L}\\p{N}])${escaped}(?![\\p{L}\\p{N}])`, 'u').test(haystack);
+}
+
 function scoreExcuse(text: string, excuse: Excuse): MatchResult {
   const normalized = normalizeText(text);
   const patternNorm = normalizeText(excuse.pattern);
@@ -43,7 +51,7 @@ function scoreExcuse(text: string, excuse: Excuse): MatchResult {
     // to '', and '' is a substring of every string — never let an empty
     // reduced form count as a hit.
     const kwReduced = reduceText(kw);
-    if (normalized.includes(kwNorm) || (kwReduced.length > 0 && reduced.includes(kwReduced))) {
+    if (containsKeyword(normalized, kwNorm) || (kwReduced.length > 0 && containsKeyword(reduced, kwReduced))) {
       keywordHits++;
       if (kw.length > bestMatch.length) bestMatch = kw;
     }

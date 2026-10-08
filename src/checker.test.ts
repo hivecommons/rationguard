@@ -4,6 +4,18 @@ import { check, generatePromptBlock } from './checker.js';
 import { DEFAULT_EXCUSES } from './defaults.js';
 
 describe('check', () => {
+  it('does not match keywords inside longer words', () => {
+    assert.strictEqual(check('The belated release was fine.').clean, true);
+  });
+
+  it('does not flag JS await in code', () => {
+    assert.strictEqual(check('const res = await fetch(url);').clean, true);
+  });
+
+  it('still matches keywords next to punctuation', () => {
+    assert.strictEqual(check('Let me revisit, later.').clean, false);
+  });
+
   it('detects false completion - standing by', () => {
     const result = check('Standing by for further instructions.');
     assert.strictEqual(result.clean, false);
