@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `check`: read piped stdin to EOF instead of rejecting input that arrives more than 100 ms after start (#183)
 - `watch`/`attach`: reject unknown `--mode` and `--rebuttal` values with exit 1 instead of silently running watch mode or never sending rebuttals (#176)
 - `sightings --json` now prints `[]` instead of ANSI-colored prose when no sightings are recorded (#175)
 - `check`/`watch`: single-keyword matches (45%) now render in the dim tier instead of yellow, making the previously unreachable dim branch of the confidence colouring live; the checker's `matched` flag is now a constant `true` for scored matches (#165)
