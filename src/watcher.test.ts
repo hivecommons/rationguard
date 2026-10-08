@@ -441,6 +441,63 @@ describe('rebuttal sending', () => {
     assert.strictEqual(watcher.stats().rebuttalSuppressed, 1);
   });
 
+  // Keyword confidence is 0.3 + 0.15 per hit (checker.ts), so the 0.7 send
+  // threshold sits between two hits (0.60) and three hits (0.75). Pin both
+  // sides of that boundary so a drift in either constant is caught.
+  it('suppresses a two-keyword match just below the send threshold and logs why', () => {
+    process.env['PATH'] = `${binDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
+    writeUserExcuses([
+      { pattern: 'zorble frobnitz exact phrase', rebuttal: 'boundary rebuttal', category: 'deferral', keywords: ['zorble', 'frobnitz', 'quux'] },
+    ]);
+    const logs: string[] = [];
+    const savedError = console.error;
+    console.error = (...args: unknown[]) => { logs.push(args.map(String).join(' ')); };
+    let detections: WatcherDetection[];
+    let watcher: Watcher;
+    try {
+      ({ watcher, detections } = makeWatcher({ rebuttal: 'send', verbose: true }));
+      const w = internals(watcher);
+      w.handleEvent(rawOutput('test-session', 'the zorble and the frobnitz are queued'));
+      w.handleEvent(stateChange('test-session', 'working', 'idle'));
+      watcher.stop();
+    } finally {
+      console.error = savedError;
+    }
+
+    assert.strictEqual(detections.length, 1);
+    assert.strictEqual(detections[0].result.matches[0].confidence, 0.6);
+    assert.strictEqual(detections[0].sentRebuttals, undefined);
+    assert.strictEqual(fs.existsSync(argsFile), false, 'pluk-send must not be invoked at 60% confidence');
+    assert.strictEqual(watcher.stats().rebuttalSuppressed, 1);
+    assert.strictEqual(watcher.stats().rebuttalSent, 0);
+    const skipLine = logs.find(l => l.includes('low confidence 60%'));
+    assert.ok(skipLine, `expected low-confidence skip log, got: ${logs.join(' | ')}`);
+    assert.ok(skipLine.includes('zorble frobnitz exact phrase'));
+  });
+
+  it('sends a three-keyword match that clears the send threshold', () => {
+    process.env['PATH'] = `${binDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
+    writeUserExcuses([
+      { pattern: 'zorble frobnitz quux exact phrase', rebuttal: 'boundary rebuttal', category: 'deferral', keywords: ['zorble', 'frobnitz', 'quux'] },
+    ]);
+    const { watcher, detections } = makeWatcher({ rebuttal: 'send' });
+    const w = internals(watcher);
+    w.handleEvent(rawOutput('test-session', 'the zorble, the frobnitz and the quux are queued'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    watcher.stop();
+
+    assert.strictEqual(detections.length, 1);
+    assert.strictEqual(detections[0].result.matches[0].confidence, 0.75);
+    assert.deepStrictEqual(detections[0].sentRebuttals, ['zorble frobnitz quux exact phrase']);
+    assert.strictEqual(watcher.stats().rebuttalSuppressed, 0);
+    assert.strictEqual(watcher.stats().rebuttalSent, 1);
+    const args = fs.readFileSync(argsFile, 'utf-8').split('\n');
+    assert.strictEqual(args[0], '--session=test-session');
+    assert.strictEqual(args[1], '--text=boundary rebuttal');
+  });
+
   it('deduplicates identical rebuttal texts within one flush', () => {
     process.env['PATH'] = `${binDir}:${savedPath}`;
     process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
