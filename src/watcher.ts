@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { check } from './checker.js';
-import { recordSightingIfEligible } from './learner.js';
+import { recordSightingIfEligible, REBUTTAL_SEND_CONFIDENCE_THRESHOLD } from './learner.js';
 import { getAllExcuses } from './excuses.js';
 import { sanitizeForTerminal, stripTerminalEscapes } from './sanitize.js';
 import type { Excuse, CheckResult, MatchResult } from './types.js';
@@ -325,6 +325,11 @@ export class Watcher extends EventEmitter {
           if (!match.excuse) continue;
           if (match.excuse.source === 'project') {
             this.log(`skipping rebuttal for "${this.safe(match.excuse.pattern)}" (project-local excuse — untrusted working directory, detection only)`);
+            continue;
+          }
+          if (match.confidence < REBUTTAL_SEND_CONFIDENCE_THRESHOLD) {
+            this.log(`skipping rebuttal for "${this.safe(match.excuse.pattern)}" (low confidence ${Math.round(match.confidence * 100)}%, detection only)`);
+            this.stats_.rebuttalSuppressed++;
             continue;
           }
           const key = match.excuse.pattern;

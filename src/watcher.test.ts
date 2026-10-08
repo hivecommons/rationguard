@@ -422,6 +422,25 @@ describe('rebuttal sending', () => {
     assert.strictEqual(textArg, '--text=line one line two [31m trailing');
   });
 
+  it('does not send a rebuttal for a low-confidence single-keyword match', () => {
+    process.env['PATH'] = `${binDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
+    writeUserExcuses([
+      { pattern: 'zorble exact phrase', rebuttal: 'low confidence rebuttal', category: 'deferral', keywords: ['zorble', 'frobnitz'] },
+    ]);
+    const { watcher, detections } = makeWatcher({ rebuttal: 'send' });
+    const w = internals(watcher);
+    w.handleEvent(rawOutput('test-session', 'the zorble is in the queue'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    watcher.stop();
+
+    assert.strictEqual(detections.length, 1);
+    assert.ok(detections[0].result.matches[0].confidence < 0.7);
+    assert.strictEqual(detections[0].sentRebuttals, undefined);
+    assert.strictEqual(fs.existsSync(argsFile), false, 'pluk-send must not be invoked for a low-confidence match');
+    assert.strictEqual(watcher.stats().rebuttalSuppressed, 1);
+  });
+
   it('deduplicates identical rebuttal texts within one flush', () => {
     process.env['PATH'] = `${binDir}:${savedPath}`;
     process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
