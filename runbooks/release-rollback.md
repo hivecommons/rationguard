@@ -43,10 +43,18 @@ release as user-impacting, not just a packaging nit.
    ```sh
    npm deprecate @hivecommons/rationguard@<bad-version> "Known issue: <short description>, use <good-version> instead"
    ```
-2. **Do not `npm unpublish`** unless the version is less than 72 hours old and
+2. **Move `latest` back to the last known-good version.** `publish.yml` runs a
+   plain `npm publish`, so the bad version is `latest` and a plain
+   `npm install` still resolves to it until the tag moves (deprecation only
+   adds a warning). Requires publish rights on the package:
+   ```sh
+   npm dist-tag add @hivecommons/rationguard@<last-good-version> latest
+   ```
+   Once the fix ships, the next publish moves `latest` forward again.
+3. **Do not `npm unpublish`** unless the version is less than 72 hours old and
    npm's unpublish policy allows it — unpublishing an older version can break
    other projects that already resolved to it. Prefer deprecate + forward fix.
-3. If the bad version broke detection or rebuttal delivery for active hive
+4. If the bad version broke detection or rebuttal delivery for active hive
    sessions, tell operators to pin the last known-good version until a fix
    ships:
    ```sh
@@ -73,7 +81,7 @@ release as user-impacting, not just a packaging nit.
 ## After
 
 - Confirm `npm view @hivecommons/rationguard@latest version` matches the new
-  patched release.
+  patched release (or the last known-good version while a fix is pending).
 - Confirm the deprecation notice on the bad version is still visible
   (`npm view @hivecommons/rationguard@<bad-version>` shows the `deprecated`
   field).
