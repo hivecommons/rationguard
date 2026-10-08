@@ -206,6 +206,15 @@ describe('event buffering and flushing', () => {
     watcher.stop();
   });
 
+  it('detects phrases split by inline ANSI SGR codes', () => {
+    const { watcher, detections } = makeWatcher();
+    const w = internals(watcher);
+    w.handleEvent(rawOutput('test-session', 'all \x1b[1mdone\x1b[0m / steady state'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    assert.strictEqual(detections.length, 1);
+    watcher.stop();
+  });
+
   it('flushBuffer is a no-op when the buffer is empty', () => {
     const { watcher, detections } = makeWatcher();
     internals(watcher).flushBuffer();

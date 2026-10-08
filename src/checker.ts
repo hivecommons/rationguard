@@ -9,7 +9,7 @@ const FILLER_WORDS = /\b(is|are|was|were|been|being|has|have|had|do|does|did|wil
 const VERB_SUFFIXES = /\b(\w+?)(ing|ed|s)\b/g;
 
 function normalizeText(text: string): string {
-  return text.toLowerCase().replace(/['']/g, "'").replace(/\s+/g, ' ').trim();
+  return text.toLowerCase().replace(/[\u2018\u2019\u02BC]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(/\s+/g, ' ').trim();
 }
 
 function reduceText(text: string): string {

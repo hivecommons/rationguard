@@ -269,15 +269,14 @@ export class Watcher extends EventEmitter {
       this.flushTimer = null;
     }
 
-    // Only used to build the human-readable log preview below; pattern
-    // matching runs against the raw, unstripped `text`. Uses the shared
-    // escape-stripping helper from sanitize.ts so this cleanup can't drift
+    // Strip escapes before matching so inline SGR codes cannot split phrases.
+    // Uses the shared helper from sanitize.ts so this cleanup can't drift
     // out of sync with the operator-facing print-safety boundary.
     const stripped = stripTerminalEscapes(text, '').trim();
     const preview = stripped.slice(0, 200).replace(/\n/g, ' ');
     this.log(`flush #${this.flushCount}: checking ${lineCount} lines (${text.length} chars)`);
     this.log(`flush #${this.flushCount}: text: "${preview}${stripped.length > 200 ? '...' : ''}"`);
-    const result = check(text, { excuses: this.excuses });
+    const result = check(stripped, { excuses: this.excuses });
 
     if (result.clean) {
       this.log(`flush #${this.flushCount}: clean`);

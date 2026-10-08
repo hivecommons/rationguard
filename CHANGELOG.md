@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `check`/`watch`: fold curly apostrophes (U+2018/U+2019/U+02BC) and curly double quotes into ASCII before matching; the previous normalization was a no-op (#185)
+- `watch`: run pattern matching on ANSI-stripped text so inline SGR codes no longer split phrases and hide detections (#186)
 - `check`: read piped stdin to EOF instead of rejecting input that arrives more than 100 ms after start (#183)
 - `watch`/`attach`: reject unknown `--mode` and `--rebuttal` values with exit 1 instead of silently running watch mode or never sending rebuttals (#176)
 - `sightings --json` now prints `[]` instead of ANSI-colored prose when no sightings are recorded (#175)
