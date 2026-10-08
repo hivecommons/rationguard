@@ -66,10 +66,31 @@ function getStorePath(projectDir?: string): string | null {
   return base ? path.join(base, SIGHTINGS_FILE) : null;
 }
 
+function isValidSighting(value: unknown): value is Sighting {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const s = value as Record<string, unknown>;
+  return (
+    typeof s['text'] === 'string' &&
+    typeof s['count'] === 'number' &&
+    typeof s['firstSeen'] === 'string' &&
+    typeof s['lastSeen'] === 'string' &&
+    typeof s['suggestedCategory'] === 'string' &&
+    s['suggestedCategory'] in CATEGORY_LABELS &&
+    typeof s['suggestedRebuttal'] === 'string' &&
+    typeof s['promoted'] === 'boolean'
+  );
+}
+
 function loadStore(storePath: string): SightingsStore {
   try {
     const raw = fs.readFileSync(storePath, 'utf-8');
-    return JSON.parse(raw) as SightingsStore;
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+      return { sightings: [] };
+    }
+    const sightings = (parsed as Record<string, unknown>)['sightings'];
+    if (!Array.isArray(sightings)) return { sightings: [] };
+    return { sightings: sightings.filter(isValidSighting) };
   } catch {
     return { sightings: [] };
   }

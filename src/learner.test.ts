@@ -359,6 +359,43 @@ describe('listSightings', () => {
     assert.deepStrictEqual(listSightings(dir), []);
   });
 
+  for (const content of ['{}', '[]', 'null', '{"sightings": null}']) {
+    it(`treats wrong-shape sightings.json (${content}) as empty`, () => {
+      const base = path.join(dir, '.rationguard');
+      const file = path.join(base, 'sightings.json');
+      fs.mkdirSync(base, { recursive: true });
+      fs.writeFileSync(file, content);
+      assert.deepStrictEqual(listSightings(dir), []);
+      const result = recordSighting('fresh excuse', undefined, undefined, dir);
+      assert.strictEqual(result.isNew, true);
+      assert.strictEqual(result.count, 1);
+      const rewritten = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      assert.ok(Array.isArray(rewritten.sightings));
+      assert.strictEqual(rewritten.sightings.length, 1);
+    });
+  }
+
+  it('drops invalid sighting entries and keeps valid ones', () => {
+    const base = path.join(dir, '.rationguard');
+    fs.mkdirSync(base, { recursive: true });
+    const valid = {
+      text: 'good',
+      count: 2,
+      firstSeen: '2026-01-01T00:00:00.000Z',
+      lastSeen: '2026-01-02T00:00:00.000Z',
+      suggestedCategory: 'deferral',
+      suggestedRebuttal: 'do it',
+      promoted: false,
+    };
+    fs.writeFileSync(
+      path.join(base, 'sightings.json'),
+      JSON.stringify({
+        sightings: [valid, null, 'str', [], { ...valid, count: '2' }, { ...valid, suggestedCategory: 'nope' }],
+      }),
+    );
+    assert.deepStrictEqual(listSightings(dir), [valid]);
+  });
+
   it('sorts sightings by count descending', () => {
     recordSighting('seen once', undefined, undefined, dir);
     recordSighting('seen twice', undefined, undefined, dir);
