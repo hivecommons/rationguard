@@ -14,6 +14,13 @@ const AUTO_ADD_THRESHOLD = 3;
  */
 export const AUTO_LEARN_CONFIDENCE_THRESHOLD = 0.7;
 
+/**
+ * Minimum confidence for `watch --rebuttal=send` to inject a rebuttal into the
+ * agent session. Lower-confidence matches (e.g. a single keyword hit) are
+ * still reported but never auto-sent.
+ */
+export const REBUTTAL_SEND_CONFIDENCE_THRESHOLD = AUTO_LEARN_CONFIDENCE_THRESHOLD;
+
 interface Sighting {
   text: string;
   count: number;

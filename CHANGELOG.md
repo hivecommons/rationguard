@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `watch --rebuttal=send`: no longer auto-sends rebuttals for matches below the 0.7 confidence threshold (e.g. single-keyword hits); they are still reported and counted as suppressed (#190)
 - `check`/`watch`: fold curly apostrophes (U+2018/U+2019/U+02BC) and curly double quotes into ASCII before matching; the previous normalization was a no-op (#185)
 - `watch`: run pattern matching on ANSI-stripped text so inline SGR codes no longer split phrases and hide detections (#186)
 - `check`: read piped stdin to EOF instead of rejecting input that arrives more than 100 ms after start (#183)
