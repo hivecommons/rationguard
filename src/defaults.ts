@@ -24,7 +24,7 @@ export const DEFAULT_EXCUSES: Excuse[] = [
     pattern: 'standing by / awaiting instructions',
     rebuttal: 'You are not a receptionist. Check your task queue, scan for issues, or find work proactively.',
     category: 'false-completion',
-    keywords: ['standing by', 'awaiting', 'waiting for instructions', 'ready for', 'let me know', 'whenever you', 'available if you need', 'on standby'],
+    keywords: ['standing by', 'waiting for instructions', 'ready for', 'let me know', 'whenever you', 'available if you need', 'on standby'],
   },
 
   // --- Complexity Dodge ---
