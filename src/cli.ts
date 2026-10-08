@@ -110,20 +110,16 @@ ${ANSI_BOLD}OUTPUT${ANSI_RESET}
 `;
 
 async function readStdin(): Promise<string> {
-  const STDIN_TIMEOUT_MS = 100;
   return new Promise((resolve) => {
     if (process.stdin.isTTY) {
       resolve('');
       return;
     }
     const chunks: Buffer[] = [];
-    const timer = setTimeout(() => resolve(''), STDIN_TIMEOUT_MS);
     process.stdin.on('data', (chunk) => {
-      clearTimeout(timer);
       chunks.push(chunk as Buffer);
     });
     process.stdin.on('end', () => {
-      clearTimeout(timer);
       resolve(Buffer.concat(chunks).toString('utf-8').trim());
     });
   });

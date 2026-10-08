@@ -654,8 +654,8 @@ describe('sessions with discovered sessions', () => {
   });
 });
 
-describe('stdin timeout', () => {
-  it('exits 1 with "No input" when piped stdin stays open but silent', async () => {
+describe('slow piped stdin', () => {
+  it('exits 1 with "No input" when piped stdin closes without data', async () => {
     const child = spawn(process.execPath, [CLI, 'check'], {
       cwd: projectDir,
       env: { ...process.env, HOME: homeDir },
@@ -663,10 +663,25 @@ describe('stdin timeout', () => {
     });
     let stderr = '';
     child.stderr!.on('data', (d: Buffer) => { stderr += d.toString(); });
-    // Never write to or end stdin — the CLI's 100ms stdin timer must fire.
+    child.stdin!.end();
     const code = await waitForExit(child);
     assert.strictEqual(code, 1);
     assert.match(stripAnsi(stderr), /No input/);
+  });
+
+  it('reads input that arrives well after 100ms', async () => {
+    const child = spawn(process.execPath, [CLI, 'check', '--json'], {
+      cwd: projectDir,
+      env: { ...process.env, HOME: homeDir },
+      stdio: ['pipe', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    child.stdout!.on('data', (d: Buffer) => { stdout += d.toString(); });
+    await new Promise((r) => setTimeout(r, 400));
+    child.stdin!.end('I will do that later\n');
+    const code = await waitForExit(child);
+    assert.notStrictEqual(code, 1);
+    assert.doesNotThrow(() => JSON.parse(stdout));
   });
 });
 
