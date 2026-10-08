@@ -100,6 +100,11 @@ describe('check', () => {
   // The CLI's colour tiers (cli.ts colorConfidence) assume the matcher's
   // confidence floor. Pin that floor so a change to KEYWORD_WEIGHT or
   // MIN_KEYWORD_CONFIDENCE has to revisit the tiers deliberately.
+  it('folds curly apostrophes into ASCII before matching', () => {
+    const result = check('that is another agent/team\u2019s job');
+    assert.strictEqual(result.matches[0]?.confidence, 1.0);
+  });
+
   describe('confidence floor', () => {
     // 1 * KEYWORD_WEIGHT + MIN_KEYWORD_CONFIDENCE; 0.15 + 0.3 is
     // 0.44999999999999996 in IEEE doubles, so compare with a tolerance.
