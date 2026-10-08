@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.12.0 - 2026-10-10
+
 ### Added
 
 - `watch --log-format=json`: opt-in JSON line per rebuttal delivery (`event`, `session`, `delivery`, `timestamp`) on stderr (#217)
