@@ -8,6 +8,13 @@ describe('check', () => {
     assert.strictEqual(check('The belated release was fine.').clean, true);
   });
 
+  it('still matches inflected forms of short keywords', () => {
+    assert.strictEqual(check('I deferred it.').clean, false);
+    assert.strictEqual(check('We are deferring this to the next cycle.').clean, false);
+    assert.strictEqual(check('I postponed it.').clean, false);
+    assert.strictEqual(check('I am postponing it.').clean, false);
+  });
+
   it('does not flag JS await in code', () => {
     assert.strictEqual(check('const res = await fetch(url);').clean, true);
   });

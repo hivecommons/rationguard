@@ -52,7 +52,7 @@ export const DEFAULT_EXCUSES: Excuse[] = [
     pattern: 'will handle next pass / next cycle',
     rebuttal: 'If you identified a problem, act NOW. At minimum open a tracking issue. Deferral without a concrete blocker is procrastination.',
     category: 'deferral',
-    keywords: ['next pass', 'next cycle', 'next iteration', 'next time', 'later', 'defer', 'postpone', 'will address', 'circle back', 'revisit', 'follow up later', 'come back to', 'table this'],
+    keywords: ['next pass', 'next cycle', 'next iteration', 'next time', 'later', 'defer', 'deferred', 'deferring', 'postpone', 'postponed', 'postponing', 'will address', 'circle back', 'revisit', 'follow up later', 'come back to', 'table this'],
   },
   {
     pattern: 'waiting for CI / waiting for response',
