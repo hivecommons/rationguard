@@ -8,7 +8,7 @@ import type { ExcuseCategory, Excuse } from './types.js';
 import { Watcher } from './watcher.js';
 import type { WatcherDetection } from './watcher.js';
 import { discoverSessions, attach, type SessionInfo } from '@hivecommons/pluk';
-import { sanitizeForTerminal } from './sanitize.js';
+import { sanitizeForTerminal, stringifyForTerminal } from './sanitize.js';
 import { startDiagnostics } from './diagnostics.js';
 import fs from 'node:fs';
 
@@ -173,7 +173,7 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
   const result = check(input, { excuses: allExcuses });
 
   if (flags['json'] === 'true') {
-    console.log(JSON.stringify(result, null, 2));
+    console.log(stringifyForTerminal(result, 2));
     return;
   }
 
@@ -264,7 +264,7 @@ function cmdList(flags: Record<string, string>): void {
   const allExcuses = getAllExcuses();
 
   if (flags['json'] === 'true') {
-    console.log(JSON.stringify(allExcuses, null, 2));
+    console.log(stringifyForTerminal(allExcuses, 2));
     return;
   }
 
@@ -326,7 +326,7 @@ function cmdSessions(flags: Record<string, string>): void {
   const sessions = discoverSessions(runDir);
 
   if (flags['json'] === 'true') {
-    console.log(JSON.stringify(sessions, null, 2));
+    console.log(stringifyForTerminal(sessions, 2));
     return;
   }
 
@@ -389,7 +389,7 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
     verbose,
     onDetection(detection: WatcherDetection) {
       if (jsonOutput) {
-        console.log(JSON.stringify({
+        console.log(stringifyForTerminal({
           timestamp: detection.timestamp,
           session,
           matches: detection.matches.map(m => ({
@@ -443,7 +443,7 @@ function cmdSightings(flags: Record<string, string>): void {
   const sightings = listSightings();
 
   if (flags['json'] === 'true') {
-    console.log(JSON.stringify(sightings, null, 2));
+    console.log(stringifyForTerminal(sightings, 2));
     return;
   }
 

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { sanitizeForTerminal } from './sanitize.js';
+import { sanitizeForTerminal, stringifyForTerminal } from './sanitize.js';
 
 describe('sanitizeForTerminal', () => {
   it('strips ESC-based ANSI/CSI sequences', () => {
@@ -39,5 +39,25 @@ describe('sanitizeForTerminal', () => {
 
   it('is a no-op for plain text', () => {
     assert.strictEqual(sanitizeForTerminal('plain excuse text'), 'plain excuse text');
+  });
+});
+
+describe('stringifyForTerminal', () => {
+  it('escapes DEL and C1 control code points that JSON.stringify leaves raw', () => {
+    const out = stringifyForTerminal({ t: 'a\x7fb\x80c\x9bd\x9fe' });
+    assert.ok(!/[\x7f-\x9f]/.test(out), 'no raw DEL/C1 code point may remain');
+    assert.strictEqual(out, '{"t":"a\\u007fb\\u0080c\\u009bd\\u009fe"}');
+  });
+
+  it('round-trips to the same value and keeps C0/ESC escaped', () => {
+    const value = { s: '\x1b]0;x\x07\x9b2J\x00plain\u2028', n: [1, null, true] };
+    const out = stringifyForTerminal(value, 2);
+    assert.ok(!out.includes('\x1b') && !out.includes('\x9b') && !out.includes('\x00'));
+    assert.deepStrictEqual(JSON.parse(out), value);
+  });
+
+  it('honours the indent argument like JSON.stringify', () => {
+    assert.strictEqual(stringifyForTerminal({ a: 1 }, 2), JSON.stringify({ a: 1 }, null, 2));
+    assert.strictEqual(stringifyForTerminal([1, 2]), '[1,2]');
   });
 });

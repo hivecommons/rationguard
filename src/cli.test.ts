@@ -244,6 +244,32 @@ describe('check', () => {
     assert.match(stripAnsi(res.stdout), /zorble.*injected pattern/);
     assert.match(stripAnsi(res.stdout), /hidden/);
   });
+
+  it('escapes 8-bit C1 controls in --json output instead of emitting them raw', () => {
+    const dir = path.join(projectDir, '.rationguard');
+    fs.mkdirSync(dir, { recursive: true });
+    // U+009B is the 8-bit CSI introducer, U+009D/U+009C the 8-bit OSC/ST
+    // pair — JSON.stringify leaves all three as raw code points.
+    fs.writeFileSync(
+      path.join(dir, 'custom-excuses.json'),
+      JSON.stringify([
+        {
+          pattern: 'zorble c1 pattern',
+          rebuttal: 'zorble\u009b2J\u009d0;pwned\u009c rebuttal',
+          category: 'deferral',
+          keywords: ['zorble'],
+        },
+      ]) + '\n',
+    );
+    for (const args of [['check', 'zorble c1 pattern', '--json'], ['list', '--json']]) {
+      const res = run(args);
+      assert.strictEqual(res.status, 0, args.join(' '));
+      assert.ok(!/[\x7f-\x9f]/.test(res.stdout), `${args.join(' ')}: raw C1 code point leaked to stdout`);
+      assert.match(res.stdout, /\\u009b2J\\u009d0;pwned\\u009c/);
+      const parsed = JSON.parse(res.stdout) as unknown;
+      assert.ok(JSON.stringify(parsed).includes('zorble\u009b2J\u009d0;pwned\u009c rebuttal'), 'value must round-trip unchanged');
+    }
+  });
 });
 
 describe('prompt', () => {

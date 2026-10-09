@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `check`/`list`/`sightings`/`sessions`/`watch --json`: escape DEL and C1 control code points (U+007F–U+009F, including the 8-bit CSI/OSC introducers) as `\uXXXX` in JSON output, which `JSON.stringify` otherwise emits raw; the output stays valid JSON and parses to the same value (#201)
 - `check`/`watch`: match builtin keywords on word boundaries instead of raw substrings (e.g. `later` no longer hits `belated`), and drop the bare `awaiting` keyword whose reduced form `await` flagged JS/TS `await` in code (#199)
 - `learner`: treat a wrong-shape sightings.json (`{}`, `[]`, `null`) as empty instead of crashing check/sightings/add/watch (#195)
 - `watch --rebuttal=send`: no longer auto-sends rebuttals for matches below the 0.7 confidence threshold (e.g. single-keyword hits); they are still reported and counted as suppressed (#190)
