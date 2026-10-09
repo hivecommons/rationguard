@@ -15,6 +15,55 @@ describe('check', () => {
     assert.strictEqual(check('I am postponing it.').clean, false);
   });
 
+  // #200 moved keyword matching to word boundaries, so an inflected word only
+  // hits when reduceText() stems the text and the keyword to the same form.
+  // Pin the inflections that work today for every excuse category, so the next
+  // change to normalizeText/reduceText/containsKeyword cannot silently regress
+  // them the way #200 regressed "deferred"/"postponed" (#203).
+  describe('inflected keyword forms reduce to the keyword', () => {
+    const cases: Array<[input: string, category: string, keyword: string]> = [
+      ['Tests passed on CI.', 'false-completion', 'tests pass'],
+      ['All checks passed.', 'false-completion', 'checks pass'],
+      ['I am finishing everything.', 'false-completion', 'finished everything'],
+      ['Completing all of them.', 'false-completion', 'completed all'],
+      ['Idles happen.', 'false-completion', 'idle'],
+      ['I needed approval first.', 'complexity-dodge', 'needs approval'],
+      ['It requires reviewing.', 'complexity-dodge', 'requires review'],
+      ['I revisited it yesterday.', 'deferral', 'revisit'],
+      ['Revisits are planned.', 'deferral', 'revisit'],
+      ['It defers to the next owner.', 'deferral', 'defer'],
+      ['I am opening a ticket.', 'deferral', 'opened a ticket'],
+      ['I am creating an issue.', 'deferral', 'created an issue'],
+      ['I am filing an issue.', 'deferral', 'filed an issue'],
+      ['I am logging it.', 'deferral', 'logged it'],
+      ['It is blocking on review.', 'deferral', 'blocked on'],
+      ['I am starting work on it.', 'partial-credit', 'started working'],
+      ['It seemed fine to me.', 'partial-credit', 'seems fine'],
+      ['It looked ok.', 'partial-credit', 'looks ok'],
+      ['It appeared to be correct.', 'partial-credit', 'appears to be'],
+    ];
+
+    for (const [input, category, keyword] of cases) {
+      it(`${JSON.stringify(input)} hits ${JSON.stringify(keyword)} (${category})`, () => {
+        const result = check(input);
+        assert.strictEqual(result.clean, false, `expected a match for ${JSON.stringify(input)}`);
+        const hit = result.matches.find(m => m.excuse?.category === category && m.excuse.keywords.includes(keyword));
+        assert.ok(hit, `expected a ${category} match via keyword ${JSON.stringify(keyword)}; got ${JSON.stringify(result.matches.map(m => [m.excuse?.category, m.matchedText]))}`);
+      });
+    }
+  });
+
+  it('a keyword hit reached only through the reduced text scores like a direct hit', () => {
+    // "revisited" is not a substring of the normalized text's keyword list;
+    // it is found only because reduceText() strips "-ed". Its confidence must
+    // still be the single-keyword floor rather than 0 or an exact-match 1.0.
+    const result = check('I revisited it yesterday.');
+    assert.strictEqual(result.matches.length, 1);
+    assert.strictEqual(result.matches[0].matchedText, 'revisit');
+    // 0.15 + 0.3 is 0.44999999999999996 in IEEE doubles.
+    assert.ok(Math.abs(result.matches[0].confidence - 0.45) < 1e-9, String(result.matches[0].confidence));
+  });
+
   it('does not flag JS await in code', () => {
     assert.strictEqual(check('const res = await fetch(url);').clean, true);
   });
