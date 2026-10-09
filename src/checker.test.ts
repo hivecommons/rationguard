@@ -134,6 +134,28 @@ describe('check', () => {
     }
   });
 
+  it('does not exact-match a pattern inside a longer word', () => {
+    const excuse = {
+      pattern: 'later',
+      rebuttal: 'Do it now.',
+      category: 'deferral' as const,
+      keywords: [],
+    };
+    assert.strictEqual(check('the report was belated', { excuses: [excuse] }).clean, true);
+    const hit = check('Fine, later.', { excuses: [excuse] });
+    assert.strictEqual(hit.matches[0].confidence, 1);
+  });
+
+  it('exact-matches a multi-word pattern surrounded by punctuation', () => {
+    const excuse = {
+      pattern: 'out of scope',
+      rebuttal: 'Do it now.',
+      category: 'deferral' as const,
+      keywords: [],
+    };
+    assert.strictEqual(check('That is (out of scope), sorry.', { excuses: [excuse] }).clean, false);
+  });
+
   it('accepts custom excuse config', () => {
     const result = check('Synergizing the deliverables', {
       excuses: [{
