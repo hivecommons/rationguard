@@ -290,6 +290,7 @@ const block = generatePromptBlock();
 Operational procedures live in [`runbooks/`](runbooks/):
 
 - [`watch-session-degraded.md`](runbooks/watch-session-degraded.md) — `rationguard watch` is quiet or rebuttals are not arriving
+- [`learned-excuses-store.md`](runbooks/learned-excuses-store.md) — learned excuses or sightings disappeared
 - [`release-rollback.md`](runbooks/release-rollback.md) — rolling back a bad release
 - [`postmortem-template.md`](runbooks/postmortem-template.md) — incident postmortem template
 
