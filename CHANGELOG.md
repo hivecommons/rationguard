@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Added
+
+- `runbooks/learned-excuses-store.md`: recovery steps for a silently emptied sightings/custom-excuses store
+
 ### Fixed
 
 - `check`/`watch`: apply the same word-boundary matching to exact excuse patterns, so a short pattern such as `later` no longer matches inside `belated` at 100% confidence (#207)
