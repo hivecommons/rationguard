@@ -43,6 +43,8 @@ ${ANSI_BOLD}QUICK START${ANSI_RESET}
     --verbose                          Show debug output for each step
     --command=<path>                   Override the CLI executable (bypasses --cli resolution)
     --no-raw                           Don't include raw terminal bytes in the pluk event log
+    --cli-args="<args>"                Extra arguments passed to the agent CLI
+    --run-dir=/var/run/pluk            Pluk run directory
 
 ${ANSI_BOLD}USAGE${ANSI_RESET}
 
@@ -55,10 +57,11 @@ ${ANSI_BOLD}USAGE${ANSI_RESET}
     --json                             Output as JSON
 
   ${ANSI_CYAN}rationguard watch${ANSI_RESET} <session>        Real-time detection via pluk event stream
-    --cli=claude                       CLI type (claude, copilot, gemini, goose)
+    --cli=claude                       CLI type (claude, copilot, gemini, goose, codex)
     --mode=subscribe                   subscribe (tail JSONL) or watch (classify stdin)
     --rebuttal=log                     log (print) or send (pluk-send back)
     --run-dir=/var/run/pluk            Pluk run directory
+    --patterns-dir=<path>              Override pluk's CLI pattern directory
     --json                             Output detections as JSON
     --verbose                          Show debug output
     --diagnostics[=secs]               Periodic bounded health summary on stderr (default 60s)
