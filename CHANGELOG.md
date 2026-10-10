@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Fixed
+
+- `check`: stem text and keywords symmetrically (silent-e, doubled consonants, `ss` endings, short stems) so `idled`, `addressed`, `need approval`, `circled back`, `moving on`, `tabled this` match their keywords again; add `making progress` / `coming back to` keywords (#205)
+
 ## 0.12.0 - 2026-10-10
 
 ### Added

@@ -6,7 +6,25 @@ const EXACT_MATCH_CONFIDENCE = 1.0;
 const KEYWORD_WEIGHT = 0.15;
 
 const FILLER_WORDS = /\b(is|are|was|were|been|being|has|have|had|do|does|did|will|would|shall|should|can|could|may|might|must|the|a|an|so|just|very|really|quite|all|also|still)\b/g;
-const VERB_SUFFIXES = /\b(\w+?)(ing|ed|s)\b/g;
+// Suffix stripping keeps a stem of at least three letters so short words
+// survive ("need" is not "ne" + "ed"); a bare "s" is not stripped from an
+// "ss" ending ("address" is not a plural of "addres").
+const INFLECTION_SUFFIX = /^([a-z]{3,}?)(ing|ed|es)$/;
+const PLURAL_SUFFIX = /^([a-z]{2,}?[a-rt-z])s$/;
+
+// Crude symmetric stemmer: it does not have to produce real English stems,
+// only the same stem for every inflection of a word, because it is applied
+// to both the text and the keyword. "idle"/"idled"/"idling" -> "idl",
+// "address"/"addressed"/"addresses" -> "addres", "log"/"logged" -> "log".
+function stemWord(word: string): string {
+  let w = word.replace(INFLECTION_SUFFIX, '$1');
+  if (w === word) w = word.replace(PLURAL_SUFFIX, '$1');
+  // deferr -> defer, logg -> log, pass -> pas
+  if (w.length > 3) w = w.replace(/([^aeiou])\1$/, '$1');
+  // idle -> idl, circle -> circl, file -> fil, create -> creat
+  if (w.length > 3 && w.endsWith('e')) w = w.slice(0, -1);
+  return w;
+}
 
 function normalizeText(text: string): string {
   return text.toLowerCase().replace(/[\u2018\u2019\u02BC]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(/\s+/g, ' ').trim();
@@ -15,7 +33,7 @@ function normalizeText(text: string): string {
 function reduceText(text: string): string {
   return normalizeText(text)
     .replace(FILLER_WORDS, '')
-    .replace(VERB_SUFFIXES, '$1')
+    .replace(/[a-z]+/g, stemWord)
     .replace(/\s+/g, ' ')
     .trim();
 }
