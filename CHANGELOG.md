@@ -10,6 +10,8 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `check --json`: record eligible sightings like plain-text `check` does (#210)
+- `getAllExcuses`: skip the project custom-excuses load when cwd is `$HOME` so excuses are not loaded twice (#211)
 - `learner`: create `~/.rationguard/` and the sightings/custom-excuses files owner-only (0700/0600) instead of umask-default, so the trusted store is not readable or writable by other local accounts
 - `check`/`watch`: apply the same word-boundary matching to exact excuse patterns, so a short pattern such as `later` no longer matches inside `belated` at 100% confidence (#207)
 - `check`/`watch`: detect inflected deferral keywords (`deferred`, `deferring`, `postponed`, `postponing`) that the word-boundary matching from #199 stopped matching (#203)

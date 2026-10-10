@@ -44,7 +44,7 @@ interface SightingsStore {
  * .rationguard/custom-excuses.json bypass every project-source guard
  * (rebuttal auto-send, prompt-block inclusion, sighting auto-promotion).
  */
-function getTrustedBase(): string | null {
+export function getTrustedBase(): string | null {
   let home = process.env['HOME'];
   if (!home) {
     try {
