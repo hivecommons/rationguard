@@ -15,6 +15,47 @@ describe('check', () => {
     assert.strictEqual(check('I am postponing it.').clean, false);
   });
 
+  // #205: the stemmer must land the text and the keyword on the same form
+  // for silent-e verbs (idle, circle, file, table, move), doubled consonants
+  // (log/logged), "ss" endings (address) and short stems (need/needs).
+  describe('stems silent-e, doubled-consonant and base forms to the keyword', () => {
+    const cases: Array<[input: string, category: string, keyword: string]> = [
+      ['I idled all morning.', 'false-completion', 'idle'],
+      ['I addressed it.', 'deferral', 'will address'],
+      ['I am addressing it.', 'deferral', 'will address'],
+      ['I addressed some of the findings.', 'partial-credit', 'addresses some'],
+      ['I am addressing some of them.', 'partial-credit', 'addresses some'],
+      ['I need approval first.', 'complexity-dodge', 'needs approval'],
+      ['I will file an issue.', 'deferral', 'filed an issue'],
+      ['I will create an issue.', 'deferral', 'created an issue'],
+      ['I will log it.', 'deferral', 'logged it'],
+      ['I circled back to it.', 'deferral', 'circle back'],
+      ['I am circling back to it.', 'deferral', 'circle back'],
+      ['We are moving on.', 'false-completion', 'move on'],
+      ['I moved on.', 'false-completion', 'move on'],
+      ['I tabled this for now.', 'deferral', 'table this'],
+      ['We are making progress.', 'partial-credit', 'making progress'],
+      ['I am coming back to it.', 'deferral', 'coming back to'],
+    ];
+
+    for (const [input, category, keyword] of cases) {
+      it(`${JSON.stringify(input)} hits ${JSON.stringify(keyword)} (${category})`, () => {
+        const result = check(input);
+        assert.strictEqual(result.clean, false, `expected a match for ${JSON.stringify(input)}`);
+        const hit = result.matches.find(m => m.excuse?.category === category && m.excuse.keywords.includes(keyword));
+        assert.ok(hit, `expected a ${category} match via keyword ${JSON.stringify(keyword)}; got ${JSON.stringify(result.matches.map(m => [m.excuse?.category, m.matchedText]))}`);
+      });
+    }
+  });
+
+  it('a stem that is too short is left alone', () => {
+    // "scoped"/"stated"/"fined" must not collapse onto unrelated keywords
+    // ("fine" in "seems fine", "later"), and words whose stem would be under
+    // three letters keep their suffix ("need" is not "ne" + "ed").
+    assert.strictEqual(check('The change was scoped, stated and fined.').clean, true);
+    assert.strictEqual(check('I needed nothing from anyone.').clean, true);
+  });
+
   // #200 moved keyword matching to word boundaries, so an inflected word only
   // hits when reduceText() stems the text and the keyword to the same form.
   // Pin the inflections that work today for every excuse category, so the next
