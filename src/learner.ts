@@ -106,14 +106,21 @@ function loadStore(storePath: string): SightingsStore {
  * writeFileSync risks leaving a truncated file if the process is killed
  * mid-write; loadStore/loadCustomExcuses would then silently treat the
  * corrupted file as empty and discard all prior history.
+ *
+ * The directory and files are created owner-only (0700/0600) rather than
+ * umask-default. `~/.rationguard/custom-excuses.json` is the trusted store:
+ * its entries are `source: 'user'` and therefore auto-send eligible, so
+ * another local account that could write it could have its text typed into
+ * the agent session. `rename(2)` preserves the temp file's mode, so the
+ * final file is 0600 regardless of the process umask.
  */
 function writeJsonAtomic(filePath: string, data: unknown): void {
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   }
   const tmpPath = path.join(dir, `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
-  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n');
+  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 });
   fs.renameSync(tmpPath, filePath);
 }
 

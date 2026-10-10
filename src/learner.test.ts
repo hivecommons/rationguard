@@ -152,6 +152,19 @@ describe('atomic store writes', () => {
     const entries = fs.readdirSync(base).sort();
     assert.deepStrictEqual(entries, ['custom-excuses.json', 'sightings.json']);
   });
+
+  it('creates the store directory 0700 and files 0600 regardless of umask', { skip: process.platform === 'win32' }, () => {
+    const prevUmask = process.umask(0o000);
+    try {
+      for (let i = 0; i < 3; i++) recordSighting('umask check promote now', undefined, undefined, dir);
+    } finally {
+      process.umask(prevUmask);
+    }
+    const base = path.join(dir, '.rationguard');
+    assert.strictEqual(fs.statSync(base).mode & 0o777, 0o700);
+    assert.strictEqual(fs.statSync(path.join(base, 'sightings.json')).mode & 0o777, 0o600);
+    assert.strictEqual(fs.statSync(path.join(base, 'custom-excuses.json')).mode & 0o777, 0o600);
+  });
 });
 
 describe('loadCustomExcuses', () => {
