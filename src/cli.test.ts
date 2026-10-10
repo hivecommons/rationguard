@@ -65,6 +65,13 @@ describe('help', () => {
     assert.strictEqual(res.status, 0);
     assert.match(stripAnsi(res.stdout), /USAGE/);
   });
+
+  it('documents attach and watch flags', () => {
+    const out = stripAnsi(run(['help']).stdout);
+    assert.match(out, /--cli-args=/);
+    assert.match(out, /--patterns-dir=/);
+    assert.strictEqual(out.match(/--run-dir=/g)?.length, 3);
+  });
 });
 
 describe('check', () => {

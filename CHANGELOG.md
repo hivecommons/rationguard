@@ -10,6 +10,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `help`: document `attach --cli-args`/`--run-dir` and `watch --patterns-dir`, and list `codex` for `watch --cli` (#215)
 - `check --json`: record eligible sightings like plain-text `check` does (#210)
 - `getAllExcuses`: skip the project custom-excuses load when cwd is `$HOME` so excuses are not loaded twice (#211)
 - `learner`: create `~/.rationguard/` and the sightings/custom-excuses files owner-only (0700/0600) instead of umask-default, so the trusted store is not readable or writable by other local accounts
