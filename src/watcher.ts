@@ -33,6 +33,7 @@ export interface WatcherOptions {
   rebuttal?: 'log' | 'send';
   quiet?: boolean;
   verbose?: boolean;
+  logFormat?: 'text' | 'json';
   onDetection?: (detection: WatcherDetection) => void;
 }
 
@@ -79,7 +80,12 @@ function sanitizeRebuttal(rebuttal: string): string {
   return rebuttal.replace(/[\x00-\x1f\x7f]+/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-function sendRebuttal(session: string, rebuttalRaw: string, verbose = false): boolean {
+/** One bounded JSON line per delivery event: enum/validated fields only, never rebuttal or session content. */
+function logDeliveryJson(session: string, delivery: 'pluk' | 'tmux' | 'failed'): void {
+  console.error(JSON.stringify({ event: 'rebuttal_delivery', session, delivery, timestamp: new Date().toISOString() }));
+}
+
+function sendRebuttal(session: string, rebuttalRaw: string, verbose = false, json = false): boolean {
   validateSession(session);
   const rebuttal = sanitizeRebuttal(rebuttalRaw);
   if (!rebuttal) return false;
@@ -92,12 +98,15 @@ function sendRebuttal(session: string, rebuttalRaw: string, verbose = false): bo
     if (verbose) {
       console.error(`\x1b[2m[rationguard]\x1b[0m sendRebuttal: pluk-send succeeded`);
     }
+    if (json) logDeliveryJson(session, 'pluk');
     return true;
   } catch (err) {
     const errMsg = err instanceof Error ? err.message : String(err);
     if (verbose) {
-      console.error(`\x1b[2m[rationguard]\x1b[0m sendRebuttal: pluk-send failed: ${errMsg}`);
-      console.error(`\x1b[2m[rationguard]\x1b[0m sendRebuttal: falling back to tmux send-keys`);
+      console.error(`\x1b[2m[rationguard]\x1b[0m sendRebuttal: pluk-send failed: ${sanitizeForTerminal(errMsg).slice(0, 200)}`);
+    }
+    if (!json) {
+      console.error(`\x1b[2m[rationguard]\x1b[0m sendRebuttal: pluk-send failed, falling back to tmux send-keys`);
     }
     try {
       // `--` ends option parsing: tmux otherwise reads a rebuttal that starts
@@ -107,10 +116,15 @@ function sendRebuttal(session: string, rebuttalRaw: string, verbose = false): bo
       if (verbose) {
         console.error(`\x1b[2m[rationguard]\x1b[0m sendRebuttal: tmux send-keys succeeded`);
       }
+      if (json) logDeliveryJson(session, 'tmux');
       return true;
     } catch (err2) {
       const errMsg2 = err2 instanceof Error ? err2.message : String(err2);
-      console.error(`\x1b[2m[rationguard]\x1b[0m sendRebuttal: FAILED both methods: ${sanitizeForTerminal(errMsg2).slice(0, 200)}`);
+      if (json) {
+        logDeliveryJson(session, 'failed');
+      } else {
+        console.error(`\x1b[2m[rationguard]\x1b[0m sendRebuttal: FAILED both methods: ${sanitizeForTerminal(errMsg2).slice(0, 200)}`);
+      }
       return false;
     }
   }
@@ -347,7 +361,7 @@ export class Watcher extends EventEmitter {
           }
           this.rebuttalCooldowns.set(key, now);
           this.log(`sending rebuttal to ${this.opts.session}: "${this.safe(match.excuse.rebuttal.slice(0, 80))}..."`);
-          const ok = sendRebuttal(this.opts.session, match.excuse.rebuttal, this.verbose);
+          const ok = sendRebuttal(this.opts.session, match.excuse.rebuttal, this.verbose, this.opts.logFormat === 'json');
           this.log(`rebuttal ${ok ? 'DELIVERED' : 'FAILED'}`);
           if (ok) {
             this.stats_.rebuttalSent++;

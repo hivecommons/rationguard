@@ -795,6 +795,100 @@ describe('rebuttal delivery failure log', () => {
   });
 });
 
+describe('rebuttal delivery logging without --verbose', () => {
+  function runWithLogs(opts: Partial<WatcherOptions>, path_: string): string[] {
+    process.env['PATH'] = path_;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = path.join(sandbox, 'no-such-pluk-send');
+    const logs: string[] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => { logs.push(args.join(' ')); };
+    try {
+      const { watcher } = makeWatcher({ rebuttal: 'send', ...opts });
+      const w = internals(watcher);
+      w.handleEvent(rawOutput('test-session', 'no work found'));
+      w.handleEvent(stateChange('test-session', 'working', 'idle'));
+      watcher.stop();
+    } finally {
+      console.error = originalError;
+    }
+    return logs;
+  }
+
+  it('logs the pluk-send to tmux fallback unconditionally as one line', () => {
+    const logs = runWithLogs({}, tmuxBinDir);
+    const lines = logs.filter(l => l.includes('falling back to tmux send-keys'));
+    assert.strictEqual(lines.length, 1);
+    assert.ok(lines[0].includes('pluk-send failed'));
+    assert.ok(!logs.some(l => l.includes('trying pluk-send')), 'details stay verbose-only');
+  });
+
+  it('sanitizes and truncates the pluk-send error in verbose output', () => {
+    const failBinDir = path.join(sandbox, 'pluk-fail-bin');
+    fs.mkdirSync(failBinDir, { recursive: true });
+    const failPluk = path.join(failBinDir, 'pluk-send');
+    fs.writeFileSync(failPluk, `#!/bin/sh\nprintf '\\033]0;pwned\\007\\033[31m' >&2\nhead -c 1000 /dev/zero | tr '\\0' 'x' >&2\nexit 1\n`);
+    fs.chmodSync(failPluk, 0o755);
+    process.env['PATH'] = `${tmuxBinDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = failPluk;
+    const logs2: string[] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => { logs2.push(args.join(' ')); };
+    try {
+      const { watcher } = makeWatcher({ rebuttal: 'send', verbose: true });
+      const w = internals(watcher);
+      w.handleEvent(rawOutput('test-session', 'no work found'));
+      w.handleEvent(stateChange('test-session', 'working', 'idle'));
+      watcher.stop();
+    } finally {
+      console.error = originalError;
+    }
+    const line = logs2.find(l => l.includes('sendRebuttal: pluk-send failed: '));
+    assert.ok(line);
+    const detail = line.split('pluk-send failed: ')[1];
+    assert.ok(!detail.includes('\x1b'));
+    assert.ok(!detail.includes('\x07'));
+    assert.ok(detail.length <= 200, `expected <= 200 chars, got ${detail.length}`);
+  });
+
+  it('emits a bounded JSON line for a tmux delivery in json log format', () => {
+    const logs = runWithLogs({ logFormat: 'json' }, tmuxBinDir);
+    const parsed = logs.map(l => JSON.parse(l) as Record<string, unknown>);
+    assert.strictEqual(parsed.length, 1);
+    assert.deepStrictEqual(Object.keys(parsed[0]).sort(), ['delivery', 'event', 'session', 'timestamp']);
+    assert.strictEqual(parsed[0]['event'], 'rebuttal_delivery');
+    assert.strictEqual(parsed[0]['session'], 'test-session');
+    assert.strictEqual(parsed[0]['delivery'], 'tmux');
+    assert.ok(!Number.isNaN(Date.parse(String(parsed[0]['timestamp']))));
+  });
+
+  it('emits delivery=failed in json log format when both methods fail', () => {
+    const emptyBin = path.join(sandbox, 'empty-bin');
+    fs.mkdirSync(emptyBin, { recursive: true });
+    const logs = runWithLogs({ logFormat: 'json' }, emptyBin);
+    const parsed = logs.map(l => JSON.parse(l) as Record<string, unknown>);
+    assert.strictEqual(parsed.length, 1);
+    assert.strictEqual(parsed[0]['delivery'], 'failed');
+  });
+
+  it('emits delivery=pluk in json log format when pluk-send succeeds', () => {
+    process.env['PATH'] = `${binDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
+    const logs: string[] = [];
+    const originalError = console.error;
+    console.error = (...args: unknown[]) => { logs.push(args.join(' ')); };
+    try {
+      const { watcher } = makeWatcher({ rebuttal: 'send', logFormat: 'json' });
+      const w = internals(watcher);
+      w.handleEvent(rawOutput('test-session', 'no work found'));
+      w.handleEvent(stateChange('test-session', 'working', 'idle'));
+      watcher.stop();
+    } finally {
+      console.error = originalError;
+    }
+    assert.strictEqual((JSON.parse(logs[0]) as Record<string, unknown>)['delivery'], 'pluk');
+  });
+});
+
 describe('timed flush', () => {
   it('flushes buffered raw output when the flush timer elapses', async () => {
     const { watcher, detections } = makeWatcher();

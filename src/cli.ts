@@ -64,6 +64,7 @@ ${ANSI_BOLD}USAGE${ANSI_RESET}
     --patterns-dir=<path>              Override pluk's CLI pattern directory
     --json                             Output detections as JSON
     --verbose                          Show debug output
+    --log-format=json                  Log rebuttal delivery events as JSON lines on stderr
     --diagnostics[=secs]               Periodic bounded health summary on stderr (default 60s)
 
   ${ANSI_CYAN}rationguard prompt${ANSI_RESET}                 Generate a defense table for agent prompts
@@ -376,6 +377,8 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
   const rebuttalMode = (flags['rebuttal'] ?? 'log') as 'log' | 'send';
   const jsonOutput = flags['json'] === 'true';
   const verbose = flags['verbose'] === 'true';
+  requireOneOf('log-format', flags['log-format'], ['text', 'json'], 'Valid values');
+  const logFormat = (flags['log-format'] ?? 'text') as 'text' | 'json';
 
   // In JSON mode stdout carries only JSON Lines, so status text goes to stderr.
   const status = jsonOutput ? console.error : console.log;
@@ -390,6 +393,7 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
     mode,
     rebuttal: rebuttalMode,
     verbose,
+    logFormat,
     onDetection(detection: WatcherDetection) {
       if (jsonOutput) {
         console.log(stringifyForTerminal({

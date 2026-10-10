@@ -6,10 +6,12 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- `watch --log-format=json`: opt-in JSON line per rebuttal delivery (`event`, `session`, `delivery`, `timestamp`) on stderr (#217)
 - `runbooks/learned-excuses-store.md`: recovery steps for a silently emptied sightings/custom-excuses store
 
 ### Fixed
 
+- `watch`: always log the pluk-send → tmux fallback (not only with `--verbose`) and sanitize/truncate the pluk-send error text (#217)
 - `help`: document `attach --cli-args`/`--run-dir` and `watch --patterns-dir`, and list `codex` for `watch --cli` (#215)
 - `check --json`: record eligible sightings like plain-text `check` does (#210)
 - `getAllExcuses`: skip the project custom-excuses load when cwd is `$HOME` so excuses are not loaded twice (#211)
