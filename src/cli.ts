@@ -172,6 +172,12 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
   const allExcuses = getAllExcuses();
   const result = check(input, { excuses: allExcuses });
 
+  // Eligibility (confidence threshold, project-source exclusion) is decided
+  // once in learner.ts and shared with watcher.ts — see recordSightingIfEligible.
+  for (const match of result.matches) {
+    recordSightingIfEligible(match);
+  }
+
   if (flags['json'] === 'true') {
     console.log(stringifyForTerminal(result, 2));
     return;
@@ -192,12 +198,6 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
     console.log(`     Matched:  "${sanitizeForTerminal(match.matchedText)}"`);
     console.log(`     Rebuttal: ${sanitizeForTerminal(match.excuse.rebuttal)}`);
     console.log();
-  }
-
-  // Eligibility (confidence threshold, project-source exclusion) is decided
-  // once in learner.ts and shared with watcher.ts — see recordSightingIfEligible.
-  for (const match of result.matches) {
-    recordSightingIfEligible(match);
   }
 }
 

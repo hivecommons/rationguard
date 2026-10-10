@@ -1,5 +1,6 @@
 import { DEFAULT_EXCUSES } from './defaults.js';
-import { loadCustomExcuses } from './learner.js';
+import path from 'node:path';
+import { getTrustedBase, loadCustomExcuses } from './learner.js';
 import type { Excuse } from './types.js';
 
 /**
@@ -14,6 +15,10 @@ import type { Excuse } from './types.js';
  */
 export function getAllExcuses(): Excuse[] {
   const custom = loadCustomExcuses().map((e): Excuse => ({ ...e, source: 'user' }));
-  const projectCustom = loadCustomExcuses('.').map((e): Excuse => ({ ...e, source: 'project' }));
+  // When cwd is $HOME the project store is the trusted store; loading it again
+  // would duplicate every excuse under an untrusted source tag.
+  const trusted = getTrustedBase();
+  const sameStore = trusted !== null && path.resolve(trusted) === path.resolve('.', '.rationguard');
+  const projectCustom = (sameStore ? [] : loadCustomExcuses('.')).map((e): Excuse => ({ ...e, source: 'project' }));
   return [...DEFAULT_EXCUSES, ...custom, ...projectCustom];
 }
