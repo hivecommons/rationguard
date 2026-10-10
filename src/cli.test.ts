@@ -72,6 +72,29 @@ describe('help', () => {
     assert.match(out, /--patterns-dir=/);
     assert.strictEqual(out.match(/--run-dir=/g)?.length, 3);
   });
+
+  // #216 fixed attach --cli-args/--run-dir being parsed but never documented.
+  // Derive both sets mechanically so the next flag added to one side without
+  // the other fails here instead of shipping silently.
+  describe('help text and parseFlags agree on the flag set', () => {
+    const source = fs.readFileSync(CLI, 'utf-8');
+    const parsed = new Set([...source.matchAll(/flags\['([a-z-]+)'\]/g)].map(m => m[1]));
+    const documented = new Set([...stripAnsi(run(['help']).stdout).matchAll(/(?<![\w-])--([a-z][a-z-]*)/g)].map(m => m[1]));
+
+    it('reads a non-trivial flag set from cli.js', () => {
+      assert.ok(parsed.size >= 10, `only ${parsed.size} flags parsed: ${[...parsed].join(', ')}`);
+    });
+
+    it('every parsed flag is documented in help', () => {
+      const missing = [...parsed].filter(f => !documented.has(f)).sort();
+      assert.deepStrictEqual(missing, [], `parsed but undocumented: ${missing.join(', ')}`);
+    });
+
+    it('every documented flag is parsed', () => {
+      const unused = [...documented].filter(f => !parsed.has(f)).sort();
+      assert.deepStrictEqual(unused, [], `documented but never parsed: ${unused.join(', ')}`);
+    });
+  });
 });
 
 describe('check', () => {
