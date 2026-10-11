@@ -56,6 +56,47 @@ describe('check', () => {
     assert.strictEqual(check('I needed nothing from anyone.').clean, true);
   });
 
+  // The stemmer raises recall on inflected keywords, so it needs a negative
+  // corpus too: each sentence below shares a stemmed word with a built-in
+  // keyword (move/moved, log/logged, create/created, file/filed, circle,
+  // table, progress, address, idle) but is ordinary status reporting, and
+  // must stay clean. A future stemmer change that collapses more words onto
+  // the same stem shows up here as a false positive.
+  describe('does not inflect ordinary status reporting onto a keyword', () => {
+    const benign = [
+      'I added unit tests for the parser and fixed the null check.',
+      'Rebased onto main and resolved the conflict in package-lock.json.',
+      'Implemented the retry loop with exponential backoff and a 30s cap.',
+      'Updated the README with install instructions.',
+      'The function returns early when the input array is empty.',
+      'Refactored the handler to use async/await and removed the callback.',
+      'I ran npm audit and there are no vulnerabilities.',
+      'Bumped the dependency to 2.3.1 and regenerated the lockfile.',
+      'Opened PR #42 with the fix and linked the issue.',
+      'The error was caused by a missing await on line 88; fixed and added a regression test.',
+      'I moved the helper into utils.ts and updated the imports.',
+      'Logging now goes through the structured logger.',
+      'Created the migration and ran it against the test database.',
+      'Filed the paperwork for the new API key in the vault.',
+      'The circle CI config was replaced with GitHub Actions.',
+      'This table shows the benchmark results.',
+      'Progress bar renders correctly on narrow terminals.',
+      'The idler pulley was replaced in the build rig.',
+      'Needs for the sprint are listed in the planning doc.',
+    ];
+
+    for (const input of benign) {
+      it(`${JSON.stringify(input)} stays clean`, () => {
+        const result = check(input);
+        assert.strictEqual(
+          result.clean,
+          true,
+          `unexpected matches: ${JSON.stringify(result.matches.map(m => [m.excuse?.category, m.matchedText, m.confidence]))}`,
+        );
+      });
+    }
+  });
+
   // #200 moved keyword matching to word boundaries, so an inflected word only
   // hits when reduceText() stems the text and the keyword to the same form.
   // Pin the inflections that work today for every excuse category, so the next
