@@ -32,6 +32,21 @@ export interface CheckResult {
   clean: boolean;
 }
 
+/**
+ * Bounded telemetry event emitted by check() per matched excuse. Never carries
+ * the input, the matched text, or session identifiers.
+ */
+export interface RationguardEvent {
+  event: 'match';
+  category: ExcuseCategory;
+  confidence: number;
+  matched: number;
+}
+
+export interface CheckOptions {
+  onEvent?: (event: RationguardEvent) => void;
+}
+
 export interface RationguardConfig {
   excuses: Excuse[];
 }

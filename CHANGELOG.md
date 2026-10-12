@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Added
+
+- `check --log-format=json` and a library `onEvent` hook on `check()`: opt-in bounded match events (`event`, `category`, `confidence`, `matched` count only) for metrics wiring (#229)
+
 ### Fixed
 
 - `check`: stem text and keywords symmetrically (silent-e, doubled consonants, `ss` endings, short stems) so `idled`, `addressed`, `need approval`, `circled back`, `moving on`, `tabled this` match their keywords again; add `making progress` / `coming back to` keywords (#205)

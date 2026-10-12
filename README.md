@@ -114,6 +114,11 @@ back to tmux is always logged as one line; add `--log-format=json` to emit
 bounded JSON lines (`event`, `session`, `delivery`, `timestamp`) on stderr
 instead.
 
+`check --log-format=json` likewise writes one bounded JSON line per match to
+stderr (`event`, `category`, `confidence`, `matched` count; never the text).
+Library users can pass `check(text, config, { onEvent })` to receive the same
+events and feed their own counters.
+
 Add `--diagnostics` (or `--diagnostics=<seconds>`) to `watch` for opt-in,
 local-only health visibility on a long-running session: a bounded JSON
 summary (flush/match/rebuttal counts) is printed to stderr on a fixed

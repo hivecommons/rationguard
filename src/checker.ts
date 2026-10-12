@@ -1,5 +1,5 @@
 import { DEFAULT_EXCUSES } from './defaults.js';
-import type { Excuse, MatchResult, CheckResult, RationguardConfig } from './types.js';
+import type { Excuse, MatchResult, CheckResult, CheckOptions, RationguardConfig } from './types.js';
 
 const MIN_KEYWORD_CONFIDENCE = 0.3;
 const EXACT_MATCH_CONFIDENCE = 1.0;
@@ -89,7 +89,7 @@ function scoreExcuse(text: string, excuse: Excuse): MatchResult {
   };
 }
 
-export function check(text: string, config?: RationguardConfig): CheckResult {
+export function check(text: string, config?: RationguardConfig, options?: CheckOptions): CheckResult {
   const excuses = config?.excuses ?? DEFAULT_EXCUSES;
   const matches: MatchResult[] = [];
 
@@ -101,6 +101,16 @@ export function check(text: string, config?: RationguardConfig): CheckResult {
   }
 
   matches.sort((a, b) => b.confidence - a.confidence);
+
+  if (options?.onEvent) {
+    for (const m of matches) {
+      try {
+        options.onEvent({ event: 'match', category: m.excuse!.category, confidence: m.confidence, matched: 1 });
+      } catch {
+        // A faulty embedder hook must never break detection.
+      }
+    }
+  }
 
   return {
     input: text,

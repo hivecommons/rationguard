@@ -1166,3 +1166,21 @@ describe('watch runtime error forwarding', () => {
     assert.match(stripAnsi(res.stderr), /Error:.*simulated tail failure/);
   });
 });
+
+describe('check --log-format', () => {
+  it('writes bounded JSON match events to stderr', () => {
+    const res = run(['check', '--log-format=json', 'I will do it later.']);
+    const lines = res.stderr.trim().split('\n').filter((l) => l.startsWith('{'));
+    assert.ok(lines.length > 0);
+    const ev = JSON.parse(lines[0]);
+    assert.deepStrictEqual(Object.keys(ev).sort(), ['category', 'confidence', 'event', 'matched']);
+    assert.ok(!res.stderr.includes('later'));
+  });
+
+  it('is silent on stderr by default and rejects unknown values', () => {
+    assert.strictEqual(run(['check', 'I will do it later.']).stderr, '');
+    const bad = run(['check', '--log-format=xml', 'hi']);
+    assert.strictEqual(bad.status, 1);
+    assert.match(bad.stderr, /Unknown --log-format/);
+  });
+});

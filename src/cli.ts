@@ -64,7 +64,7 @@ ${ANSI_BOLD}USAGE${ANSI_RESET}
     --patterns-dir=<path>              Override pluk's CLI pattern directory
     --json                             Output detections as JSON
     --verbose                          Show debug output
-    --log-format=json                  Log rebuttal delivery events as JSON lines on stderr
+    --log-format=json                  Log rebuttal delivery (watch) or match (check) events as JSON lines on stderr
     --diagnostics[=secs]               Periodic bounded health summary on stderr (default 60s)
 
   ${ANSI_CYAN}rationguard prompt${ANSI_RESET}                 Generate a defense table for agent prompts
@@ -173,8 +173,12 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
     process.exit(1);
   }
 
+  requireOneOf('log-format', flags['log-format'], ['text', 'json'], 'Valid values');
+  const jsonLog = flags['log-format'] === 'json';
   const allExcuses = getAllExcuses();
-  const result = check(input, { excuses: allExcuses });
+  const result = check(input, { excuses: allExcuses }, {
+    onEvent: jsonLog ? (event) => console.error(JSON.stringify(event)) : undefined,
+  });
 
   // Eligibility (confidence threshold, project-source exclusion) is decided
   // once in learner.ts and shared with watcher.ts — see recordSightingIfEligible.

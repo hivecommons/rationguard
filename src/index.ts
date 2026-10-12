@@ -9,5 +9,7 @@ export type {
   MatchResult,
   CheckResult,
   RationguardConfig,
+  RationguardEvent,
+  CheckOptions,
 } from './types.js';
 export { CATEGORY_LABELS } from './types.js';

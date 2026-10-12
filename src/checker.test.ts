@@ -355,3 +355,24 @@ describe('generatePromptBlock', () => {
     assert.ok(block.includes('custom rebuttal'));
   });
 });
+
+describe('check onEvent', () => {
+  it('emits one bounded event per match without text', () => {
+    const events: unknown[] = [];
+    const result = check('I will do it later.', undefined, { onEvent: (e) => events.push(e) });
+    assert.ok(result.matches.length > 0);
+    assert.strictEqual(events.length, result.matches.length);
+    for (const e of events as Record<string, unknown>[]) {
+      assert.deepStrictEqual(Object.keys(e).sort(), ['category', 'confidence', 'event', 'matched']);
+      assert.strictEqual(e.event, 'match');
+      assert.strictEqual(e.matched, 1);
+    }
+  });
+
+  it('emits nothing on clean text and survives a throwing hook', () => {
+    const events: unknown[] = [];
+    check('Shipped the fix in commit abc123.', undefined, { onEvent: (e) => events.push(e) });
+    assert.strictEqual(events.length, 0);
+    assert.doesNotThrow(() => check('I will do it later.', undefined, { onEvent: () => { throw new Error('boom'); } }));
+  });
+});
