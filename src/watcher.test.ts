@@ -1,4 +1,4 @@
-import { describe, it, before, after, beforeEach, afterEach } from 'node:test';
+import { describe, it, before, after, beforeEach, afterEach, mock } from 'node:test';
 import assert from 'node:assert';
 import { once } from 'node:events';
 import { spawnSync } from 'node:child_process';
@@ -890,7 +890,16 @@ describe('rebuttal delivery logging without --verbose', () => {
 });
 
 describe('timed flush', () => {
+  // RAW_OUTPUT_FLUSH_MS is 2s of wall-clock time; drive the timer with
+  // node:test's mock clock so the test does not sleep for it.
+  const FLUSH_MS = 2_000;
+
+  afterEach(() => {
+    mock.timers.reset();
+  });
+
   it('flushes buffered raw output when the flush timer elapses', async () => {
+    mock.timers.enable({ apis: ['setTimeout'] });
     const { watcher, detections } = makeWatcher();
     const w = internals(watcher);
     w.handleEvent(rawOutput('test-session', 'no work found'));
@@ -899,11 +908,35 @@ describe('timed flush', () => {
     assert.ok(w.flushTimer, 'flush timer should be armed after raw output');
     assert.strictEqual(detections.length, 0);
 
-    await once(watcher, 'detection');
+    const detected = once(watcher, 'detection');
+    mock.timers.tick(FLUSH_MS - 1);
+    assert.strictEqual(detections.length, 0, 'must not flush before the interval elapses');
+    mock.timers.tick(1);
+    await detected;
 
     assert.strictEqual(detections.length, 1);
     assert.strictEqual(w.buffer.length, 0);
     assert.strictEqual(w.flushTimer, null);
+    watcher.stop();
+  });
+
+  it('does not re-arm the timer once the flush has run', () => {
+    mock.timers.enable({ apis: ['setTimeout'] });
+    const { watcher, detections } = makeWatcher();
+    const w = internals(watcher);
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    mock.timers.tick(FLUSH_MS);
+    assert.strictEqual(detections.length, 1);
+    assert.strictEqual(w.flushTimer, null);
+
+    // A buffer that was already flushed by state_change must not flush
+    // again when the (now cleared) timer would have fired.
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    assert.strictEqual(detections.length, 2);
+    assert.strictEqual(w.flushTimer, null);
+    mock.timers.tick(FLUSH_MS);
+    assert.strictEqual(detections.length, 2);
     watcher.stop();
   });
 });
@@ -970,6 +1003,28 @@ describe('subscribe-mode error forwarding', () => {
 });
 
 describe('verbose flush logging', () => {
+  it('logs state_change events whose from/to fields are missing without throwing', () => {
+    const logs: string[] = [];
+    const savedError = console.error;
+    console.error = (...args: unknown[]) => { logs.push(args.map(String).join(' ')); };
+    try {
+      const { watcher, detections } = makeWatcher({ verbose: true });
+      const w = internals(watcher);
+      w.handleEvent(rawOutput('test-session', 'no work found'));
+      const partial = stateChange('test-session', 'working', 'idle');
+      partial.data = { to: 'idle' };
+      w.handleEvent(partial);
+      watcher.stop();
+      assert.strictEqual(detections.length, 1, 'a state_change to idle with no "from" must still flush');
+    } finally {
+      console.error = savedError;
+    }
+    const stateLine = logs.find(l => l.includes('state_change:'));
+    assert.ok(stateLine, `expected state_change log, got: ${logs.join(' | ')}`);
+    assert.ok(stateLine.includes('state_change:  → idle'), stateLine);
+    assert.ok(!stateLine.includes('undefined'), stateLine);
+  });
+
   it('truncates long flush previews to 200 chars with an ellipsis', () => {
     const logs: string[] = [];
     const savedError = console.error;
