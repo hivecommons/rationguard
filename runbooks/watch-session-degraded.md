@@ -31,6 +31,11 @@ Read the counters in each `rationguard_diagnostics` line:
 | `rebuttalFailed` grows | Detection works but `pluk-send` delivery fails. See "Delivery failing". |
 | `bufferFlushedFull` grows quickly | Output volume is overflowing the buffer; matches may be split. Check for a runaway log loop in the agent. |
 
+Delivery fallbacks are also visible without `--verbose`: a failed `pluk-send`
+that falls back to tmux is always logged to stderr, and
+`--log-format=json` makes each one a bounded JSON line (`event`, `session`,
+`delivery`, `timestamp`) that log tooling can count.
+
 ## Diagnose
 
 1. `rationguard sessions` — confirm the session is listed and its state and
