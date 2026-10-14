@@ -28,7 +28,16 @@ CI also enforces a coverage gate (99% lines / 95% branches / 100% functions)
 on top of `npm test`. Check it locally before pushing:
 
 ```bash
-node --test --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=95 --test-coverage-functions=100 dist/*.test.js
+npm run test:coverage
+```
+
+CI additionally runs a workflow regression suite (`.github/tests/*.test.cjs`)
+that executes the real `run:` scripts from the release, publish, changelog-guard
+and tarball-guard workflows against fixture repositories. Run it whenever you
+touch anything under `.github/` or the `files` field in `package.json`:
+
+```bash
+npm run test:workflows
 ```
 
 The package ships compiled files from `dist/`, but `dist/` is generated and intentionally not committed. `npm publish` runs `npm run build` through `prepublishOnly`.

@@ -12,6 +12,8 @@
     "prepublishOnly": "npm run build",
     "dev": "tsc --watch",
     "test": "node --test dist/*.test.js",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=95 --test-coverage-functions=100 dist/*.test.js",
+    "test:workflows": "node --test .github/tests/*.test.cjs",
     "lint": "tsc --noEmit"
   },
   "keywords": [
