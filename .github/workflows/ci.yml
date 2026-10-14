@@ -43,7 +43,7 @@ jobs:
         run: npm test
 
       - name: Workflow regression tests
-        run: node --test .github/tests/*.test.cjs
+        run: npm run test:workflows
 
       - name: Tarball excludes tests
         run: |
@@ -54,7 +54,7 @@ jobs:
 
       - name: Coverage gate
         if: matrix.node-version == 24
-        run: node --test --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=95 --test-coverage-functions=100 dist/*.test.js
+        run: npm run test:coverage
 
       - name: CLI smoke test
         run: |
