@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { CATEGORY_LABELS } from './types.js';
 import type { Excuse, ExcuseCategory, MatchResult } from './types.js';
+import { isStopWord } from './checker.js';
 
 const SIGHTINGS_FILE = 'sightings.json';
 const AUTO_ADD_THRESHOLD = 3;
@@ -244,7 +245,11 @@ export function recordSighting(
 }
 
 function promoteToExcuse(sighting: Sighting): Excuse {
-  const words = sighting.text.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  const words = sighting.text
+    .toLowerCase()
+    .split(/\s+/)
+    .map(w => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
+    .filter(w => w.length > 3 && !isStopWord(w));
   return {
     pattern: sighting.text.toLowerCase(),
     rebuttal: sighting.suggestedRebuttal,

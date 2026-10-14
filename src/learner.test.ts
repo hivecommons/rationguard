@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { recordSighting, recordSightingIfEligible, loadCustomExcuses, listSightings, AUTO_LEARN_CONFIDENCE_THRESHOLD } from './learner.js';
+import { check } from './checker.js';
 import type { Excuse, MatchResult } from './types.js';
 
 let dir: string;
@@ -110,6 +111,22 @@ describe('recordSighting', () => {
       assert.ok(kw.length > 3, `keyword too short: ${kw}`);
       assert.strictEqual(kw, kw.toLowerCase());
     }
+  });
+
+  it('promoted excuse keywords exclude stopwords and trailing punctuation', () => {
+    for (let i = 0; i < 3; i++) {
+      recordSighting('I think that this works with what they have, honestly.', undefined, undefined, dir);
+    }
+    const [excuse] = loadCustomExcuses(dir) as Excuse[];
+    assert.deepStrictEqual(excuse.keywords, ['think', 'works', 'honestly']);
+  });
+
+  it('a promoted stopword-heavy excuse does not flag benign text', () => {
+    for (let i = 0; i < 3; i++) {
+      recordSighting('I think that this works with what they have', undefined, undefined, dir);
+    }
+    const result = check('Note that this file ships with the release.', { excuses: loadCustomExcuses(dir) });
+    assert.ok(result.matches.every(m => m.confidence < AUTO_LEARN_CONFIDENCE_THRESHOLD));
   });
 
   it('guesses a category from signal words when none is given', () => {

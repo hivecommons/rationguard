@@ -5,7 +5,17 @@ const MIN_KEYWORD_CONFIDENCE = 0.3;
 const EXACT_MATCH_CONFIDENCE = 1.0;
 const KEYWORD_WEIGHT = 0.15;
 
-const FILLER_WORDS = /\b(is|are|was|were|been|being|has|have|had|do|does|did|will|would|shall|should|can|could|may|might|must|the|a|an|so|just|very|really|quite|all|also|still)\b/g;
+const FILLER_WORD_LIST = 'is are was were been being has have had do does did will would shall should can could may might must the a an so just very really quite all also still';
+const FILLER_WORDS = new RegExp(`\\b(${FILLER_WORD_LIST.split(' ').join('|')})\\b`, 'g');
+const STOP_WORDS = new Set([
+  ...FILLER_WORD_LIST.split(' '),
+  ...'that this these those with from they them their then than what when where which your here there about into onto only some more most other because while after before'.split(' '),
+]);
+
+/** True for filler and common function words that must not act as excuse keywords. */
+export function isStopWord(word: string): boolean {
+  return STOP_WORDS.has(word);
+}
 // Suffix stripping keeps a stem of at least three letters so short words
 // survive ("need" is not "ne" + "ed"); a bare "s" is not stripped from an
 // "ss" ending ("address" is not a plural of "addres").
