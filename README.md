@@ -109,7 +109,8 @@ rationguard watch scanner --rebuttal=send
 `sessions` and `watch` look for pluk logs in `/var/run/pluk` by default. Point them
 elsewhere with `--run-dir=/path/to/pluk/run` or by setting the `PLUK_RUN_DIR`
 environment variable (the flag takes precedence if both are set). Add
-`--verbose` to `watch` to print debug output. A pluk-send failure that falls
+`--verbose` to `watch` to print debug output, and `--patterns-dir=<path>`
+to override pluk's CLI pattern directory. A pluk-send failure that falls
 back to tmux is always logged as one line; add `--log-format=json` to emit
 bounded JSON lines (`event`, `session`, `delivery`, `timestamp`) on stderr
 instead.
