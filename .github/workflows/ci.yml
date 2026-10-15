@@ -62,6 +62,17 @@ jobs:
           node dist/cli.js help
           node dist/cli.js check --json "all good here" | node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));if(r.clean!==true||r.matches.length!==0)process.exit(1)'
           node dist/cli.js check --json "that's out of scope for this PR" | node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));if(r.clean!==false||r.matches.length===0)process.exit(1)'
+          set +e
+          node dist/cli.js check --fail-on-match "that's out of scope for this PR" >/dev/null
+          rc=$?
+          set -e
+          [ "$rc" -eq 2 ] || { echo "expected exit 2 on match with --fail-on-match, got $rc"; exit 1; }
+          node dist/cli.js check --fail-on-match "all good here" >/dev/null
+          set +e
+          node dist/cli.js check --fail-on-match >/dev/null 2>&1 </dev/null
+          rc=$?
+          set -e
+          [ "$rc" -eq 1 ] || { echo "expected exit 1 on usage error, got $rc"; exit 1; }
 
       - name: Packed tarball smoke test
         run: |
@@ -74,6 +85,17 @@ jobs:
           npx --no-install rationguard help
           npx --no-install rationguard check --json "all good here" | node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));if(r.clean!==true||r.matches.length!==0)process.exit(1)'
           npx --no-install rationguard check --json "that's out of scope for this PR" | node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));if(r.clean!==false||r.matches.length===0)process.exit(1)'
+          set +e
+          npx --no-install rationguard check --fail-on-match "that's out of scope for this PR" >/dev/null
+          rc=$?
+          set -e
+          [ "$rc" -eq 2 ] || { echo "expected exit 2 on match with --fail-on-match, got $rc"; exit 1; }
+          npx --no-install rationguard check --fail-on-match "all good here" >/dev/null
+          set +e
+          npx --no-install rationguard check --fail-on-match >/dev/null 2>&1 </dev/null
+          rc=$?
+          set -e
+          [ "$rc" -eq 1 ] || { echo "expected exit 1 on usage error, got $rc"; exit 1; }
           npx --no-install rationguard sessions --json --run-dir="$(mktemp -d)" | node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));if(!Array.isArray(r)||r.length!==0)process.exit(1)'
           node --input-type=module -e 'import {resolvePlukSendBin} from "@hivecommons/rationguard/dist/watcher.js";import fs from "node:fs";import path from "node:path";const p=resolvePlukSendBin();if(!p.endsWith(path.join("node_modules",".bin","pluk-send"))||!fs.existsSync(p)){console.error("pluk-send not pinned to the installed @hivecommons/pluk: "+p);process.exit(1)}'
 
