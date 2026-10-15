@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- `check --fail-on-match` exits 2 when any pattern matches so pipelines and hooks can gate on detections (#244)
 - `check --log-format=json` and a library `onEvent` hook on `check()`: opt-in bounded match events (`event`, `category`, `confidence`, `matched` count only) for metrics wiring (#229)
 
 ### Fixed

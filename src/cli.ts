@@ -51,6 +51,7 @@ ${ANSI_BOLD}USAGE${ANSI_RESET}
   ${ANSI_CYAN}rationguard check${ANSI_RESET} <text>           Check text for excuse patterns
   ${ANSI_CYAN}rationguard check${ANSI_RESET} --file=<path>    Check file contents
   echo "..." | ${ANSI_CYAN}rationguard check${ANSI_RESET}     Check piped input
+    --fail-on-match                    Exit 2 when any pattern matches (for hooks/CI gates; 1 = usage error)
 
   ${ANSI_CYAN}rationguard sessions${ANSI_RESET}               List active pluk-monitored agent sessions
     --run-dir=/var/run/pluk            Pluk run directory
@@ -175,6 +176,7 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
 
   requireOneOf('log-format', flags['log-format'], ['text', 'json'], 'Valid values');
   const jsonLog = flags['log-format'] === 'json';
+  const failOnMatch = flags['fail-on-match'] === 'true';
   const allExcuses = getAllExcuses();
   const result = check(input, { excuses: allExcuses }, {
     onEvent: jsonLog ? (event) => console.error(JSON.stringify(event)) : undefined,
@@ -188,6 +190,7 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
 
   if (flags['json'] === 'true') {
     console.log(stringifyForTerminal(result, 2));
+    if (failOnMatch && !result.clean) process.exitCode = 2;
     return;
   }
 
@@ -207,6 +210,7 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
     console.log(`     Rebuttal: ${sanitizeForTerminal(match.excuse.rebuttal)}`);
     console.log();
   }
+  if (failOnMatch) process.exitCode = 2;
 }
 
 function cmdPrompt(flags: Record<string, string>): void {

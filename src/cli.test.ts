@@ -1184,3 +1184,32 @@ describe('check --log-format', () => {
     assert.match(bad.stderr, /Unknown --log-format/);
   });
 });
+
+describe('check --fail-on-match', () => {
+  it('exits 0 on clean text', () => {
+    const res = run(['check', '--fail-on-match', 'hello world']);
+    assert.strictEqual(res.status, 0);
+  });
+
+  it('exits 2 on a match and still prints output', () => {
+    const res = run(['check', '--fail-on-match', "I'll do it later"]);
+    assert.strictEqual(res.status, 2);
+    assert.match(stripAnsi(res.stdout), /Found \d+ rationalization pattern/);
+  });
+
+  it('exits 2 on a match with --json and emits valid JSON', () => {
+    const res = run(['check', '--fail-on-match', '--json', "I'll do it later"]);
+    assert.strictEqual(res.status, 2);
+    assert.strictEqual(JSON.parse(res.stdout).clean, false);
+  });
+
+  it('exits 0 on a --json clean result', () => {
+    const res = run(['check', '--fail-on-match', '--json', 'hello world']);
+    assert.strictEqual(res.status, 0);
+  });
+
+  it('exits 0 on a match without the flag', () => {
+    const res = run(['check', "I'll do it later"]);
+    assert.strictEqual(res.status, 0);
+  });
+});

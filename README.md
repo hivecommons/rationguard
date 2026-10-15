@@ -182,7 +182,12 @@ echo "$AGENT_RESPONSE" | rationguard check
 
 # JSON output
 rationguard check --json "I will defer this to next pass"
+
+# Gate a pipeline or hook on detections
+rationguard check --fail-on-match --file=agent-output.txt || echo "rationalization detected"
 ```
+
+Exit codes: `0` = clean (or matches found without `--fail-on-match`), `1` = usage/input error, `2` = matches found with `--fail-on-match`.
 
 ```
 ✗ Found 2 rationalization pattern(s):
@@ -284,6 +289,7 @@ const block = generatePromptBlock();
 | `rationguard watch <session> --rebuttal=send` | Detect and auto-rebut (30s cooldown + 60s quiet period) |
 | `rationguard check <text>` | Check for excuse patterns |
 | `rationguard check --file=<path>` | Check file contents |
+| `rationguard check --fail-on-match` | Exit 2 when any pattern matches |
 | `rationguard prompt` | Generate defense table for system prompts |
 | `rationguard prompt --format=yaml` | Generate defense table as YAML instead of markdown |
 | `rationguard sessions --run-dir=<path>` / `watch --run-dir=<path>` | Point at pluk logs elsewhere (or set `PLUK_RUN_DIR`) |
