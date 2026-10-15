@@ -129,6 +129,23 @@ describe('recordSighting', () => {
     assert.ok(result.matches.every(m => m.confidence < AUTO_LEARN_CONFIDENCE_THRESHOLD));
   });
 
+  it('a promoted all-stopword excuse has no keywords and matches only its exact pattern', () => {
+    for (let i = 0; i < 3; i++) {
+      recordSighting('That is what this was', undefined, undefined, dir);
+    }
+    const excuses = loadCustomExcuses(dir) as Excuse[];
+    assert.strictEqual(excuses.length, 1);
+    assert.deepStrictEqual(excuses[0].keywords, []);
+
+    const unrelated = check('Unrelated status text with none of those words.', { excuses });
+    assert.strictEqual(unrelated.matches.length, 0);
+
+    const exact = check('Well, that is what this was.', { excuses });
+    assert.strictEqual(exact.matches.length, 1);
+    assert.strictEqual(exact.matches[0].confidence, 1);
+    assert.strictEqual(exact.matches[0].matchedText, 'that is what this was');
+  });
+
   it('guesses a category from signal words when none is given', () => {
     recordSighting('this is too complex and difficult, cannot proceed', undefined, undefined, dir);
     const [s] = listSightings(dir);
