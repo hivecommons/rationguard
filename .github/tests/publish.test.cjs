@@ -9,8 +9,8 @@ const { spawnSync } = require('node:child_process');
 const workflow = readFileSync(join(__dirname, '../workflows/publish.yml'), 'utf8');
 const scripts = [...workflow.matchAll(/        run: \|\n((?:          .*\n|\n)+)/g)]
   .map(match => match[1].replace(/^          /gm, ''));
-assert.equal(scripts.length, 5);
-const [compareTag, onMain, changelogGate, extractNotes, createRelease] = scripts;
+assert.equal(scripts.length, 7);
+const [compareTag, onMain, changelogGate, npmVersionGuard, oidcPreflight, extractNotes, createRelease] = scripts;
 for (const script of scripts) {
   assert.doesNotMatch(script, /\$\{\{/, 'unexpected unexpanded workflow expression in publish script');
 }
@@ -178,6 +178,59 @@ test('release-notes extraction fails when the section is missing or empty', () =
 test('gate and release step use the same awk extraction', () => {
   const awk = /awk -v h="## \$ver" '[^\n]*' CHANGELOG\.md/;
   assert.equal(changelogGate.match(awk)[0], extractNotes.match(awk)[0]);
+});
+
+// --- publish: npm Trusted Publishing preflights -------------------------
+
+function npmGuard(version) {
+  return withDir('publish-npm-guard-', dir => {
+    mkdirSync(join(dir, 'bin'));
+    writeFileSync(join(dir, 'bin/npm'), [
+      '#!/bin/bash',
+      'printf "%s\\n" "$@" >> "$COMMAND_LOG"',
+      'if [ "$1" = --version ]; then echo "$FAKE_NPM_VERSION"; fi',
+      'exit 0',
+    ].join('\n') + '\n', { mode: 0o755 });
+    const log = join(dir, 'commands');
+    const res = run(npmVersionGuard, {
+      cwd: dir,
+      path: join(dir, 'bin'),
+      env: { COMMAND_LOG: log, FAKE_NPM_VERSION: version },
+    });
+    return { ...res, commands: existsSync(log) ? readFileSync(log, 'utf8') : '' };
+  });
+}
+
+test('npm at or above 11.5.1 is left alone by the Trusted Publishing guard', () => {
+  for (const version of ['11.5.1', '11.6.0', '12.0.0']) {
+    const res = npmGuard(version);
+    assert.equal(res.status, 0, `${version}: ${res.stdout}${res.stderr}`);
+    assert.doesNotMatch(res.commands, /\ninstall\n/, version);
+  }
+});
+
+test('older npm is upgraded to the pinned 11.5.1, never npm@latest', () => {
+  for (const version of ['10.9.2', '11.4.9']) {
+    const res = npmGuard(version);
+    assert.equal(res.status, 0, `${version}: ${res.stdout}${res.stderr}`);
+    assert.match(res.commands, /\ninstall\n-g\nnpm@11\.5\.1\n/, version);
+    assert.doesNotMatch(res.commands, /npm@latest/, version);
+  }
+});
+
+test('OIDC preflight fails without an id-token request URL and passes with one', () => {
+  const missing = run(oidcPreflight, { cwd: tmpdir(), env: { ACTIONS_ID_TOKEN_REQUEST_URL: '' } });
+  assert.equal(missing.status, 1);
+  assert.match(missing.stdout, /::error::ACTIONS_ID_TOKEN_REQUEST_URL is not set; the job needs 'id-token: write'/);
+  const present = run(oidcPreflight, { cwd: tmpdir(), env: { ACTIONS_ID_TOKEN_REQUEST_URL: 'https://example.invalid/token' } });
+  assert.equal(present.status, 0, present.stdout + present.stderr);
+});
+
+test('publish authenticates via Trusted Publishing, not a long-lived token', () => {
+  assert.doesNotMatch(workflow, /NODE_AUTH_TOKEN/);
+  assert.doesNotMatch(workflow, /NPM_TOKEN/);
+  assert.match(workflow, /\n  publish:\n(?:    .*\n)*?    environment: npm\n/);
+  assert.match(workflow, /\n  id-token: write\n/);
 });
 
 // --- release: create GitHub release idempotently ------------------------

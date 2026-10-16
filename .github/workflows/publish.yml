@@ -59,6 +59,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: test
+    environment: npm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -68,14 +69,30 @@ jobs:
           cache: npm
           registry-url: https://registry.npmjs.org
 
+      # Trusted Publishing needs npm >= 11.5.1; the npm bundled with Node 22
+      # is older. Pin the upgrade rather than installing npm@latest inside the
+      # job that holds the OIDC token.
+      - name: Ensure npm supports Trusted Publishing
+        run: |
+          have="$(npm --version)"
+          if [ "$(printf '%s\n' 11.5.1 "$have" | sort -V | head -n1)" != "11.5.1" ]; then
+            npm install -g npm@11.5.1
+          fi
+          npm --version
+
       # Dependency lifecycle scripts must not run in the job that holds the
       # OIDC token used for npm provenance.
       - run: npm ci --ignore-scripts
 
-      - name: Publish package with provenance
+      - name: Require OIDC token for npm Trusted Publishing
+        run: |
+          if [ -z "$ACTIONS_ID_TOKEN_REQUEST_URL" ]; then
+            echo "::error::ACTIONS_ID_TOKEN_REQUEST_URL is not set; the job needs 'id-token: write' for npm Trusted Publishing"
+            exit 1
+          fi
+
+      - name: Publish package with provenance (Trusted Publishing)
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   release:
     name: GitHub release
