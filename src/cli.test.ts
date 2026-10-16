@@ -1077,8 +1077,9 @@ describe('attach (stubbed pluk toolchain)', () => {
 
     const log = fs.readFileSync(stubLog, 'utf-8');
     assert.match(log, new RegExp(`tmux new-session -d -s ${session} -c ${projectDir}`));
-    assert.match(log, new RegExp(`tmux send-keys -t ${session} 'claude' '--dangerously-skip-permissions' Enter`));
-    assert.match(log, new RegExp(`tmux pipe-pane -t ${session} .*pluk'? watch '${session}' --cli='claude' --include-raw`));
+    // pluk >= 0.10.0 targets the exact session (`=name:`) and ends option parsing with `--`.
+    assert.match(log, new RegExp(`tmux send-keys -t =${session}: -- 'claude' '--dangerously-skip-permissions' Enter`));
+    assert.match(log, new RegExp(`tmux pipe-pane -t =${session}: .*pluk'? watch '${session}' --cli='claude' --include-raw`));
     assert.match(log, new RegExp(`rationguard watch ${session} --run-dir=${runDir} --cli=claude --rebuttal=send`));
   });
 
@@ -1115,7 +1116,7 @@ describe('attach (stubbed pluk toolchain)', () => {
     assert.match(out, /Starting claude: 'claude'/);
 
     const log = fs.readFileSync(stubLog, 'utf-8');
-    assert.match(log, new RegExp(`tmux pipe-pane -t ${session} .*pluk'? watch '${session}' --cli='claude'`));
+    assert.match(log, new RegExp(`tmux pipe-pane -t =${session}: .*pluk'? watch '${session}' --cli='claude'`));
     assert.match(log, new RegExp(`rationguard watch ${session} --run-dir=${runDir} --cli=claude --rebuttal=log`));
   });
 });

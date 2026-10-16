@@ -37,7 +37,20 @@ export interface WatcherOptions {
   onDetection?: (detection: WatcherDetection) => void;
 }
 
-const SESSION_NAME_RE = /^[a-zA-Z0-9_.-]+$/;
+// No `.`: tmux reads `a.b` as window.pane, so a dotted name could never be
+// an exact session target (matches @hivecommons/pluk >= 0.10.0).
+const SESSION_NAME_RE = /^[a-zA-Z0-9_-]+$/;
+
+/**
+ * tmux resolves a bare `-t name` by exact match, then prefix, then fnmatch,
+ * so when the monitored session is gone (or the name is a typo) the rebuttal
+ * and its Enter would be typed into whichever other session shares the
+ * prefix. A leading `=` forces an exact session-name match and the trailing
+ * `:` makes pane-type commands such as send-keys accept it.
+ */
+function exactTarget(session: string): string {
+  return `=${session}:`;
+}
 
 /**
  * Resolve the pluk-send binary that matches the @hivecommons/pluk version
@@ -111,8 +124,8 @@ function sendRebuttal(session: string, rebuttalRaw: string, verbose = false, jso
     try {
       // `--` ends option parsing: tmux otherwise reads a rebuttal that starts
       // with '-' as send-keys flags (-R/-X/-N) instead of literal text.
-      execFileSync('tmux', ['send-keys', '-l', '-t', session, '--', rebuttal], { stdio: 'pipe' });
-      execFileSync('tmux', ['send-keys', '-t', session, 'Enter'], { stdio: 'pipe' });
+      execFileSync('tmux', ['send-keys', '-l', '-t', exactTarget(session), '--', rebuttal], { stdio: 'pipe' });
+      execFileSync('tmux', ['send-keys', '-t', exactTarget(session), 'Enter'], { stdio: 'pipe' });
       if (verbose) {
         console.error(`\x1b[2m[rationguard]\x1b[0m sendRebuttal: tmux send-keys succeeded`);
       }
