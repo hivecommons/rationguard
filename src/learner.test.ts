@@ -121,6 +121,24 @@ describe('recordSighting', () => {
     assert.deepStrictEqual(excuse.keywords, ['think', 'works', 'honestly']);
   });
 
+  it('promoted excuse keywords exclude contractions', () => {
+    for (let i = 0; i < 3; i++) {
+      recordSighting("I don't think that's something we can't handle later", undefined, undefined, dir);
+    }
+    const [excuse] = loadCustomExcuses(dir) as Excuse[];
+    assert.deepStrictEqual(excuse.keywords, ['think', 'something', 'handle', 'later']);
+    const result = check("I don't know yet, that's fine, we can't ship until the fix lands.", { excuses: [excuse] });
+    assert.ok(result.matches.every(m => m.confidence < AUTO_LEARN_CONFIDENCE_THRESHOLD));
+  });
+
+  it('promoted excuse keywords strip curly-apostrophe contraction tails too', () => {
+    for (let i = 0; i < 3; i++) {
+      recordSighting('We\u2019ll circle back because it\u2019s blocked and they\u2019re busy', undefined, undefined, dir);
+    }
+    const [excuse] = loadCustomExcuses(dir) as Excuse[];
+    assert.deepStrictEqual(excuse.keywords, ['circle', 'back', 'blocked', 'busy']);
+  });
+
   it('a promoted stopword-heavy excuse does not flag benign text', () => {
     for (let i = 0; i < 3; i++) {
       recordSighting('I think that this works with what they have', undefined, undefined, dir);

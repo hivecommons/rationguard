@@ -129,6 +129,12 @@ export function check(text: string, config?: RationguardConfig, options?: CheckO
   };
 }
 
+// A table cell must stay on one line: collapse line breaks and other
+// whitespace runs to a single space, then escape the column separator.
+function tableCell(text: string): string {
+  return text.replace(/\s+/g, ' ').trim().replace(/\|/g, '\\|');
+}
+
 export function generatePromptBlock(config?: RationguardConfig): string {
   const excuses = config?.excuses ?? DEFAULT_EXCUSES;
   const lines: string[] = [
@@ -141,8 +147,8 @@ export function generatePromptBlock(config?: RationguardConfig): string {
   ];
 
   for (const excuse of excuses) {
-    const escapedPattern = excuse.pattern.replace(/\|/g, '\\|');
-    const escapedRebuttal = excuse.rebuttal.replace(/\|/g, '\\|');
+    const escapedPattern = tableCell(excuse.pattern);
+    const escapedRebuttal = tableCell(excuse.rebuttal);
     lines.push(`| ${escapedPattern} | ${escapedRebuttal} |`);
   }
 

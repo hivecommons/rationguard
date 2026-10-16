@@ -354,6 +354,20 @@ describe('generatePromptBlock', () => {
     assert.ok(block.includes('custom excuse'));
     assert.ok(block.includes('custom rebuttal'));
   });
+
+  it('keeps a multi-line pattern or rebuttal on a single table row', () => {
+    const block = generatePromptBlock({
+      excuses: [{
+        pattern: 'i will handle\nthat later',
+        rebuttal: 'No.\r\nDo it | now.',
+        category: 'deferral',
+        keywords: ['handle'],
+      }],
+    });
+    const lines = block.split('\n');
+    assert.deepStrictEqual(lines.filter(l => l.startsWith('| i will handle')), ['| i will handle that later | No. Do it \\| now. |']);
+    assert.ok(!lines.some(l => l.startsWith('that later') || l.startsWith('Do it')));
+  });
 });
 
 describe('check onEvent', () => {

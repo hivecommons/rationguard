@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `learner`: strip contraction tails (`n't`, `'s`, `'re`, `'ll`, `'ve`, `'d`, `'m`) before the keyword stopword/length filter so `don't` / `that's` / `can't` no longer survive as promoted-excuse keywords and clear the auto-send threshold on benign text; `prompt`: collapse line breaks in excuse patterns/rebuttals so each one stays on a single Markdown table row (#240)
 - `learner`: drop stopwords and trailing punctuation from promoted excuse keywords so benign text no longer clears the auto-send threshold (#236)
 - `check`: stem text and keywords symmetrically (silent-e, doubled consonants, `ss` endings, short stems) so `idled`, `addressed`, `need approval`, `circled back`, `moving on`, `tabled this` match their keywords again; add `making progress` / `coming back to` keywords (#205)
 

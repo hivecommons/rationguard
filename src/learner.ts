@@ -244,11 +244,17 @@ export function recordSighting(
   return { isNew: true, count: 1, autoPromoted: false, excuse: null };
 }
 
+// Contraction tails ("don't" -> "don", "that's" -> "that") are removed before
+// the length/stopword filter so the remaining stem falls through to those
+// filters instead of surviving as a 4+ character pseudo-keyword (#240).
+const CONTRACTION_TAIL = /(n['\u2019]t|['\u2019](s|re|ll|ve|d|m))$/u;
+
 function promoteToExcuse(sighting: Sighting): Excuse {
   const words = sighting.text
     .toLowerCase()
     .split(/\s+/)
     .map(w => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
+    .map(w => w.replace(CONTRACTION_TAIL, ''))
     .filter(w => w.length > 3 && !isStopWord(w));
   return {
     pattern: sighting.text.toLowerCase(),
