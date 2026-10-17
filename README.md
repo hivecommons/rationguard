@@ -204,6 +204,49 @@ Exit codes: `0` = clean (or matches found without `--fail-on-match`), `1` = usag
                scan for issues, or find work proactively.
 ```
 
+#### As a Claude Code `Stop` hook
+
+Claude Code runs [`Stop` hooks](https://code.claude.com/docs/en/hooks) each time Claude finishes a response. The hook receives the response text as `last_assistant_message` on stdin, and exiting with code 2 keeps Claude working with the hook's stderr as feedback. That gives you Mode 2 without tmux or pluk:
+
+```bash
+#!/usr/bin/env bash
+# .claude/hooks/rationguard-stop.sh — requires jq
+input=$(cat)
+
+# Challenge each response at most once: skip turns this hook already continued.
+[ "$(jq -r '.stop_hook_active' <<<"$input")" = "true" ] && exit 0
+
+message=$(jq -r '.last_assistant_message // empty' <<<"$input")
+[ -n "$message" ] || exit 0
+
+result=$(printf '%s' "$message" | rationguard check --json) || exit 0
+
+# Same 0.7 confidence floor that `watch --rebuttal=send` uses before sending.
+rebuttals=$(jq -r '.matches[] | select(.confidence >= 0.7) | "rationguard: \(.excuse.category) — \(.excuse.rebuttal)"' <<<"$result")
+[ -n "$rebuttals" ] || exit 0
+
+echo "$rebuttals" >&2
+exit 2
+```
+
+Make it executable (`chmod +x .claude/hooks/rationguard-stop.sh`) and register it in `.claude/settings.json`:
+
+```json
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/rationguard-stop.sh" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+For example, a response ending "This is too complex to fix right now" matches `too complex to fix` at 100% confidence, so Claude receives that pattern's rebuttal and continues. Lower-confidence keyword matches pass through. Each run records eligible sightings, just like running `rationguard check` by hand.
+
 ### Mode 3: System prompt prevention
 
 Generate a defense table and inject it into your agent's system prompt. The agent self-polices against known excuses.
