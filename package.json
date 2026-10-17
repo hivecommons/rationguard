@@ -24,7 +24,17 @@
     "defense",
     "guard",
     "llm",
-    "cli"
+    "cli",
+    "ai-agents",
+    "guardrails",
+    "prompt-engineering",
+    "claude",
+    "claude-code",
+    "copilot",
+    "gemini",
+    "goose",
+    "codex",
+    "tmux"
   ],
   "author": "hivecommons",
   "license": "Apache-2.0",
