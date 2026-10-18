@@ -260,7 +260,7 @@ rationguard prompt
 rationguard prompt --format=yaml
 ```
 
-Outputs a markdown table by default (or YAML block with `--format=markdown|yaml`) you paste into CLAUDE.md, system prompt, or instructions file.
+Outputs a markdown table by default (or a YAML block with `--format=yaml`; `--format` accepts `markdown` or `yaml`) you paste into CLAUDE.md, system prompt, or instructions file.
 
 ---
 
