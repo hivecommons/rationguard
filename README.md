@@ -260,7 +260,7 @@ rationguard prompt
 rationguard prompt --format=yaml
 ```
 
-Outputs a markdown table (or YAML block with `--format=yaml`) you paste into CLAUDE.md, system prompt, or instructions file.
+Outputs a markdown table by default (or YAML block with `--format=markdown|yaml`) you paste into CLAUDE.md, system prompt, or instructions file.
 
 ---
 
@@ -336,7 +336,7 @@ const block = generatePromptBlock();
 | `rationguard check --file=<path>` | Check file contents |
 | `rationguard check --fail-on-match` | Exit 2 when any pattern matches |
 | `rationguard prompt` | Generate defense table for system prompts |
-| `rationguard prompt --format=yaml` | Generate defense table as YAML instead of markdown |
+| `rationguard prompt --format=markdown\|yaml` | Generate defense table as markdown (default) or yaml |
 | `rationguard sessions --run-dir=<path>` / `watch --run-dir=<path>` | Point at pluk logs elsewhere (or set `PLUK_RUN_DIR`) |
 | `rationguard attach <session> --no-open --verbose` | Skip opening a terminal window and print debug output |
 | `rationguard add "excuse" --category=...` | Record an excuse sighting |
