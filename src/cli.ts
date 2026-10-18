@@ -145,7 +145,8 @@ function parseFlags(args: string[]): { command: string; positional: string[]; fl
       } else {
         flags[arg.slice(2)] = 'true';
       }
-    } else if (!arg.startsWith('-')) {
+    } else {
+      // A single leading '-' is text, not a flag (e.g. a "- Nothing left" bullet).
       positional.push(arg);
     }
   }

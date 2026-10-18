@@ -247,6 +247,12 @@ describe('check', () => {
     assert.match(stripAnsi(res.stdout), /Complexity Dodge/);
   });
 
+  it('keeps positional text that starts with a single dash', () => {
+    const res = run(['check', '- all done, nothing left']);
+    assert.strictEqual(res.status, 0);
+    assert.match(stripAnsi(res.stdout), /False Completion/);
+  });
+
   it('exits 1 with an error when there is no input at all', () => {
     const res = run(['check']);
     assert.strictEqual(res.status, 1);
