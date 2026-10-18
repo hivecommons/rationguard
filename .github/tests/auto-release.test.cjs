@@ -19,7 +19,11 @@ function decide({ version = '0.12.0', changelog = '## 0.12.0 - 2026-10-06\n\n- F
     writeFileSync(join(dir, 'package.json'), JSON.stringify({ version }));
     writeFileSync(join(dir, 'CHANGELOG.md'), changelog);
     writeFileSync(join(dir, 'output'), '');
-    const result = spawnSync('bash', ['-c', scripts[0]], {
+    // The workflow writes release notes to a fixed /tmp path; redirect it into
+    // the fixture dir so parallel or multi-user test runs cannot collide.
+    const notes = join(dir, 'auto-release-notes.md');
+    assert.equal(scripts[0].split('/tmp/auto-release-notes.md').length, 3);
+    const result = spawnSync('bash', ['-c', scripts[0].replaceAll('/tmp/auto-release-notes.md', notes)], {
       cwd: dir,
       env: { ...process.env, PATH: `${dir}/bin:${process.env.PATH}`, GITHUB_OUTPUT: join(dir, 'output') },
       encoding: 'utf8',
