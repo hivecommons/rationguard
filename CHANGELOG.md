@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `watch --diagnostics=SECS`: a non-numeric or non-positive value (`abc`, `0`, `-5`, `5min`) used to silently run at the 60s default; it is now rejected with exit 1 (#277)
 - `prompt --format`: now validated against `markdown|yaml` (`markdown` is the explicit default spelling); `--format=json`, `--format=YAML` or a bare `--format` used to silently emit markdown with exit 0 (#275)
 - `add --rebuttal`/`--excuse`, `attach --cli`/`--dir`/`--command`/`--cli-args`, `watch --cli`/`--patterns-dir`: a bare flag is parsed as `"true"`; it is now rejected with the `--flag=<value>` hint instead of storing rebuttal `"true"` in the trusted store (auto-sent after three sightings) or passing it to the agent CLI (#268)
 - `check --file` and `--run-dir` (`sessions`, `watch`, `attach`): a space-separated value (`--file notes.txt`) is parsed as the bare flag `"true"`; it is now rejected with the `--flag=PATH` hint instead of a misleading "File not found: true" or reading/listing a path named `true` (#266)

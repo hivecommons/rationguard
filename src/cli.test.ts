@@ -921,6 +921,14 @@ describe('watch (live subscribe)', () => {
     }
   });
 
+  it('rejects non-numeric and non-positive --diagnostics values', () => {
+    for (const v of ['abc', '0', '-5', '5min']) {
+      const bad = run(['watch', 'watch-diag-bad', `--diagnostics=${v}`]);
+      assert.strictEqual(bad.status, 1, `--diagnostics=${v}`);
+      assert.match(stripAnsi(bad.stderr), /--diagnostics ".*" must be a positive number of seconds/);
+    }
+  });
+
   it('--diagnostics reports live watcher stats on stderr and a final summary on SIGINT', async () => {
     const session = 'watch-diag';
     const { runDir, logFile } = makeRunDir('watch-diag-run-dir', session, []);

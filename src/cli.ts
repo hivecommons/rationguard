@@ -323,6 +323,15 @@ function requireValueFlag(flag: string, raw: string | undefined): void {
   process.exit(1);
 }
 
+function requirePositiveSeconds(flag: string, raw: string | undefined): void {
+  if (raw === undefined || raw === 'true') return;
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds) && seconds > 0) return;
+  console.error(`${ANSI_RED}Error:${ANSI_RESET} --${flag} "${sanitizeForTerminal(raw)}" must be a positive number of seconds.`);
+  console.error(`  Note: write --${flag}=<seconds> (e.g. --${flag}=30), or a bare --${flag} for the 60s default.`);
+  process.exit(1);
+}
+
 function requireOneOf(flag: string, raw: string | undefined, valid: string[], label: string): void {
   if (raw === undefined || valid.includes(raw)) return;
   console.error(`${ANSI_RED}Error:${ANSI_RESET} Unknown --${flag} "${sanitizeForTerminal(raw)}". ${label}: ${valid.join(', ')}.`);
@@ -421,6 +430,7 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
   requireValueFlag('cli', flags['cli']);
   requirePathFlag('patterns-dir', flags['patterns-dir']);
   requireOneOf('rebuttal', flags['rebuttal'], ['log', 'send'], 'Valid values');
+  requirePositiveSeconds('diagnostics', flags['diagnostics']);
   const mode = (flags['mode'] ?? 'subscribe') as 'subscribe' | 'watch';
   const rebuttalMode = (flags['rebuttal'] ?? 'log') as 'log' | 'send';
   const jsonOutput = flags['json'] === 'true';
