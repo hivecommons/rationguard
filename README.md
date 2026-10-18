@@ -221,8 +221,10 @@ message=$(jq -r '.last_assistant_message // empty' <<<"$input")
 
 result=$(printf '%s' "$message" | rationguard check --json) || exit 0
 
-# Same 0.7 confidence floor that `watch --rebuttal=send` uses before sending.
-rebuttals=$(jq -r '.matches[] | select(.confidence >= 0.7) | "rationguard: \(.excuse.category) — \(.excuse.rebuttal)"' <<<"$result")
+# Same guards `watch --rebuttal=send` applies before sending: the 0.7 confidence
+# floor, and never forward project-local excuses — ./.rationguard/ belongs to the
+# checkout, so a cloned repo must not get to put text in front of Claude.
+rebuttals=$(jq -r '.matches[] | select(.confidence >= 0.7 and .excuse.source != "project") | "rationguard: \(.excuse.category) — \(.excuse.rebuttal)"' <<<"$result")
 [ -n "$rebuttals" ] || exit 0
 
 echo "$rebuttals" >&2
@@ -245,7 +247,7 @@ Make it executable (`chmod +x .claude/hooks/rationguard-stop.sh`) and register i
 }
 ```
 
-For example, a response ending "This is too complex to fix right now" matches `too complex to fix` at 100% confidence, so Claude receives that pattern's rebuttal and continues. Lower-confidence keyword matches pass through. Each run records eligible sightings, just like running `rationguard check` by hand.
+For example, a response ending "This is too complex to fix right now" matches `too complex to fix` at 100% confidence, so Claude receives that pattern's rebuttal and continues. Lower-confidence keyword matches pass through, and so do matches against project-local excuses (`source: "project"`): those still count as detections, but — exactly as in `watch --rebuttal=send` — their rebuttal text is never handed to the agent, because the working directory is untrusted. Each run records eligible sightings, just like running `rationguard check` by hand.
 
 ### Mode 3: System prompt prevention
 
