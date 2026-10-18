@@ -489,6 +489,27 @@ describe('add', () => {
     assert.match(stripAnsi(run(['watch', 'sess', '--mode']).stderr), /bare --mode/);
   });
 
+  it('rejects a bare --file instead of reading a file named "true"', () => {
+    const trap = path.join(projectDir, 'true');
+    fs.writeFileSync(trap, "that's out of scope");
+    try {
+      const res = run(['check', '--file', 'notes.txt']);
+      assert.strictEqual(res.status, 1);
+      assert.match(stripAnsi(res.stderr), /bare --file/);
+      assert.doesNotMatch(res.stdout, /Lane Confusion/);
+    } finally {
+      fs.rmSync(trap, { force: true });
+    }
+  });
+
+  it('rejects a bare --run-dir instead of looking in ./true', () => {
+    for (const args of [['sessions'], ['watch', 'sess'], ['attach', 'sess']]) {
+      const res = run([...args, '--run-dir', homeDir]);
+      assert.strictEqual(res.status, 1);
+      assert.match(stripAnsi(res.stderr), /bare --run-dir/);
+    }
+  });
+
   it('never promotes an excuse with an unknown category on the third sighting', () => {
     for (let i = 0; i < 3; i++) run(['add', 'I bogus thing', '--category=nonsense']);
     assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'custom-excuses.json')));

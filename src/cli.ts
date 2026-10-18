@@ -159,6 +159,7 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
 
   const fromFile = flags['file'] !== undefined;
   if (fromFile) {
+    requirePathFlag('file', flags['file']);
     const filePath = flags['file'];
     if (!fs.existsSync(filePath)) {
       console.error(`${ANSI_RED}Error:${ANSI_RESET} File not found: ${sanitizeForTerminal(filePath)}`);
@@ -305,6 +306,13 @@ function cmdList(flags: Record<string, string>): void {
   console.log();
 }
 
+function requirePathFlag(flag: string, raw: string | undefined): void {
+  if (raw !== 'true') return;
+  console.error(`${ANSI_RED}Error:${ANSI_RESET} --${flag} needs a value.`);
+  console.error(`  Note: write --${flag}=PATH (with '='); a bare --${flag} is parsed as "true". For a path literally named "true", write --${flag}=./true.`);
+  process.exit(1);
+}
+
 function requireOneOf(flag: string, raw: string | undefined, valid: string[], label: string): void {
   if (raw === undefined || valid.includes(raw)) return;
   console.error(`${ANSI_RED}Error:${ANSI_RESET} Unknown --${flag} "${sanitizeForTerminal(raw)}". ${label}: ${valid.join(', ')}.`);
@@ -324,6 +332,7 @@ function cmdAttach(positional: string[], flags: Record<string, string>): void {
   }
 
   requireOneOf('rebuttal', flags['rebuttal'], ['log', 'send'], 'Valid values');
+  requirePathFlag('run-dir', flags['run-dir']);
 
   attach({
     session,
@@ -342,6 +351,7 @@ function cmdAttach(positional: string[], flags: Record<string, string>): void {
 }
 
 function cmdSessions(flags: Record<string, string>): void {
+  requirePathFlag('run-dir', flags['run-dir']);
   const runDir = flags['run-dir'] ?? process.env['PLUK_RUN_DIR'];
   const sessions = discoverSessions(runDir);
 
@@ -393,6 +403,7 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
   }
 
   requireOneOf('mode', flags['mode'], ['subscribe', 'watch'], 'Valid modes');
+  requirePathFlag('run-dir', flags['run-dir']);
   requireOneOf('rebuttal', flags['rebuttal'], ['log', 'send'], 'Valid values');
   const mode = (flags['mode'] ?? 'subscribe') as 'subscribe' | 'watch';
   const rebuttalMode = (flags['rebuttal'] ?? 'log') as 'log' | 'send';

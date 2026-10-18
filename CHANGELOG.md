@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `check --file` and `--run-dir` (`sessions`, `watch`, `attach`): a space-separated value (`--file notes.txt`) is parsed as the bare flag `"true"`; it is now rejected with the `--flag=PATH` hint instead of a misleading "File not found: true" or reading/listing a path named `true` (#266)
 - `check --file`: an empty file (or `--file=`) no longer silently falls back to reading piped stdin, and an unreadable path such as a directory now exits 1 with a concise error instead of a stack trace
 - `check`: positional text that starts with a single `-` (such as a Markdown bullet `- Nothing left to do`) was silently dropped by flag parsing, yielding "No input" or a missed detection; it is now kept as input
 - Implicit `check` fallback (when no command is given): dash-led text like `rationguard "- all done"` is now treated as input for checking instead of printing help
