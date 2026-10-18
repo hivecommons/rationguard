@@ -241,6 +241,8 @@ function cmdPrompt(flags: Record<string, string>): void {
 }
 
 function cmdAdd(positional: string[], flags: Record<string, string>): void {
+  requireValueFlag('excuse', flags['excuse']);
+  requireValueFlag('rebuttal', flags['rebuttal']);
   const excuse = positional.join(' ') || flags['excuse'];
   if (!excuse) {
     console.error(`${ANSI_RED}Error:${ANSI_RESET} Provide excuse text as an argument or --excuse="<text>".`);
@@ -313,6 +315,13 @@ function requirePathFlag(flag: string, raw: string | undefined): void {
   process.exit(1);
 }
 
+function requireValueFlag(flag: string, raw: string | undefined): void {
+  if (raw !== 'true') return;
+  console.error(`${ANSI_RED}Error:${ANSI_RESET} --${flag} needs a value.`);
+  console.error(`  Note: write --${flag}=<value> (with '='); a bare --${flag} is parsed as "true".`);
+  process.exit(1);
+}
+
 function requireOneOf(flag: string, raw: string | undefined, valid: string[], label: string): void {
   if (raw === undefined || valid.includes(raw)) return;
   console.error(`${ANSI_RED}Error:${ANSI_RESET} Unknown --${flag} "${sanitizeForTerminal(raw)}". ${label}: ${valid.join(', ')}.`);
@@ -333,6 +342,10 @@ function cmdAttach(positional: string[], flags: Record<string, string>): void {
 
   requireOneOf('rebuttal', flags['rebuttal'], ['log', 'send'], 'Valid values');
   requirePathFlag('run-dir', flags['run-dir']);
+  requireValueFlag('cli', flags['cli']);
+  requirePathFlag('dir', flags['dir']);
+  requirePathFlag('command', flags['command']);
+  requireValueFlag('cli-args', flags['cli-args']);
 
   attach({
     session,
@@ -404,6 +417,8 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
 
   requireOneOf('mode', flags['mode'], ['subscribe', 'watch'], 'Valid modes');
   requirePathFlag('run-dir', flags['run-dir']);
+  requireValueFlag('cli', flags['cli']);
+  requirePathFlag('patterns-dir', flags['patterns-dir']);
   requireOneOf('rebuttal', flags['rebuttal'], ['log', 'send'], 'Valid values');
   const mode = (flags['mode'] ?? 'subscribe') as 'subscribe' | 'watch';
   const rebuttalMode = (flags['rebuttal'] ?? 'log') as 'log' | 'send';

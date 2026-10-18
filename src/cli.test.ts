@@ -510,6 +510,20 @@ describe('add', () => {
     }
   });
 
+  it('rejects bare free-text value flags without recording a sighting', () => {
+    for (const args of [['add', 'x', '--rebuttal'], ['add', '--excuse']]) {
+      const res = run(args);
+      assert.strictEqual(res.status, 1);
+      assert.match(stripAnsi(res.stderr), /bare --(rebuttal|excuse)/);
+    }
+    assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'sightings.json')));
+    for (const [cmd, flag] of [['attach', 'dir'], ['attach', 'cli'], ['attach', 'command'], ['attach', 'cli-args'], ['watch', 'patterns-dir'], ['watch', 'cli']]) {
+      const res = run([cmd, 'sess', `--${flag}`]);
+      assert.strictEqual(res.status, 1);
+      assert.match(stripAnsi(res.stderr), new RegExp(`bare --${flag}`));
+    }
+  });
+
   it('never promotes an excuse with an unknown category on the third sighting', () => {
     for (let i = 0; i < 3; i++) run(['add', 'I bogus thing', '--category=nonsense']);
     assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'custom-excuses.json')));
