@@ -223,6 +223,7 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
 }
 
 function cmdPrompt(flags: Record<string, string>): void {
+  requireOneOf('format', flags['format'], ['markdown', 'yaml'], 'Valid values');
   // Project-local excuses come from the (potentially untrusted) working
   // directory — a cloned repo must never inject text into a block that is
   // destined for agent instructions. Builtin + user excuses only.

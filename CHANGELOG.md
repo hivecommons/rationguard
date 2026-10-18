@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `prompt --format`: now validated against `markdown|yaml` (`markdown` is the explicit default spelling); `--format=json`, `--format=YAML` or a bare `--format` used to silently emit markdown with exit 0 (#275)
 - `add --rebuttal`/`--excuse`, `attach --cli`/`--dir`/`--command`/`--cli-args`, `watch --cli`/`--patterns-dir`: a bare flag is parsed as `"true"`; it is now rejected with the `--flag=<value>` hint instead of storing rebuttal `"true"` in the trusted store (auto-sent after three sightings) or passing it to the agent CLI (#268)
 - `check --file` and `--run-dir` (`sessions`, `watch`, `attach`): a space-separated value (`--file notes.txt`) is parsed as the bare flag `"true"`; it is now rejected with the `--flag=PATH` hint instead of a misleading "File not found: true" or reading/listing a path named `true` (#266)
 - `check --file`: an empty file (or `--file=`) no longer silently falls back to reading piped stdin, and an unreadable path such as a directory now exits 1 with a concise error instead of a stack trace

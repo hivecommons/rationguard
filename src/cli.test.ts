@@ -409,6 +409,27 @@ describe('prompt', () => {
       assert.ok(line === '' || line.startsWith('  '), `unindented YAML line: ${JSON.stringify(line)}`);
     }
   });
+
+  it('accepts --format=markdown as the explicit default', () => {
+    const res = run(['prompt', '--format=markdown']);
+    assert.strictEqual(res.status, 0);
+    assert.strictEqual(res.stdout, run(['prompt']).stdout);
+  });
+
+  it('rejects unknown --format values instead of emitting markdown', () => {
+    for (const v of ['xml', 'YAML']) {
+      const bad = run(['prompt', `--format=${v}`]);
+      assert.strictEqual(bad.status, 1);
+      assert.match(stripAnsi(bad.stderr), /Unknown --format/);
+    }
+  });
+
+  it('rejects a bare --format with the = hint', () => {
+    const bad = run(['prompt', '--format', 'yaml']);
+    assert.strictEqual(bad.status, 1);
+    assert.match(stripAnsi(bad.stderr), /Unknown --format "true"/);
+    assert.match(stripAnsi(bad.stderr), /with '='/);
+  });
 });
 
 describe('add', () => {
