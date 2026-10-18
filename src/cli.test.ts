@@ -1288,3 +1288,92 @@ describe('check --fail-on-match', () => {
     assert.strictEqual(res.status, 0);
   });
 });
+
+describe('README Stop-hook recipe', () => {
+  // The README ships a Claude Code `Stop` hook as a bash script. Its jq filter
+  // is the only thing standing between a project-local (untrusted) excuse and
+  // text put in front of the agent, so run the recipe verbatim — extracted
+  // from README.md, not copied — against the built CLI.
+  const README = fileURLToPath(new URL('../README.md', import.meta.url));
+  const toolsAvailable = ['bash', 'jq'].every(
+    bin => spawnSync(bin, ['--version'], { encoding: 'utf-8' }).status === 0,
+  );
+
+  function extractHookScript(): string {
+    const readme = fs.readFileSync(README, 'utf-8');
+    const section = readme.slice(readme.indexOf('#### As a Claude Code `Stop` hook'));
+    const block = /```bash\n([\s\S]*?)```/.exec(section);
+    assert.ok(block, 'README Stop-hook section must contain a ```bash block');
+    return block[1];
+  }
+
+  function runHook(payload: unknown): RunResult {
+    const binDir = path.join(sandbox, 'hook-bin');
+    fs.mkdirSync(binDir, { recursive: true });
+    const hook = path.join(binDir, 'rationguard-stop.sh');
+    fs.writeFileSync(hook, extractHookScript(), { mode: 0o755 });
+    // The recipe calls `rationguard` from PATH; point that at the compiled CLI.
+    fs.writeFileSync(
+      path.join(binDir, 'rationguard'),
+      `#!/bin/sh\nexec "${process.execPath}" "${CLI}" "$@"\n`,
+      { mode: 0o755 },
+    );
+    const res = spawnSync('bash', [hook], {
+      input: JSON.stringify(payload),
+      cwd: projectDir,
+      env: { ...process.env, HOME: homeDir, PATH: `${binDir}${path.delimiter}${process.env['PATH'] ?? ''}` },
+      encoding: 'utf-8',
+      timeout: 15_000,
+    });
+    return { status: res.status, stdout: res.stdout ?? '', stderr: res.stderr ?? '' };
+  }
+
+  it('extracts a runnable script that uses check --json and the project-source guard', () => {
+    const script = extractHookScript();
+    assert.match(script, /rationguard check --json/);
+    assert.match(script, /\.excuse\.source != "project"/);
+    assert.match(script, /\.confidence >= 0\.7/);
+  });
+
+  it('exits 0 when the hook already continued this turn (stop_hook_active)', { skip: !toolsAvailable && 'bash and jq required' }, () => {
+    const res = runHook({ stop_hook_active: true, last_assistant_message: 'This is too complex to fix right now' });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.stderr, '');
+  });
+
+  it('exits 0 on an empty or clean response', { skip: !toolsAvailable && 'bash and jq required' }, () => {
+    for (const payload of [{}, { last_assistant_message: '' }, { last_assistant_message: 'Opened PR #12 with the fix and tests.' }]) {
+      const res = runHook(payload);
+      assert.strictEqual(res.status, 0, res.stderr);
+      assert.strictEqual(res.stderr, '');
+    }
+  });
+
+  it('exits 2 with the rebuttal on stderr for a high-confidence builtin match', { skip: !toolsAvailable && 'bash and jq required' }, () => {
+    const res = runHook({ last_assistant_message: 'This is too complex to fix right now' });
+    assert.strictEqual(res.status, 2, res.stderr);
+    assert.match(res.stderr, /^rationguard: \S+ — .+/m);
+    assert.strictEqual(res.stdout, '');
+  });
+
+  it('never forwards a project-local excuse, even at full confidence', { skip: !toolsAvailable && 'bash and jq required' }, () => {
+    const dir = path.join(projectDir, '.rationguard');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'custom-excuses.json'),
+      JSON.stringify([
+        { pattern: 'zorble hook bait', rebuttal: 'INJECTED REBUTTAL', category: 'deferral', keywords: ['zorble hook bait'] },
+      ]) + '\n',
+    );
+    // Sanity: the CLI itself does report the match, so a 0 exit below is the
+    // recipe's filter doing its job rather than the match not firing.
+    const json = run(['check', '--json', 'zorble hook bait']);
+    const parsed = JSON.parse(json.stdout) as { matches: Array<{ excuse: { source?: string }; confidence: number }> };
+    assert.ok(parsed.matches.some(m => m.excuse.source === 'project' && m.confidence >= 0.7));
+
+    const res = runHook({ last_assistant_message: 'zorble hook bait' });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.stderr, '');
+    assert.doesNotMatch(res.stdout + res.stderr, /INJECTED REBUTTAL/);
+  });
+});
