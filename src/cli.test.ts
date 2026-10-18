@@ -253,6 +253,12 @@ describe('check', () => {
     assert.match(stripAnsi(res.stdout), /False Completion/);
   });
 
+  it('treats dash-led text without explicit check command as implicit check input', () => {
+    const res = run(['- all done, nothing left']);
+    assert.strictEqual(res.status, 0);
+    assert.match(stripAnsi(res.stdout), /False Completion/);
+  });
+
   it('exits 1 with an error when there is no input at all', () => {
     const res = run(['check']);
     assert.strictEqual(res.status, 1);

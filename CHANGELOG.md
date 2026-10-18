@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - `check`: positional text that starts with a single `-` (such as a Markdown bullet `- Nothing left to do`) was silently dropped by flag parsing, yielding "No input" or a missed detection; it is now kept as input
+- Implicit `check` fallback (when no command is given): dash-led text like `rationguard "- all done"` is now treated as input for checking instead of printing help
 - `watch`: reject invalid session names at startup, before reporting that monitoring has begun, so `--rebuttal=send` cannot crash on the first detection and subscribe mode shows a concise CLI error (#256)
 - `watch --rebuttal=send`: the tmux `send-keys` fallback now targets the session by exact name (`-t =<session>:`) instead of a bare `-t <session>`, which tmux resolves by prefix/fnmatch, so a rebuttal and its Enter can no longer be typed into another session that merely shares a name prefix; session names may no longer contain `.` (tmux reads `a.b` as window.pane). Bumped `@hivecommons/pluk` to `^0.10.0`, whose `pluk-send` makes the same exact-target fix on the primary delivery path
 - `learner`: strip contraction tails (`n't`, `'s`, `'re`, `'ll`, `'ve`, `'d`, `'m`) before the keyword stopword/length filter so `don't` / `that's` / `can't` no longer survive as promoted-excuse keywords and clear the auto-send threshold on benign text; `prompt`: collapse line breaks in excuse patterns/rebuttals so each one stays on a single Markdown table row (#240)

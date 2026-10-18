@@ -515,8 +515,16 @@ async function main(): Promise<void> {
       cmdSightings(flags);
       break;
     case 'help':
-    case '':
       console.log(HELP);
+      break;
+    case '':
+      // Implicit check fallback: if we have input (positional text or file flag),
+      // treat as check; otherwise show help
+      if (positional.length > 0 || flags['file']) {
+        await cmdCheck(positional, flags);
+      } else {
+        console.log(HELP);
+      }
       break;
     default:
       // Treat unknown command as check input
