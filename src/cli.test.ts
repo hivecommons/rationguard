@@ -241,6 +241,22 @@ describe('check', () => {
     assert.match(stripAnsi(res.stderr), /File not found/);
   });
 
+  it('does not fall back to stdin when --file is empty', () => {
+    const file = path.join(sandbox, 'empty.txt');
+    fs.writeFileSync(file, '');
+    const res = run(['check', `--file=${file}`], 'this is too complex to fix');
+    assert.strictEqual(res.status, 1);
+    assert.match(stripAnsi(res.stderr), /No input/);
+    assert.doesNotMatch(stripAnsi(res.stdout), /Complexity Dodge/);
+  });
+
+  it('exits 1 with a concise error when --file is a directory', () => {
+    const res = run(['check', `--file=${sandbox}`]);
+    assert.strictEqual(res.status, 1);
+    assert.match(stripAnsi(res.stderr), /Cannot read file/);
+    assert.doesNotMatch(res.stderr, /\n\s+at /);
+  });
+
   it('reads piped stdin input', () => {
     const res = run(['check'], 'this is too complex to fix');
     assert.strictEqual(res.status, 0);

@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `check --file`: an empty file (or `--file=`) no longer silently falls back to reading piped stdin, and an unreadable path such as a directory now exits 1 with a concise error instead of a stack trace
 - `check`: positional text that starts with a single `-` (such as a Markdown bullet `- Nothing left to do`) was silently dropped by flag parsing, yielding "No input" or a missed detection; it is now kept as input
 - Implicit `check` fallback (when no command is given): dash-led text like `rationguard "- all done"` is now treated as input for checking instead of printing help
 - `watch`: reject invalid session names at startup, before reporting that monitoring has begun, so `--rebuttal=send` cannot crash on the first detection and subscribe mode shows a concise CLI error (#256)

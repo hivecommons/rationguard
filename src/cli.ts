@@ -157,16 +157,23 @@ function parseFlags(args: string[]): { command: string; positional: string[]; fl
 async function cmdCheck(positional: string[], flags: Record<string, string>): Promise<void> {
   let input = positional.join(' ');
 
-  if (flags['file']) {
+  const fromFile = flags['file'] !== undefined;
+  if (fromFile) {
     const filePath = flags['file'];
     if (!fs.existsSync(filePath)) {
-      console.error(`${ANSI_RED}Error:${ANSI_RESET} File not found: ${filePath}`);
+      console.error(`${ANSI_RED}Error:${ANSI_RESET} File not found: ${sanitizeForTerminal(filePath)}`);
       process.exit(1);
     }
-    input = fs.readFileSync(filePath, 'utf-8');
+    try {
+      input = fs.readFileSync(filePath, 'utf-8');
+    } catch (err) {
+      console.error(`${ANSI_RED}Error:${ANSI_RESET} Cannot read file ${sanitizeForTerminal(filePath)}: ${sanitizeForTerminal((err as Error).message)}`);
+      process.exit(1);
+    }
   }
 
-  if (!input) {
+  // An explicit --file (even an empty one) must never be silently replaced by stdin.
+  if (!input && !fromFile) {
     input = await readStdin();
   }
 
