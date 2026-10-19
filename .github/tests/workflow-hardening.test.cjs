@@ -15,6 +15,8 @@
 //      nor any job grants `write-all`.
 //   3. Every job with `runs-on:` also has `timeout-minutes:` (jobs that call
 //      a reusable workflow via `uses:` cannot, and are exempt).
+//      Job and body indentation are derived from the file; a `jobs:` block
+//      that parses to zero jobs is itself a failure.
 //   4. The workflow directory contributes at least one `uses:` line, so the
 //      gate cannot pass vacuously on a tree it did not read.
 // `persist-credentials: false` on checkouts is deliberately not asserted:
@@ -49,18 +51,30 @@ function usesLines(yaml) {
   return out;
 }
 
-// The `jobs:` block as { name, line, body[] } entries.
+// The `jobs:` block as { name, line, body[], bodyIndent } entries. The header
+// indent comes from the first content line after `jobs:`, the body indent from
+// the first content line of each job, so neither is tied to a 2/4-space layout.
 function workflowJobs(yaml) {
   const lines = yaml.split('\n');
   const start = lines.findIndex(l => /^jobs:\s*$/.test(l));
   if (start < 0) return [];
+  const content = l => /\S/.test(l) && !/^\s*#/.test(l);
+  const first = lines.slice(start + 1).find(content);
+  if (first === undefined) return [];
+  const indent = /^ */.exec(first)[0].length;
+  if (indent === 0) return [];
+  const header = new RegExp(`^ {${indent}}([\\w.-]+):\\s*(?:#.*)?$`);
   const jobs = [];
   for (let i = start + 1; i < lines.length; i++) {
     const l = lines[i];
     if (/^\S/.test(l)) break;
-    const m = /^  ([\w.-]+):\s*(?:#.*)?$/.exec(l);
-    if (m) jobs.push({ name: m[1], line: i + 1, body: [] });
-    else if (jobs.length) jobs[jobs.length - 1].body.push(l);
+    const m = header.exec(l);
+    if (m) jobs.push({ name: m[1], line: i + 1, body: [], bodyIndent: null });
+    else if (jobs.length) {
+      const job = jobs[jobs.length - 1];
+      job.body.push(l);
+      if (job.bodyIndent === null && content(l)) job.bodyIndent = /^ */.exec(l)[0].length;
+    }
   }
   return jobs;
 }
@@ -92,7 +106,7 @@ function permissionProblems(yaml) {
   const problems = [];
   if (!hasTopLevelPermissions(yaml)) problems.push('no top-level permissions: block');
   yaml.split('\n').forEach((l, i) => {
-    if (/^\s*permissions:\s*write-all\s*(#.*)?$/.test(l)) problems.push(`line ${i + 1}: permissions: write-all`);
+    if (/^\s*permissions:\s*(["']?)write-all\1\s*(#.*)?$/.test(l)) problems.push(`line ${i + 1}: permissions: write-all`);
   });
   return problems;
 }
@@ -100,15 +114,22 @@ function permissionProblems(yaml) {
 function timeoutProblems(yaml) {
   const problems = [];
   for (const job of workflowJobs(yaml)) {
-    const runsOn = job.body.some(l => /^\s{4}runs-on:/.test(l));
-    const timeout = job.body.some(l => /^\s{4}timeout-minutes:/.test(l));
+    const key = k => job.body.some(l => new RegExp(`^ {${job.bodyIndent}}${k}:`).test(l));
+    const runsOn = job.bodyIndent !== null && key('runs-on');
+    const timeout = job.bodyIndent !== null && key('timeout-minutes');
     if (runsOn && !timeout) problems.push(`line ${job.line}: job ${job.name} has runs-on: but no timeout-minutes:`);
   }
   return problems;
 }
 
+// A top-level `jobs:` that parses to zero jobs would make the timeout rule vacuous.
+function jobsProblems(yaml) {
+  if (/^jobs:/m.test(yaml) && workflowJobs(yaml).length === 0) return ['top-level jobs: block parsed to zero jobs, so the timeout rule would pass vacuously'];
+  return [];
+}
+
 function workflowProblems(yaml) {
-  return [...pinProblems(yaml), ...permissionProblems(yaml), ...timeoutProblems(yaml)];
+  return [...pinProblems(yaml), ...permissionProblems(yaml), ...jobsProblems(yaml), ...timeoutProblems(yaml)];
 }
 
 // --- fixture self-tests -------------------------------------------------------
@@ -166,6 +187,30 @@ test('fixture: a quoted uses: ref and a trailing-comment job header are read', (
     .replace('  test:\n', '  test: # unit\n');
   assert.deepEqual(workflowProblems(yaml), []);
   assert.equal(workflowJobs(yaml)[0].name, 'test');
+});
+
+test('fixture: a 4-space-indented workflow is parsed, and a quoted write-all is reported', () => {
+  const y4 = `name: CI
+on: [push]
+permissions:
+    contents: read
+jobs:
+    # comment before the first job
+    test:
+        runs-on: ubuntu-latest
+        steps:
+            - run: echo hi
+`;
+  assert.equal(workflowJobs(y4)[0].name, 'test');
+  assert.deepEqual(timeoutProblems(y4), ['line 7: job test has runs-on: but no timeout-minutes:']);
+  assert.deepEqual(timeoutProblems(y4.replace('        steps:', '        timeout-minutes: 5\n        steps:')), []);
+  assert.deepEqual(permissionProblems(GOOD.replace('permissions:\n  contents: read\n', 'permissions: "write-all"\n')), ['line 3: permissions: write-all']);
+  assert.deepEqual(permissionProblems(GOOD.replace('permissions:\n  contents: read\n', "permissions: 'write-all' # x\n")), ['line 3: permissions: write-all']);
+});
+
+test('fixture: a jobs: block that parses to zero jobs is reported', () => {
+  assert.match(jobsProblems('permissions: read-all\njobs:\nbuild:\n  runs-on: x\n').join('\n'), /parsed to zero jobs/);
+  assert.deepEqual(jobsProblems(GOOD), []);
 });
 
 // --- live tree ----------------------------------------------------------------
