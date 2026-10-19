@@ -103,7 +103,7 @@ ${ANSI_BOLD}AUTO-LEARNING${ANSI_RESET}
 
   When ${ANSI_CYAN}rationguard check${ANSI_RESET} finds no match but the text looks like an excuse,
   use ${ANSI_CYAN}rationguard add${ANSI_RESET} to record a sighting. After ${ANSI_BOLD}3 sightings${ANSI_RESET} of the
-  same pattern, it auto-promotes to a custom excuse in .rationguard/.
+  same pattern, it auto-promotes to a custom excuse in ~/.rationguard/custom-excuses.json.
 
 ${ANSI_BOLD}MODES${ANSI_RESET}
 

@@ -293,7 +293,9 @@ rationguard add "synergizing the deliverables" \
 rationguard sightings
 ```
 
-Custom excuses live in `.rationguard/custom-excuses.json` (per-project) or `~/.rationguard/custom-excuses.json` (global).
+`rationguard add` and `rationguard sightings` always use the trusted per-user `~/.rationguard/` store. `add` records sightings in `~/.rationguard/sightings.json`; after 3 sightings of the same pattern, it promotes the pattern into `~/.rationguard/custom-excuses.json`. `sightings` lists the recorded sightings.
+
+A project-local `./.rationguard/custom-excuses.json` is read-only to the CLI and untrusted: its excuses are used for detection/display, but their rebuttals are never auto-sent and matches on them never count toward auto-promotion.
 
 ---
 
