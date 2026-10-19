@@ -11,6 +11,7 @@
 //   1. Every `uses:` is `owner/repo[/path]@<40-hex SHA>` followed by a
 //      `# <version>` comment on the same line (what Dependabot rewrites on a
 //      bump). `./local` paths are exempt; `docker://` images need `@sha256:`.
+//      Flow-mapped (`- { uses: ... }`) and quoted `"uses":` keys are read too.
 //   2. The workflow declares a top-level `permissions:` block, and neither it
 //      nor any job grants `write-all`.
 //   3. Every job with `runs-on:` also has `timeout-minutes:` (jobs that call
@@ -33,11 +34,14 @@ const SHA256 = /^sha256:[0-9a-f]{64}$/;
 
 // --- parsing -----------------------------------------------------------------
 
-// Every `uses:` occurrence as { line (1-based), ref, comment }.
+// Every `uses:` occurrence as { line (1-based), ref, comment }. The key may be
+// a block-mapping entry, a quoted key, or the first member of a flow mapping
+// such as `- { uses: owner/repo@sha }`.
+const USES_KEY = /(?:^\s*(?:-\s+)?|[{,]\s*)["']?uses["']?\s*:\s*([^,}]*)/;
 function usesLines(yaml) {
   const out = [];
   yaml.split('\n').forEach((text, i) => {
-    const m = /^\s*(?:-\s+)?uses:\s*(.*)$/.exec(text);
+    const m = USES_KEY.exec(text);
     if (!m) return;
     let rest = m[1].trim();
     let comment = null;
@@ -56,7 +60,7 @@ function usesLines(yaml) {
 // the first content line of each job, so neither is tied to a 2/4-space layout.
 function workflowJobs(yaml) {
   const lines = yaml.split('\n');
-  const start = lines.findIndex(l => /^jobs:\s*$/.test(l));
+  const start = lines.findIndex(l => /^jobs:\s*(?:#.*)?$/.test(l));
   if (start < 0) return [];
   const content = l => /\S/.test(l) && !/^\s*#/.test(l);
   const first = lines.slice(start + 1).find(content);
@@ -211,6 +215,17 @@ jobs:
 test('fixture: a jobs: block that parses to zero jobs is reported', () => {
   assert.match(jobsProblems('permissions: read-all\njobs:\nbuild:\n  runs-on: x\n').join('\n'), /parsed to zero jobs/);
   assert.deepEqual(jobsProblems(GOOD), []);
+});
+
+test('fixture: flow-mapped and quoted-key uses: steps, and a commented jobs: header, are read', () => {
+  const pinned = 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1';
+  const flow = GOOD.replace(`- uses: ${pinned}`, `- { uses: actions/checkout@v7, with: { fetch-depth: 1 } }`);
+  assert.match(pinProblems(flow).join('\n'), /actions\/checkout@v7 is not pinned/);
+  const quoted = GOOD.replace(`- uses: ${pinned}`, `- "uses": actions/checkout@v7`);
+  assert.match(pinProblems(quoted).join('\n'), /actions\/checkout@v7 is not pinned/);
+  const commented = GOOD.replace('jobs:\n', 'jobs: # all of them\n');
+  assert.deepEqual(workflowProblems(commented), []);
+  assert.equal(workflowJobs(commented).length, 2);
 });
 
 // --- live tree ----------------------------------------------------------------
