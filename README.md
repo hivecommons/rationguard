@@ -293,7 +293,7 @@ rationguard add "synergizing the deliverables" \
 rationguard sightings
 ```
 
-`rationguard add` and `rationguard sightings` store sightings in the trusted per-user `~/.rationguard/custom-excuses.json`. A project-local `.rationguard/custom-excuses.json` is read-only and untrusted: rebuttals from it are never auto-sent, and sightings never count toward auto-promotion.
+`rationguard add` and `rationguard sightings` always use the trusted per-user store `~/.rationguard/`: sightings are recorded in `sightings.json`, and an excuse that reaches 3 sightings is promoted into `custom-excuses.json`. A project-local `.rationguard/custom-excuses.json` is read-only and untrusted: rebuttals from it are never auto-sent, and sightings never count toward auto-promotion.
 
 ---
 
