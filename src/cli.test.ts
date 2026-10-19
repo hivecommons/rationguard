@@ -69,6 +69,7 @@ describe('help', () => {
   it('documents attach and watch flags', () => {
     const out = stripAnsi(run(['help']).stdout);
     assert.match(out, /--cli-args=/);
+    assert.match(out, /--rationguard-bin=<cmd>/);
     assert.match(out, /--patterns-dir=/);
     assert.strictEqual(out.match(/--run-dir=/g)?.length, 3);
   });
@@ -538,7 +539,7 @@ describe('add', () => {
       assert.match(stripAnsi(res.stderr), /bare --(rebuttal|excuse)/);
     }
     assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'sightings.json')));
-    for (const [cmd, flag] of [['attach', 'dir'], ['attach', 'cli'], ['attach', 'command'], ['attach', 'cli-args'], ['watch', 'patterns-dir'], ['watch', 'cli']]) {
+    for (const [cmd, flag] of [['attach', 'dir'], ['attach', 'cli'], ['attach', 'command'], ['attach', 'cli-args'], ['attach', 'rationguard-bin'], ['watch', 'patterns-dir'], ['watch', 'cli']]) {
       const res = run([cmd, 'sess', `--${flag}`]);
       assert.strictEqual(res.status, 1);
       assert.match(stripAnsi(res.stderr), new RegExp(`bare --${flag}`));
@@ -1269,6 +1270,63 @@ describe('attach (stubbed pluk toolchain)', () => {
     const log = fs.readFileSync(stubLog, 'utf-8');
     assert.match(log, new RegExp(`tmux pipe-pane -t =${session}: .*pluk'? watch '${session}' --cli='claude'`));
     assert.match(log, new RegExp(`rationguard watch ${session} --run-dir=${runDir} --cli=claude --rebuttal=log`));
+  });
+
+  describe('rationguard command (#284)', () => {
+    function setup(name: string) {
+      const dir = path.join(sandbox, name);
+      const binDir = path.join(dir, 'bin');
+      const runDir = path.join(dir, 'run');
+      fs.mkdirSync(binDir, { recursive: true });
+      fs.mkdirSync(runDir, { recursive: true });
+      const stubLog = path.join(dir, 'stub.log');
+      // No rationguard on PATH: attach must not depend on a global install.
+      const stubs: Record<string, string> = {
+        tmux: '#!/bin/sh\necho "tmux $*" >> "$STUB_LOG"\ncase "$1" in has-session) exit 1;; esac\nexit 0\n',
+        pluk: '#!/bin/sh\nexit 0\n',
+        pgrep: '#!/bin/sh\nexit 1\n',
+      };
+      for (const [n, body] of Object.entries(stubs)) {
+        fs.writeFileSync(path.join(binDir, n), body);
+        fs.chmodSync(path.join(binDir, n), 0o755);
+      }
+      const custom = path.join(dir, 'my rationguard');
+      fs.writeFileSync(custom, '#!/bin/sh\necho "custom $*" >> "$STUB_LOG"\nexit 0\n');
+      fs.chmodSync(custom, 0o755);
+      const env = { PATH: `${binDir}:/usr/bin:/bin`, STUB_LOG: stubLog };
+      return { runDir, stubLog, custom, env };
+    }
+    const baseArgs = (session: string, runDir: string) =>
+      ['attach', session, '--no-open', `--dir=${projectDir}`, `--run-dir=${runDir}`];
+
+    it('forwards --rationguard-bin (quoted path with spaces) to pluk', () => {
+      const { runDir, stubLog, custom, env } = setup('rgbin-flag');
+      const res = run([...baseArgs('rgbin-flag', runDir), `--rationguard-bin='${custom}'`], undefined, env);
+      assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
+      assert.match(fs.readFileSync(stubLog, 'utf-8'), /custom watch rgbin-flag /);
+    });
+
+    it('falls back to PLUK_RATIONGUARD_BIN', () => {
+      const { runDir, stubLog, custom, env } = setup('rgbin-env');
+      const res = run(baseArgs('rgbin-env', runDir), undefined, { ...env, PLUK_RATIONGUARD_BIN: `'${custom}'` });
+      assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
+      assert.match(fs.readFileSync(stubLog, 'utf-8'), /custom watch rgbin-env /);
+    });
+
+    it('defaults to the running CLI instead of looking for rationguard on PATH', () => {
+      const { runDir, stubLog, env } = setup('rgbin-default');
+      const dir = path.dirname(stubLog);
+      const fake = path.join(dir, 'fake cli.mjs');
+      fs.writeFileSync(fake, `import fs from 'node:fs';\nfs.appendFileSync(process.env.STUB_LOG, 'self ' + process.argv.slice(2).join(' ') + '\\n');\n`);
+      const cliUrl = new URL('./cli.js', import.meta.url).href;
+      const res = spawnSync(process.execPath, ['--input-type=module', '-e', `
+        process.argv = [process.argv[0], ${JSON.stringify(fake)}, ...${JSON.stringify(baseArgs('rgbin-default', runDir))}];
+        await import(${JSON.stringify(cliUrl)});
+      `], { cwd: projectDir, env: { ...process.env, HOME: homeDir, ...env }, encoding: 'utf-8', timeout: 15_000 });
+      assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
+      assert.doesNotMatch(res.stderr, /not found on PATH/);
+      assert.match(fs.readFileSync(stubLog, 'utf-8'), /self watch rgbin-default /);
+    });
   });
 });
 

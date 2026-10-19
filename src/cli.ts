@@ -45,6 +45,7 @@ ${ANSI_BOLD}QUICK START${ANSI_RESET}
     --command=<path>                   Override the CLI executable (bypasses --cli resolution)
     --no-raw                           Don't include raw terminal bytes in the pluk event log
     --cli-args="<args>"                Extra arguments passed to the agent CLI
+    --rationguard-bin=<cmd>            Override the rationguard command pluk launches (default: this executable)
     --run-dir=/var/run/pluk            Pluk run directory
 
 ${ANSI_BOLD}USAGE${ANSI_RESET}
@@ -382,6 +383,15 @@ function requireWatchPatterns(cli: string, patternsDir: string | undefined): voi
   process.exit(1);
 }
 
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+// pluk takes the rationguard command as a shell-word string.
+function selfCommand(): string {
+  return `${shellQuote(process.execPath)} ${shellQuote(process.argv[1] ?? '')}`;
+}
+
 function cmdAttach(positional: string[], flags: Record<string, string>): void {
   const session = positional[0];
 
@@ -397,6 +407,11 @@ function cmdAttach(positional: string[], flags: Record<string, string>): void {
   requirePathFlag('dir', flags['dir']);
   requirePathFlag('command', flags['command']);
   requireValueFlag('cli-args', flags['cli-args']);
+  requireValueFlag('rationguard-bin', flags['rationguard-bin']);
+
+  // Default to the running process: otherwise pluk re-resolves `rationguard`
+  // on PATH and throws when run via npx, `node dist/cli.js` or node_modules/.bin.
+  const rationguardBin = flags['rationguard-bin'] ?? process.env['PLUK_RATIONGUARD_BIN'] ?? selfCommand();
 
   attach({
     session,
@@ -405,6 +420,7 @@ function cmdAttach(positional: string[], flags: Record<string, string>): void {
     cliArgs: flags['cli-args'],
     runDir: flags['run-dir'],
     rationguard: true,
+    rationguardBin,
     rebuttal: (flags['rebuttal'] as 'log' | 'send') ?? 'log',
     noRaw: flags['no-raw'] === 'true',
     workDir: flags['dir'],
