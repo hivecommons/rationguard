@@ -1315,33 +1315,46 @@ describe('attach (stubbed pluk toolchain)', () => {
       assert.match(fs.readFileSync(stubLog, 'utf-8'), /custom watch rgbin-env /);
     });
 
+    it('treats a blank PLUK_RATIONGUARD_BIN as unset', () => {
+      const { runDir, stubLog, env } = setup('rgbin-blank');
+      const res = runSelf('rgbin-blank', runDir, stubLog, { ...env, PLUK_RATIONGUARD_BIN: '  ' });
+      assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
+      assert.doesNotMatch(res.stderr, /not found on PATH/);
+      assert.match(fs.readFileSync(stubLog, 'utf-8'), /self watch rgbin-blank /);
+    });
+
     it('defaults to the running CLI instead of looking for rationguard on PATH', () => {
       const { runDir, stubLog, env } = setup('rgbin-default');
-      const dir = path.dirname(stubLog);
-      const fake = path.join(dir, 'fake cli.mjs');
-      fs.writeFileSync(fake, `import fs from 'node:fs';\nfs.appendFileSync(process.env.STUB_LOG, 'self ' + process.argv.slice(2).join(' ') + '\\n');\n`);
-      const cliUrl = new URL('./cli.js', import.meta.url).href;
-      const res = spawnSync(process.execPath, ['--input-type=module', '-e', `
-        process.argv = [process.argv[0], ${JSON.stringify(fake)}, ...${JSON.stringify(baseArgs('rgbin-default', runDir))}];
-        await import(${JSON.stringify(cliUrl)});
-      `], { cwd: projectDir, env: { ...process.env, HOME: homeDir, ...env }, encoding: 'utf-8', timeout: 15_000 });
+      const res = runSelf('rgbin-default', runDir, stubLog, env);
       assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
       assert.doesNotMatch(res.stderr, /not found on PATH/);
       assert.match(fs.readFileSync(stubLog, 'utf-8'), /self watch rgbin-default /);
     });
+
+    // Runs the CLI with process.argv[1] pointing at a stub script, so the
+    // self-command default launches the stub instead of the real watch loop.
+    function runSelf(session: string, runDir: string, stubLog: string, env: Record<string, string>): RunResult {
+      const fake = path.join(path.dirname(stubLog), 'fake cli.mjs');
+      fs.writeFileSync(fake, `import fs from 'node:fs';\nfs.appendFileSync(process.env.STUB_LOG, 'self ' + process.argv.slice(2).join(' ') + '\\n');\n`);
+      const cliUrl = new URL('./cli.js', import.meta.url).href;
+      return runEval(`
+        process.argv = [process.argv[0], ${JSON.stringify(fake)}, ...${JSON.stringify(baseArgs(session, runDir))}];
+        await import(${JSON.stringify(cliUrl)});
+      `, env);
+    }
   });
 });
 
 // The remaining cli.ts paths cannot be reached through a plain subprocess
 // invocation: a piped child never has a TTY stdin, and the watch-mode error
-// forwarder only fires when a constructed Watcher emits after start(). Both
-// tests below run the CLI through an --input-type=module eval wrapper that
-// prepares process state (and, for watch, patches the shared Watcher module
-// instance) before dynamically importing the compiled cli.js.
-function runEval(script: string): RunResult {
+// forwarder only fires when a constructed Watcher emits after start(). The
+// eval-wrapper tests run the CLI through an --input-type=module eval wrapper
+// that prepares process state (and, for watch, patches the shared Watcher
+// module instance) before dynamically importing the compiled cli.js.
+function runEval(script: string, envOverrides?: Record<string, string>): RunResult {
   const res = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
     cwd: projectDir,
-    env: { ...process.env, HOME: homeDir },
+    env: { ...process.env, HOME: homeDir, ...envOverrides },
     encoding: 'utf-8',
     timeout: 15_000,
   });

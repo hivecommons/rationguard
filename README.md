@@ -79,6 +79,9 @@ rationguard attach my-agent --cli=claude --no-raw
   the default resolved from `--cli`.
 - `--no-raw` — don't include raw terminal bytes in the pluk event log (omits
   `--include-raw` from the internal `pluk watch` invocation).
+- `--rationguard-bin=<cmd>` — override the rationguard command pluk launches
+  (defaults to the running executable; `PLUK_RATIONGUARD_BIN` is honoured when
+  the flag is absent).
 
 ### `--dangerous` flag
 
