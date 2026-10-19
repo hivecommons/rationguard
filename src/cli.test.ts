@@ -1383,7 +1383,7 @@ describe('check with a TTY stdin', () => {
 });
 
 describe('watch runtime error forwarding', () => {
-  it('prints watcher "error" events to stderr without crashing the watch loop', () => {
+  it('prints watcher "error" events to stderr and exits non-zero once the loop drains', () => {
     const cliUrl = new URL('./cli.js', import.meta.url).href;
     const watcherUrl = new URL('./watcher.js', import.meta.url).href;
     const res = runEval(`
@@ -1394,9 +1394,25 @@ describe('watch runtime error forwarding', () => {
       };
       await import(${JSON.stringify(cliUrl)});
     `);
-    assert.strictEqual(res.status, 0, `stdout: ${res.stdout} stderr: ${res.stderr}`);
+    assert.strictEqual(res.status, 1, `stdout: ${res.stdout} stderr: ${res.stderr}`);
     assert.match(stripAnsi(res.stdout), /watching err-sess/);
     assert.match(stripAnsi(res.stderr), /Error:.*simulated tail failure/);
+  });
+
+  it('sanitizes terminal escapes in watcher error messages', () => {
+    const cliUrl = new URL('./cli.js', import.meta.url).href;
+    const watcherUrl = new URL('./watcher.js', import.meta.url).href;
+    const res = runEval(`
+      process.argv = [process.argv[0], 'cli.js', 'watch', 'err-sess'];
+      const { Watcher } = await import(${JSON.stringify(watcherUrl)});
+      Watcher.prototype.start = async function () {
+        this.emit('error', new Error('bad \\x1b[31mred'));
+      };
+      await import(${JSON.stringify(cliUrl)});
+    `);
+    assert.strictEqual(res.status, 1, `stdout: ${res.stdout} stderr: ${res.stderr}`);
+    assert.ok(!stripAnsi(res.stderr).includes('\x1b[31m'));
+    assert.ok(!res.stderr.includes('bad \x1b[31m'));
   });
 });
 

@@ -554,7 +554,8 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
   const stopDiagnostics = startDiagnostics('watch', () => ({ ...watcher.stats() }), flags['diagnostics']);
 
   watcher.on('error', (err: Error) => {
-    console.error(`${ANSI_RED}Error:${ANSI_RESET} ${err.message}`);
+    process.exitCode = 1;
+    console.error(`${ANSI_RED}Error:${ANSI_RESET} ${sanitizeForTerminal(err.message)}`);
   });
 
   process.on('SIGINT', () => {

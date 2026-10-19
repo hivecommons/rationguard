@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Fixed
+
+- `watch`: a subscriber `error` event (e.g. the pluk log never appearing within 60s) was only printed and the process exited 0; it now sets exit code 1 once the loop drains, and the message is sanitized for terminal output (#290)
+
 ## 0.13.0 - 2026-10-19
 
 ### Added
