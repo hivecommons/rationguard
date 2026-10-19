@@ -33,7 +33,7 @@ npm install -g @hivecommons/rationguard @hivecommons/pluk
 
 ## Releases
 
-Maintainers publish releases by pushing a `v*` tag. The tag workflow runs the test gate, then publishes `@hivecommons/rationguard` to npm with provenance using the repository `NPM_TOKEN` Actions secret.
+Maintainers publish releases by pushing a `v*` tag. The tag workflow runs the test gate, then publishes `@hivecommons/rationguard` to npm with provenance via [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers) (GitHub Actions OIDC, `npm` environment) — no long-lived npm token is stored in the repository.
 
 ---
 

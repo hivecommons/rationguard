@@ -61,7 +61,14 @@ skips existing tags, so rerunning it will not retry publishing. Before retrying 
 failed Publish run, check whether npm already published that version; if so,
 retry only the failed GitHub release job rather than republishing.
 
-The repository must have an `NPM_TOKEN` Actions secret with permission to publish `@hivecommons/rationguard`; the workflow uses it as `NODE_AUTH_TOKEN` for `npm publish --provenance --access public`.
+Publishing authenticates with [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers)
+(OIDC) instead of a stored token: the `publish` job runs in the `npm` GitHub Environment with
+`id-token: write`, upgrades npm to ≥ 11.5.1, and runs `npm publish --provenance --access public`
+with no `NODE_AUTH_TOKEN`. The package on npmjs.com must have a Trusted Publisher configured for
+GitHub Actions with organization `hivecommons`, repository `rationguard`, workflow `publish.yml`
+and environment `npm` (equivalently: `npm trust github @hivecommons/rationguard --repo hivecommons/rationguard --file publish.yml --env npm --allow-publish`).
+Do not add an `NPM_TOKEN`/`NODE_AUTH_TOKEN` to the publish job — npm rejects OIDC publishes when a
+token is also present.
 
 ## Development notes
 
