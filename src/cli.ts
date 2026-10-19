@@ -11,6 +11,7 @@ import { discoverSessions, attach, getPatterns, listAvailableCLIs, bundledPatter
 import { sanitizeForTerminal, stringifyForTerminal } from './sanitize.js';
 import { startDiagnostics } from './diagnostics.js';
 import fs from 'node:fs';
+import path from 'node:path';
 
 const ANSI_RED = '\x1b[31m';
 const ANSI_YELLOW = '\x1b[33m';
@@ -347,6 +348,10 @@ function requireOneOf(flag: string, raw: string | undefined, valid: string[], la
 function requireWatchPatterns(cli: string, patternsDir: string | undefined): void {
   if (patternsDir !== undefined && !fs.existsSync(patternsDir)) {
     console.error(`${ANSI_RED}Error:${ANSI_RESET} --patterns-dir "${sanitizeForTerminal(patternsDir)}" does not exist.`);
+    process.exit(1);
+  }
+  if (patternsDir !== undefined && !fs.existsSync(path.join(patternsDir, `${cli}.patterns`))) {
+    console.error(`${ANSI_RED}Error:${ANSI_RESET} --patterns-dir "${sanitizeForTerminal(patternsDir)}" has no ${sanitizeForTerminal(cli)}.patterns file.`);
     process.exit(1);
   }
   const set = getPatterns(cli, patternsDir) as unknown as Record<string, unknown>;

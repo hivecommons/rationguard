@@ -938,6 +938,13 @@ describe('watch (live subscribe)', () => {
     const missing = run(['watch', 'watch-dir-bad', '--mode=watch', `--patterns-dir=${path.join(sandbox, 'no-such-patterns')}`]);
     assert.strictEqual(missing.status, 1);
     assert.match(stripAnsi(missing.stderr), /--patterns-dir ".*no-such-patterns" does not exist\./);
+
+    const emptyDir = path.join(sandbox, 'empty-patterns');
+    fs.mkdirSync(emptyDir, { recursive: true });
+    const noFile = run(['watch', 'watch-dir-empty', '--mode=watch', '--cli=claude', `--patterns-dir=${emptyDir}`]);
+    assert.strictEqual(noFile.status, 1);
+    assert.match(stripAnsi(noFile.stderr), /--patterns-dir ".*empty-patterns" has no claude\.patterns file\./);
+    assert.ok(!noFile.stdout.includes('watching'));
   });
 
   it('does not reject a known --cli with --mode=watch', async () => {
