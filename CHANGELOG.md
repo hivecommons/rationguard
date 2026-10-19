@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `learner`: the custom-excuses.json and sightings.json validators checked category membership with `in`, which also accepted `Object.prototype` keys such as `toString`/`__proto__`; they now require an own property of the category table, so such entries are dropped like any other unknown category (#287)
 - `attach`: no longer fails with "rationguard not found on PATH" unless globally installed (npx, `node dist/cli.js`, project-local installs); it now launches the running rationguard by default, and `--rationguard-bin=<cmd>` / `PLUK_RATIONGUARD_BIN` are honoured and documented (#284)
 - `watch --mode=watch`: an unknown `--cli` (e.g. a typo like `cluade`) or a `--patterns-dir` that is missing or whose `<cli>.patterns` file is absent, unreadable or defines no patterns used to run silently with no patterns; both are now rejected (no silent fallback to the bundled set) with exit 1 (#282)
 - `watch --diagnostics=SECS`: a non-numeric or non-positive value (`abc`, `0`, `-5`, `5min`) used to silently run at the 60s default; it is now rejected with exit 1 (#277)

@@ -260,6 +260,67 @@ describe('loadCustomExcuses', () => {
     fs.writeFileSync(path.join(base, 'custom-excuses.json'), JSON.stringify(entries));
     assert.deepStrictEqual(loadCustomExcuses(dir), [valid]);
   });
+
+  it('drops entries with prototype keys as category (toString, __proto__) and keeps valid ones', () => {
+    const base = path.join(dir, '.rationguard');
+    fs.mkdirSync(base, { recursive: true });
+    const valid: Excuse = {
+      pattern: 'this is valid',
+      rebuttal: 'Do better.',
+      category: 'deferral',
+      keywords: ['valid'],
+    };
+    const entries = [
+      valid,
+      { pattern: 'x', rebuttal: 'y', category: 'toString', keywords: [] },
+      { pattern: 'z', rebuttal: 'a', category: '__proto__', keywords: [] },
+      { pattern: 'c', rebuttal: 'd', category: 'constructor', keywords: [] },
+    ];
+    fs.writeFileSync(path.join(base, 'custom-excuses.json'), JSON.stringify(entries));
+    assert.deepStrictEqual(loadCustomExcuses(dir), [valid]);
+  });
+});
+
+describe('listSightings', () => {
+  it('drops sightings with prototype keys as suggestedCategory', () => {
+    process.env['HOME'] = dir;
+    const base = path.join(dir, '.rationguard');
+    fs.mkdirSync(base, { recursive: true });
+    const valid = {
+      text: 'this is valid',
+      count: 1,
+      firstSeen: new Date().toISOString(),
+      lastSeen: new Date().toISOString(),
+      suggestedCategory: 'deferral' as const,
+      suggestedRebuttal: 'Act now.',
+      promoted: false,
+    };
+    const store = {
+      sightings: [
+        valid,
+        {
+          text: 'prototype toString',
+          count: 1,
+          firstSeen: new Date().toISOString(),
+          lastSeen: new Date().toISOString(),
+          suggestedCategory: 'toString',
+          suggestedRebuttal: 'x',
+          promoted: false,
+        },
+        {
+          text: 'prototype constructor',
+          count: 1,
+          firstSeen: new Date().toISOString(),
+          lastSeen: new Date().toISOString(),
+          suggestedCategory: 'constructor',
+          suggestedRebuttal: 'y',
+          promoted: false,
+        },
+      ],
+    };
+    fs.writeFileSync(path.join(base, 'sightings.json'), JSON.stringify(store));
+    assert.deepStrictEqual(listSightings(dir), [valid]);
+  });
 });
 
 describe('trusted store home resolution', () => {

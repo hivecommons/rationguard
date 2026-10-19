@@ -76,7 +76,7 @@ function isValidSighting(value: unknown): value is Sighting {
     typeof s['firstSeen'] === 'string' &&
     typeof s['lastSeen'] === 'string' &&
     typeof s['suggestedCategory'] === 'string' &&
-    s['suggestedCategory'] in CATEGORY_LABELS &&
+    Object.prototype.hasOwnProperty.call(CATEGORY_LABELS, s['suggestedCategory']) &&
     typeof s['suggestedRebuttal'] === 'string' &&
     typeof s['promoted'] === 'boolean'
   );
@@ -284,7 +284,7 @@ function isValidExcuse(value: unknown): value is Excuse {
     e['pattern'].trim().length > 0 &&
     typeof e['rebuttal'] === 'string' &&
     typeof e['category'] === 'string' &&
-    e['category'] in CATEGORY_LABELS &&
+    Object.prototype.hasOwnProperty.call(CATEGORY_LABELS, e['category']) &&
     Array.isArray(e['keywords']) &&
     e['keywords'].every(k => typeof k === 'string')
   );
