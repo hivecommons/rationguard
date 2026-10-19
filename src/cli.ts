@@ -351,10 +351,11 @@ function requireWatchPatterns(cli: string, patternsDir: string | undefined): voi
   }
   const set = getPatterns(cli, patternsDir) as unknown as Record<string, unknown>;
   if (Object.values(set).some(v => v instanceof RegExp)) return;
-  const known = new Set<string>();
-  if (patternsDir !== undefined) listAvailableCLIs(patternsDir).forEach(c => known.add(c));
-  listAvailableCLIs(bundledPatternsDir()).forEach(c => known.add(c));
-  if (known.size === 0) Object.keys(BUILTIN_PATTERNS).forEach(c => known.add(c));
+  const known = new Set<string>([
+    ...(patternsDir !== undefined ? listAvailableCLIs(patternsDir) : []),
+    ...listAvailableCLIs(bundledPatternsDir()),
+  ]);
+  if (known.size === 0) for (const c of Object.keys(BUILTIN_PATTERNS)) known.add(c);
   console.error(`${ANSI_RED}Error:${ANSI_RESET} Unknown --cli "${sanitizeForTerminal(cli)}". Known CLIs: ${[...known].join(', ')}.`);
   process.exit(1);
 }
