@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.13.0 - 2026-10-19
+
 ### Added
 
 - `check --fail-on-match` exits 2 when any pattern matches so pipelines and hooks can gate on detections (#244)
@@ -26,6 +28,13 @@ All notable changes to this project are documented in this file.
 - `learner`: strip contraction tails (`n't`, `'s`, `'re`, `'ll`, `'ve`, `'d`, `'m`) before the keyword stopword/length filter so `don't` / `that's` / `can't` no longer survive as promoted-excuse keywords and clear the auto-send threshold on benign text; `prompt`: collapse line breaks in excuse patterns/rebuttals so each one stays on a single Markdown table row (#240)
 - `learner`: drop stopwords and trailing punctuation from promoted excuse keywords so benign text no longer clears the auto-send threshold (#236)
 - `check`: stem text and keywords symmetrically (silent-e, doubled consonants, `ss` endings, short stems) so `idled`, `addressed`, `need approval`, `circled back`, `moving on`, `tabled this` match their keywords again; add `making progress` / `coming back to` keywords (#205)
+
+### Changed
+
+- `publish.yml`: publish to npm with Trusted Publishing (OIDC) and `--provenance` instead of a long-lived `NPM_TOKEN` secret (#252)
+- `package.json`: list the supported agent CLIs and repo topics in npm `keywords` so the package is discoverable on npmjs.com (#259)
+- Docs: add a Claude Code Stop-hook recipe for `rationguard check` (excluding project-local excuses like `watch --rebuttal=send` does) and document `watch --patterns-dir` (#249, #271, #243)
+- `runbooks/watch-session-degraded.md`: note the pluk-send → tmux fallback log lines (#232)
 
 ## 0.12.0 - 2026-10-10
 
