@@ -1217,7 +1217,9 @@ describe('attach (stubbed pluk toolchain)', () => {
         `--dir=${projectDir}`, `--run-dir=${runDir}`,
       ],
       undefined,
-      { PATH: `${binDir}:${process.env['PATH'] ?? ''}`, STUB_LOG: stubLog },
+      // attach defaults the watcher to this executable (#284); point pluk at the
+      // stub so the real `watch` loop never starts and the child exits at once.
+      { PATH: `${binDir}:${process.env['PATH'] ?? ''}`, STUB_LOG: stubLog, PLUK_RATIONGUARD_BIN: 'rationguard' },
     );
 
     assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
@@ -1259,7 +1261,7 @@ describe('attach (stubbed pluk toolchain)', () => {
     const res = run(
       ['attach', session, '--no-open', `--dir=${projectDir}`, `--run-dir=${runDir}`],
       undefined,
-      { PATH: `${binDir}:${process.env['PATH'] ?? ''}`, STUB_LOG: stubLog },
+      { PATH: `${binDir}:${process.env['PATH'] ?? ''}`, STUB_LOG: stubLog, PLUK_RATIONGUARD_BIN: 'rationguard' },
     );
 
     assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
