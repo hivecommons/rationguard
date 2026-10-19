@@ -356,6 +356,10 @@ function requireWatchPatterns(cli: string, patternsDir: string | undefined): voi
   }
   const set = getPatterns(cli, patternsDir) as unknown as Record<string, unknown>;
   if (Object.values(set).some(v => v instanceof RegExp)) return;
+  if (patternsDir !== undefined) {
+    console.error(`${ANSI_RED}Error:${ANSI_RESET} --patterns-dir "${sanitizeForTerminal(patternsDir)}" ${sanitizeForTerminal(cli)}.patterns defines no patterns.`);
+    process.exit(1);
+  }
   const known = new Set<string>([
     ...(patternsDir !== undefined ? listAvailableCLIs(patternsDir) : []),
     ...listAvailableCLIs(bundledPatternsDir()),

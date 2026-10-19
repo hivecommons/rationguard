@@ -945,6 +945,15 @@ describe('watch (live subscribe)', () => {
     assert.strictEqual(noFile.status, 1);
     assert.match(stripAnsi(noFile.stderr), /--patterns-dir ".*empty-patterns" has no claude\.patterns file\./);
     assert.ok(!noFile.stdout.includes('watching'));
+
+    const blankDir = path.join(sandbox, 'blank-patterns');
+    fs.mkdirSync(blankDir, { recursive: true });
+    fs.writeFileSync(path.join(blankDir, 'claude.patterns'), '# no patterns here\n');
+    const blank = run(['watch', 'watch-dir-blank', '--mode=watch', '--cli=claude', `--patterns-dir=${blankDir}`]);
+    assert.strictEqual(blank.status, 1);
+    assert.match(stripAnsi(blank.stderr), /--patterns-dir ".*blank-patterns" claude\.patterns defines no patterns\./);
+    assert.ok(!/Unknown --cli/.test(blank.stderr));
+    assert.ok(!blank.stdout.includes('watching'));
   });
 
   it('does not reject a known --cli with --mode=watch', async () => {
