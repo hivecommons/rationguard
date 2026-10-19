@@ -281,48 +281,6 @@ describe('loadCustomExcuses', () => {
   });
 });
 
-describe('listSightings', () => {
-  it('drops sightings with prototype keys as suggestedCategory', () => {
-    process.env['HOME'] = dir;
-    const base = path.join(dir, '.rationguard');
-    fs.mkdirSync(base, { recursive: true });
-    const valid = {
-      text: 'this is valid',
-      count: 1,
-      firstSeen: new Date().toISOString(),
-      lastSeen: new Date().toISOString(),
-      suggestedCategory: 'deferral' as const,
-      suggestedRebuttal: 'Act now.',
-      promoted: false,
-    };
-    const store = {
-      sightings: [
-        valid,
-        {
-          text: 'prototype toString',
-          count: 1,
-          firstSeen: new Date().toISOString(),
-          lastSeen: new Date().toISOString(),
-          suggestedCategory: 'toString',
-          suggestedRebuttal: 'x',
-          promoted: false,
-        },
-        {
-          text: 'prototype constructor',
-          count: 1,
-          firstSeen: new Date().toISOString(),
-          lastSeen: new Date().toISOString(),
-          suggestedCategory: 'constructor',
-          suggestedRebuttal: 'y',
-          promoted: false,
-        },
-      ],
-    };
-    fs.writeFileSync(path.join(base, 'sightings.json'), JSON.stringify(store));
-    assert.deepStrictEqual(listSightings(dir), [valid]);
-  });
-});
-
 describe('trusted store home resolution', () => {
   const originalHome = process.env['HOME'];
 
@@ -530,5 +488,44 @@ describe('listSightings', () => {
     assert.strictEqual(sightings[0].text, 'seen twice');
     assert.strictEqual(sightings[0].count, 2);
     assert.strictEqual(sightings[1].text, 'seen once');
+  });
+
+  it('drops sightings with prototype keys as suggestedCategory', () => {
+    const base = path.join(dir, '.rationguard');
+    fs.mkdirSync(base, { recursive: true });
+    const valid = {
+      text: 'this is valid',
+      count: 1,
+      firstSeen: new Date().toISOString(),
+      lastSeen: new Date().toISOString(),
+      suggestedCategory: 'deferral' as const,
+      suggestedRebuttal: 'Act now.',
+      promoted: false,
+    };
+    const store = {
+      sightings: [
+        valid,
+        {
+          text: 'prototype toString',
+          count: 1,
+          firstSeen: new Date().toISOString(),
+          lastSeen: new Date().toISOString(),
+          suggestedCategory: 'toString',
+          suggestedRebuttal: 'x',
+          promoted: false,
+        },
+        {
+          text: 'prototype constructor',
+          count: 1,
+          firstSeen: new Date().toISOString(),
+          lastSeen: new Date().toISOString(),
+          suggestedCategory: 'constructor',
+          suggestedRebuttal: 'y',
+          promoted: false,
+        },
+      ],
+    };
+    fs.writeFileSync(path.join(base, 'sightings.json'), JSON.stringify(store));
+    assert.deepStrictEqual(listSightings(dir), [valid]);
   });
 });
