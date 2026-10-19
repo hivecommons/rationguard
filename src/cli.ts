@@ -7,7 +7,7 @@ import { CATEGORY_LABELS } from './types.js';
 import type { ExcuseCategory, Excuse } from './types.js';
 import { Watcher, isValidSessionName } from './watcher.js';
 import type { WatcherDetection } from './watcher.js';
-import { discoverSessions, attach, type SessionInfo } from '@hivecommons/pluk';
+import { discoverSessions, attach, getPatterns, listAvailableCLIs, bundledPatternsDir, BUILTIN_PATTERNS, type SessionInfo } from '@hivecommons/pluk';
 import { sanitizeForTerminal, stringifyForTerminal } from './sanitize.js';
 import { startDiagnostics } from './diagnostics.js';
 import fs from 'node:fs';
@@ -341,6 +341,24 @@ function requireOneOf(flag: string, raw: string | undefined, valid: string[], la
   process.exit(1);
 }
 
+// Only --mode=watch hands --cli/--patterns-dir to pluk, which would otherwise
+// run silently with an all-null pattern set (unknown --cli) or fall back to the
+// bundled patterns (missing --patterns-dir).
+function requireWatchPatterns(cli: string, patternsDir: string | undefined): void {
+  if (patternsDir !== undefined && !fs.existsSync(patternsDir)) {
+    console.error(`${ANSI_RED}Error:${ANSI_RESET} --patterns-dir "${sanitizeForTerminal(patternsDir)}" does not exist.`);
+    process.exit(1);
+  }
+  const set = getPatterns(cli, patternsDir) as unknown as Record<string, unknown>;
+  if (Object.values(set).some(v => v instanceof RegExp)) return;
+  const known = new Set<string>();
+  if (patternsDir !== undefined) listAvailableCLIs(patternsDir).forEach(c => known.add(c));
+  listAvailableCLIs(bundledPatternsDir()).forEach(c => known.add(c));
+  if (known.size === 0) Object.keys(BUILTIN_PATTERNS).forEach(c => known.add(c));
+  console.error(`${ANSI_RED}Error:${ANSI_RESET} Unknown --cli "${sanitizeForTerminal(cli)}". Known CLIs: ${[...known].join(', ')}.`);
+  process.exit(1);
+}
+
 function cmdAttach(positional: string[], flags: Record<string, string>): void {
   const session = positional[0];
 
@@ -437,6 +455,7 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
   const verbose = flags['verbose'] === 'true';
   requireOneOf('log-format', flags['log-format'], ['text', 'json'], 'Valid values');
   const logFormat = (flags['log-format'] ?? 'text') as 'text' | 'json';
+  if (mode === 'watch') requireWatchPatterns(flags['cli'] ?? 'claude', flags['patterns-dir']);
 
   // In JSON mode stdout carries only JSON Lines, so status text goes to stderr.
   const status = jsonOutput ? console.error : console.log;

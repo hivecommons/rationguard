@@ -929,6 +929,27 @@ describe('watch (live subscribe)', () => {
     }
   });
 
+  it('rejects an unknown --cli or missing --patterns-dir with --mode=watch', () => {
+    const bad = run(['watch', 'watch-cli-bad', '--mode=watch', '--cli=cluade']);
+    assert.strictEqual(bad.status, 1);
+    assert.match(stripAnsi(bad.stderr), /Unknown --cli "cluade"\. Known CLIs: .*claude/);
+    assert.ok(!bad.stdout.includes('watching'));
+
+    const missing = run(['watch', 'watch-dir-bad', '--mode=watch', `--patterns-dir=${path.join(sandbox, 'no-such-patterns')}`]);
+    assert.strictEqual(missing.status, 1);
+    assert.match(stripAnsi(missing.stderr), /--patterns-dir ".*no-such-patterns" does not exist\./);
+  });
+
+  it('does not reject a known --cli with --mode=watch', async () => {
+    const session = 'watch-cli-ok';
+    const { runDir } = makeRunDir('watch-cli-ok-run-dir', session, []);
+    const h = spawnWatch([session, '--mode=watch', '--cli=claude', `--run-dir=${runDir}`]);
+    await sleep(1000);
+    h.child.kill('SIGINT');
+    await waitForExit(h.child);
+    assert.ok(!/Unknown --cli|does not exist/.test(stripAnsi(h.stderr())), h.stderr());
+  });
+
   it('--diagnostics reports live watcher stats on stderr and a final summary on SIGINT', async () => {
     const session = 'watch-diag';
     const { runDir, logFile } = makeRunDir('watch-diag-run-dir', session, []);
