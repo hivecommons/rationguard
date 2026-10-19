@@ -366,6 +366,8 @@ function requireWatchPatterns(cli: string, patternsDir: string | undefined): voi
   } else {
     set = getPatterns(cli);
   }
+  // Mirrors pluk's unexported hasAnyPattern (src/patterns.ts); parsePatternsContent
+  // never throws, so an all-null set is the only signal that nothing was parsed.
   for (const v of Object.values(set)) if (v instanceof RegExp) return;
   if (patternsDir !== undefined) {
     console.error(`${ANSI_RED}Error:${ANSI_RESET} --patterns-dir "${sanitizeForTerminal(patternsDir)}" ${sanitizeForTerminal(cli)}.patterns defines no patterns.`);
