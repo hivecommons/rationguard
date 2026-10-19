@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - `watch`: a subscriber `error` event (e.g. the pluk log never appearing within 60s) was only printed and the process exited 0; it now sets exit code 1 once the loop drains, and the message is sanitized for terminal output (#290)
+- `add`/`sightings` help text and README said auto-learning used a per-project `.rationguard/`; they now state the trusted `~/.rationguard/` store that the CLI actually uses, and that a project-local `custom-excuses.json` is read-only/untrusted (#292)
 
 ## 0.13.0 - 2026-10-19
 
