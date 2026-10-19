@@ -944,10 +944,14 @@ describe('watch (live subscribe)', () => {
     const session = 'watch-cli-ok';
     const { runDir } = makeRunDir('watch-cli-ok-run-dir', session, []);
     const h = spawnWatch([session, '--mode=watch', '--cli=claude', `--run-dir=${runDir}`]);
-    await sleep(1000);
+    // Subscribe to 'close' before sleeping: without a tmux session the child
+    // may exit during the wait, and a listener attached afterwards never fires.
+    const exited = waitForExit(h.child);
+    await Promise.race([exited, sleep(1000)]);
     h.child.kill('SIGINT');
-    await waitForExit(h.child);
+    await exited;
     assert.ok(!/Unknown --cli|does not exist/.test(stripAnsi(h.stderr())), h.stderr());
+    assert.ok(h.stdout().includes('watching'), `validation should pass and print the banner: ${h.stdout()} ${h.stderr()}`);
   });
 
   it('--diagnostics reports live watcher stats on stderr and a final summary on SIGINT', async () => {
