@@ -1315,6 +1315,14 @@ describe('attach (stubbed pluk toolchain)', () => {
       assert.match(fs.readFileSync(stubLog, 'utf-8'), /custom watch rgbin-env /);
     });
 
+    it('treats a blank --rationguard-bin= as unset', () => {
+      const { runDir, stubLog, env } = setup('rgbin-blank-flag');
+      const res = runSelf('rgbin-blank-flag', runDir, stubLog, env, ['--rationguard-bin=']);
+      assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
+      assert.doesNotMatch(res.stderr, /not found on PATH/);
+      assert.match(fs.readFileSync(stubLog, 'utf-8'), /self watch rgbin-blank-flag /);
+    });
+
     it('treats a blank PLUK_RATIONGUARD_BIN as unset', () => {
       const { runDir, stubLog, env } = setup('rgbin-blank');
       const res = runSelf('rgbin-blank', runDir, stubLog, { ...env, PLUK_RATIONGUARD_BIN: '  ' });
@@ -1333,12 +1341,12 @@ describe('attach (stubbed pluk toolchain)', () => {
 
     // Runs the CLI with process.argv[1] pointing at a stub script, so the
     // self-command default launches the stub instead of the real watch loop.
-    function runSelf(session: string, runDir: string, stubLog: string, env: Record<string, string>): RunResult {
+    function runSelf(session: string, runDir: string, stubLog: string, env: Record<string, string>, extraArgs: string[] = []): RunResult {
       const fake = path.join(path.dirname(stubLog), 'fake cli.mjs');
       fs.writeFileSync(fake, `import fs from 'node:fs';\nfs.appendFileSync(process.env.STUB_LOG, 'self ' + process.argv.slice(2).join(' ') + '\\n');\n`);
       const cliUrl = new URL('./cli.js', import.meta.url).href;
       return runEval(`
-        process.argv = [process.argv[0], ${JSON.stringify(fake)}, ...${JSON.stringify(baseArgs(session, runDir))}];
+        process.argv = [process.argv[0], ${JSON.stringify(fake)}, ...${JSON.stringify([...baseArgs(session, runDir), ...extraArgs])}];
         await import(${JSON.stringify(cliUrl)});
       `, env);
     }

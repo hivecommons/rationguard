@@ -411,10 +411,11 @@ function cmdAttach(positional: string[], flags: Record<string, string>): void {
 
   // Default to the running process: otherwise pluk re-resolves `rationguard`
   // on PATH and throws when run via npx, `node dist/cli.js` or node_modules/.bin.
-  // An empty/blank PLUK_RATIONGUARD_BIN counts as unset: pluk would trim it and
-  // fall back to the same PATH lookup.
+  // An empty/blank --rationguard-bin= or PLUK_RATIONGUARD_BIN counts as unset:
+  // pluk would trim it and fall back to the same PATH lookup.
+  const flagBin = flags['rationguard-bin']?.trim();
   const envBin = process.env['PLUK_RATIONGUARD_BIN']?.trim();
-  const rationguardBin = flags['rationguard-bin'] ?? (envBin || selfCommand());
+  const rationguardBin = flagBin || envBin || selfCommand();
 
   attach({
     session,
