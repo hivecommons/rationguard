@@ -7,7 +7,7 @@ import { CATEGORY_LABELS } from './types.js';
 import type { ExcuseCategory, Excuse } from './types.js';
 import { Watcher, isValidSessionName } from './watcher.js';
 import type { WatcherDetection } from './watcher.js';
-import { discoverSessions, attach, getPatterns, listAvailableCLIs, bundledPatternsDir, BUILTIN_PATTERNS, type SessionInfo } from '@hivecommons/pluk';
+import { discoverSessions, attach, getPatterns, loadPatterns, listAvailableCLIs, bundledPatternsDir, BUILTIN_PATTERNS, type SessionInfo } from '@hivecommons/pluk';
 import { sanitizeForTerminal, stringifyForTerminal } from './sanitize.js';
 import { startDiagnostics } from './diagnostics.js';
 import fs from 'node:fs';
@@ -354,8 +354,19 @@ function requireWatchPatterns(cli: string, patternsDir: string | undefined): voi
     console.error(`${ANSI_RED}Error:${ANSI_RESET} --patterns-dir "${sanitizeForTerminal(patternsDir)}" has no ${sanitizeForTerminal(cli)}.patterns file.`);
     process.exit(1);
   }
-  const set = getPatterns(cli, patternsDir) as unknown as Record<string, unknown>;
-  if (Object.values(set).some(v => v instanceof RegExp)) return;
+  let set;
+  if (patternsDir !== undefined) {
+    // loadPatterns throws on I/O errors; getPatterns would swallow them and use the bundled set.
+    try {
+      set = loadPatterns(patternsDir, cli);
+    } catch (err) {
+      console.error(`${ANSI_RED}Error:${ANSI_RESET} --patterns-dir "${sanitizeForTerminal(patternsDir)}" ${sanitizeForTerminal(cli)}.patterns cannot be read: ${sanitizeForTerminal(err instanceof Error ? err.message : String(err))}`);
+      process.exit(1);
+    }
+  } else {
+    set = getPatterns(cli);
+  }
+  for (const v of Object.values(set)) if (v instanceof RegExp) return;
   if (patternsDir !== undefined) {
     console.error(`${ANSI_RED}Error:${ANSI_RESET} --patterns-dir "${sanitizeForTerminal(patternsDir)}" ${sanitizeForTerminal(cli)}.patterns defines no patterns.`);
     process.exit(1);
@@ -465,7 +476,8 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
   const verbose = flags['verbose'] === 'true';
   requireOneOf('log-format', flags['log-format'], ['text', 'json'], 'Valid values');
   const logFormat = (flags['log-format'] ?? 'text') as 'text' | 'json';
-  if (mode === 'watch') requireWatchPatterns(flags['cli'] ?? 'claude', flags['patterns-dir']);
+  const cli = flags['cli'] ?? 'claude';
+  if (mode === 'watch') requireWatchPatterns(cli, flags['patterns-dir']);
 
   // In JSON mode stdout carries only JSON Lines, so status text goes to stderr.
   const status = jsonOutput ? console.error : console.log;
@@ -474,7 +486,7 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
 
   const watcher = new Watcher({
     session,
-    cli: flags['cli'] ?? 'claude',
+    cli,
     runDir: flags['run-dir'],
     patternsDir: flags['patterns-dir'],
     mode,

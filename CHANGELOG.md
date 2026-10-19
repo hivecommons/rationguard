@@ -11,7 +11,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
-- `watch --mode=watch`: an unknown `--cli` (e.g. a typo like `cluade`) or a `--patterns-dir` that is missing or whose `<cli>.patterns` file is absent or defines no patterns used to run silently with no patterns; both are now rejected (no silent fallback to the bundled set) with exit 1 (#282)
+- `watch --mode=watch`: an unknown `--cli` (e.g. a typo like `cluade`) or a `--patterns-dir` that is missing or whose `<cli>.patterns` file is absent, unreadable or defines no patterns used to run silently with no patterns; both are now rejected (no silent fallback to the bundled set) with exit 1 (#282)
 - `watch --diagnostics=SECS`: a non-numeric or non-positive value (`abc`, `0`, `-5`, `5min`) used to silently run at the 60s default; it is now rejected with exit 1 (#277)
 - `prompt --format`: now validated against `markdown|yaml` (`markdown` is the explicit default spelling); `--format=json`, `--format=YAML` or a bare `--format` used to silently emit markdown with exit 0 (#275)
 - `add --rebuttal`/`--excuse`, `attach --cli`/`--dir`/`--command`/`--cli-args`, `watch --cli`/`--patterns-dir`: a bare flag is parsed as `"true"`; it is now rejected with the `--flag=<value>` hint instead of storing rebuttal `"true"` in the trusted store (auto-sent after three sightings) or passing it to the agent CLI (#268)

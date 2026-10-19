@@ -954,6 +954,13 @@ describe('watch (live subscribe)', () => {
     assert.match(stripAnsi(blank.stderr), /--patterns-dir ".*blank-patterns" claude\.patterns defines no patterns\./);
     assert.ok(!/Unknown --cli/.test(blank.stderr));
     assert.ok(!blank.stdout.includes('watching'));
+
+    const dirAsFile = path.join(sandbox, 'unreadable-patterns');
+    fs.mkdirSync(path.join(dirAsFile, 'claude.patterns'), { recursive: true });
+    const unreadable = run(['watch', 'watch-dir-unreadable', '--mode=watch', '--cli=claude', `--patterns-dir=${dirAsFile}`]);
+    assert.strictEqual(unreadable.status, 1);
+    assert.match(stripAnsi(unreadable.stderr), /--patterns-dir ".*unreadable-patterns" claude\.patterns cannot be read: .*EISDIR/);
+    assert.ok(!unreadable.stdout.includes('watching'));
   });
 
   it('does not reject a known --cli with --mode=watch', async () => {
