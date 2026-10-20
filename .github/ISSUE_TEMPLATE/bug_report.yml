@@ -1,0 +1,88 @@
+name: Bug report
+description: Report a reproducible problem in rationguard
+title: "bug: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. If rationguard flagged text that is not an excuse, or missed one
+        that is, use the **Excuse pattern report** form instead.
+        Redact tokens and private data from any output you paste.
+  - type: input
+    id: version
+    attributes:
+      label: rationguard version
+      description: Output of `npm ls -g @hivecommons/rationguard` (or the version in your project's lockfile).
+      placeholder: "0.13.0"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Operating system, `node --version` (rationguard requires Node.js 20 or newer), and the pluk and `tmux -V` versions if you used `attach` or `watch`.
+      placeholder: "macOS 15, Node v22.11.0, pluk 0.10.0, tmux 3.5a"
+    validations:
+      required: true
+  - type: dropdown
+    id: command
+    attributes:
+      label: Command
+      description: Which rationguard command shows the problem?
+      options:
+        - attach
+        - watch
+        - check
+        - sessions
+        - prompt
+        - add
+        - list
+        - sightings
+        - library API (import from @hivecommons/rationguard)
+        - other
+    validations:
+      required: true
+  - type: dropdown
+    id: cli
+    attributes:
+      label: Agent CLI (`--cli`)
+      options:
+        - claude
+        - copilot
+        - gemini
+        - goose
+        - codex
+        - custom `--command`
+        - not applicable
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: The exact commands you ran, including flags.
+      placeholder: |
+        1. rationguard attach my-agent --cli=claude --rebuttal=send
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What happened instead, including any stderr output.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Output or logs
+      description: Relevant output, for example from `--verbose` or `--json`.
+      render: shell

@@ -1,0 +1,64 @@
+name: Excuse pattern report
+description: rationguard flagged text that is not an excuse, missed one that is, or you want to propose a new default excuse
+title: "patterns: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        rationguard sorts excuses into five categories; see
+        [The 5 Excuse Categories](https://github.com/hivecommons/rationguard#the-5-excuse-categories) in the README.
+        You can record a local excuse with `rationguard add` while this is discussed
+        (see [Auto-Learning](https://github.com/hivecommons/rationguard#auto-learning)).
+        Redact tokens and private data from any agent output you paste.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Report type
+      options:
+        - False positive (text was flagged but is not an excuse)
+        - Missed excuse (an excuse was not flagged)
+        - New default excuse proposal
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: rationguard version
+      description: Output of `npm ls -g @hivecommons/rationguard`.
+    validations:
+      required: true
+  - type: textarea
+    id: text
+    attributes:
+      label: Agent text
+      description: The exact text that was (or should have been) flagged.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: check-output
+    attributes:
+      label: "`rationguard check --json` output"
+      description: The result of running `rationguard check --json` on the text above.
+      render: json
+    validations:
+      required: true
+  - type: dropdown
+    id: category
+    attributes:
+      label: Expected category
+      options:
+        - false-completion
+        - complexity-dodge
+        - deferral
+        - lane-confusion
+        - partial-credit
+        - none (should not match)
+    validations:
+      required: true
+  - type: textarea
+    id: rebuttal
+    attributes:
+      label: Proposed pattern or rebuttal (optional)
+      description: For a missed or new excuse, the phrase to match and the rebuttal the agent should receive.
