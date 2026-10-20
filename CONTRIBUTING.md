@@ -35,9 +35,13 @@ CI additionally runs a workflow regression suite (`.github/tests/*.test.cjs`)
 that executes the real `run:` scripts from the release, publish, changelog-guard
 and tarball-guard workflows against fixture repositories, and checks that every
 workflow pins `uses:` to a commented commit SHA, declares a top-level
-`permissions:` block and bounds runner jobs with `timeout-minutes`. Run it
-whenever you touch anything under `.github/` or the `files` field in
-`package.json`:
+`permissions:` block and bounds runner jobs with `timeout-minutes`. It also
+pins the issue forms under `.github/ISSUE_TEMPLATE/` to the CLI surface: the
+subcommand and `--cli` dropdowns are checked against `src/cli.ts`, the excuse
+category dropdown against `ExcuseCategory` in `src/types.ts`, and the linked
+README headings against `README.md`. Run it whenever you touch anything under
+`.github/`, the `files` field in `package.json`, the subcommands or `--cli`
+values in `src/cli.ts`, `ExcuseCategory` in `src/types.ts`, or a README heading:
 
 ```bash
 npm run test:workflows

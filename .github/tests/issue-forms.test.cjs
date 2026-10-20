@@ -62,7 +62,7 @@ function fields(yaml) {
   for (const line of lines.slice(start + 1)) {
     const typeMatch = line.match(/^  - type:[ \t]*(\S+)\s*$/);
     if (typeMatch) {
-      current = { type: typeMatch[1], id: undefined, label: undefined, options: [], required: undefined, line };
+      current = { type: typeMatch[1], id: undefined, label: undefined, options: [], required: undefined };
       out.push(current);
       inOptions = false;
       continue;
@@ -217,8 +217,10 @@ test('excuse pattern report: Expected category dropdown matches ExcuseCategory',
   const options = dropdown(yaml, 'category', 'excuse_pattern.yml');
   assert.deepEqual(options.slice(0, -1), categories, 'category options drifted from src/types.ts ExcuseCategory');
   assert.match(options[options.length - 1], /^none\b/, 'last option must be the "none (should not match)" escape hatch');
-  const words = { 3: 'three', 4: 'four', 5: 'five', 6: 'six', 7: 'seven', 8: 'eight' };
-  assert.match(yaml, new RegExp(`\\b${words[categories.length]} categories\\b`), `intro must say "${words[categories.length]} categories"`);
+  const words = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve'];
+  const word = words[categories.length];
+  assert.ok(word, `ExcuseCategory has ${categories.length} members; extend the number-word list in this test`);
+  assert.match(yaml, new RegExp(`\\b${word} categories\\b`), `intro must say "${word} categories"`);
   assert.ok(README.includes(`## The ${categories.length} Excuse Categories`), 'README heading count drifted from ExcuseCategory');
 });
 
