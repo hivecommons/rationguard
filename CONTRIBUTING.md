@@ -39,9 +39,14 @@ workflow pins `uses:` to a commented commit SHA, declares a top-level
 pins the issue forms under `.github/ISSUE_TEMPLATE/` to the CLI surface: the
 subcommand and `--cli` dropdowns are checked against `src/cli.ts`, the excuse
 category dropdown against `ExcuseCategory` in `src/types.ts`, and the linked
-README headings against `README.md`. Run it whenever you touch anything under
-`.github/`, the `files` field in `package.json`, the subcommands or `--cli`
-values in `src/cli.ts`, `ExcuseCategory` in `src/types.ts`, or a README heading:
+README headings against `README.md`. Every `rationguard <command> --flag`
+shown in code in `README.md`, `CONTRIBUTING.md`, `SECURITY.md` and
+`runbooks/*.md` is likewise checked against the subcommands `main()`
+dispatches and the flags `src/cli.ts` reads, and the help text must list the
+same flags. Run it whenever you touch anything under
+`.github/`, the `files` field in `package.json`, the subcommands, flags or
+`--cli` values in `src/cli.ts`, `ExcuseCategory` in `src/types.ts`, a README
+heading, or a CLI invocation in the docs or runbooks:
 
 ```bash
 npm run test:workflows
