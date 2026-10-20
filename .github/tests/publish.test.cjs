@@ -230,7 +230,8 @@ test('publish authenticates via Trusted Publishing, not a long-lived token', () 
   assert.doesNotMatch(workflow, /NODE_AUTH_TOKEN/);
   assert.doesNotMatch(workflow, /NPM_TOKEN/);
   assert.match(workflow, /\n  publish:\n(?:    .*\n)*?    environment: npm\n/);
-  assert.match(workflow, /\n  id-token: write\n/);
+  assert.doesNotMatch(workflow, /\n  id-token: write\n/);
+  assert.match(workflow, /\n  publish:\n(?:    .*\n)*?      id-token: write/);
 });
 
 // --- release: create GitHub release idempotently ------------------------

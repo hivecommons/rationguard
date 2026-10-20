@@ -8,7 +8,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   verify-tag:
@@ -60,6 +59,9 @@ jobs:
     timeout-minutes: 10
     needs: test
     environment: npm
+    permissions:
+      contents: read
+      id-token: write   # OIDC token for npm Trusted Publishing + provenance
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
