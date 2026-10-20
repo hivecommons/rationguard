@@ -66,6 +66,15 @@ describe('help', () => {
     assert.match(stripAnsi(res.stdout), /USAGE/);
   });
 
+  for (const argv of [['-h'], ['--help'], ['check', '--help'], ['check', '-h'], ['attach', 'my-agent', '--help'], ['watch', 'my-agent', '--help']]) {
+    it(`prints usage and exits 0 for "${argv.join(' ')}"`, () => {
+      const res = run(argv);
+      assert.strictEqual(res.status, 0);
+      assert.match(stripAnsi(res.stdout), /USAGE/);
+      assert.doesNotMatch(stripAnsi(res.stdout + res.stderr), /No input/);
+    });
+  }
+
   it('documents attach and watch flags', () => {
     const out = stripAnsi(run(['help']).stdout);
     assert.match(out, /--cli-args=/);

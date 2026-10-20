@@ -83,6 +83,7 @@ ${ANSI_BOLD}USAGE${ANSI_RESET}
   ${ANSI_CYAN}rationguard sightings${ANSI_RESET}              Show recorded sightings and their counts
 
   ${ANSI_CYAN}rationguard help${ANSI_RESET}                   Show this help
+  ${ANSI_CYAN}rationguard <command> --help${ANSI_RESET}     Show this help (also -h)
 
 ${ANSI_BOLD}REAL-TIME DETECTION${ANSI_RESET}
 
@@ -147,6 +148,8 @@ function parseFlags(args: string[]): { command: string; positional: string[]; fl
       } else {
         flags[arg.slice(2)] = 'true';
       }
+    } else if (arg === '-h') {
+      flags['help'] = 'true';
     } else {
       // A single leading '-' is text, not a flag (e.g. a "- Nothing left" bullet).
       positional.push(arg);
@@ -595,6 +598,11 @@ function cmdSightings(flags: Record<string, string>): void {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const { command, positional, flags } = parseFlags(args);
+
+  if (flags['help'] === 'true' || args.includes('-h')) {
+    console.log(HELP);
+    return;
+  }
 
   switch (command) {
     case 'attach':

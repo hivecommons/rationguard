@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `--help`/`-h` now print usage from any position, including after a subcommand, instead of being ignored or checked as text (#301)
 - Clarify that `add`/`sightings` use the trusted per-user `~/.rationguard/` store, distinguish sighting records from promoted excuses, and document project-local excuses as read-only and untrusted (#292)
 - `watch`: a subscriber `error` event (e.g. the pluk log never appearing within 60s) was only printed and the process exited 0; it now sets exit code 1 once the loop drains, and the message is sanitized for terminal output (#290)
 
