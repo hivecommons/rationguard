@@ -69,9 +69,10 @@ const ALLOWLIST = {
     workflow: { checks: 'write', contents: 'read', packages: 'read', 'pull-requests': 'read' },
   },
   'publish.yml': {
-    workflow: { contents: 'read', 'id-token': 'write' },
+    workflow: { contents: 'read' },
     jobs: {
       test: { contents: 'read', packages: 'read' },
+      publish: { contents: 'read', 'id-token': 'write' },
       release: { contents: 'write' },
     },
   },
