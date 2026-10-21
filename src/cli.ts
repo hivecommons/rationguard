@@ -271,7 +271,13 @@ function cmdAdd(positional: string[], flags: Record<string, string>): void {
   const category = rawCategory as ExcuseCategory | undefined;
   const rebuttal = flags['rebuttal'] || undefined;
 
-  const result = recordSighting(excuse, category, rebuttal);
+  let result: ReturnType<typeof recordSighting>;
+  try {
+    result = recordSighting(excuse, category, rebuttal);
+  } catch (err) {
+    console.error(`${ANSI_RED}Error:${ANSI_RESET} Could not write the trusted store: ${sanitizeForTerminal((err as Error).message)}`);
+    process.exit(1);
+  }
 
   if (result.count === 0) {
     console.error(`${ANSI_RED}Error:${ANSI_RESET} Could not determine a home directory for the trusted store; sighting not recorded.`);

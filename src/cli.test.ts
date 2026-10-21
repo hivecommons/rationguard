@@ -519,6 +519,16 @@ describe('add', () => {
     assert.ok(!fs.existsSync(path.join(projectDir, '.rationguard')));
   });
 
+  it('exits 1 with a concise error when the trusted store is unwritable', () => {
+    const fileHome = path.join(homeDir, 'not-a-dir');
+    fs.writeFileSync(fileHome, '');
+    const res = run(['add', 'circling back on this soon'], undefined, { HOME: fileHome });
+    assert.strictEqual(res.status, 1);
+    const stderr = stripAnsi(res.stderr);
+    assert.match(stderr, /Could not write the trusted store/);
+    assert.doesNotMatch(stderr, /\n\s+at /);
+  });
+
   it('accepts --excuse, --category and --rebuttal flags', () => {
     const res = run(['add', '--excuse=bespoke excuse', '--category=lane-confusion', '--rebuttal=my rebuttal']);
     assert.strictEqual(res.status, 0);
