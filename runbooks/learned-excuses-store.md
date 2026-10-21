@@ -21,6 +21,11 @@ empty state, which makes the loss permanent unless a copy was kept.
   `~/.rationguard/custom-excuses.json`. When no absolute home directory can be
   resolved, rationguard refuses to persist anything instead of falling back to
   the working directory, so `add` records nothing.
+- Sighting counts stop growing although `check`/`watch` keep reporting
+  detections. Auto-learning is best-effort: when the process cannot write to
+  `~/.rationguard/` (permission denied, read-only filesystem, or the path is a
+  file rather than a directory) `check` and `watch` skip recording the
+  sighting silently and continue. Only `add` reports a write error.
 
 ## Diagnose
 
@@ -40,6 +45,17 @@ empty state, which makes the loss permanent unless a copy was kept.
    a different, empty store).
 5. Look for leftover `.<name>.<pid>.<timestamp>.tmp` files in the directory;
    they indicate a process was killed during a write.
+6. If detections are reported but sightings stop accumulating, confirm the
+   store is a directory the running user can write to:
+
+   ```sh
+   ls -ld ~/.rationguard
+   test -d ~/.rationguard && test -w ~/.rationguard && echo writable || echo NOT writable
+   ```
+
+   A read-only HOME (e.g. a sandboxed hook or container), an `EACCES` from
+   wrong ownership, or a plain file named `.rationguard` all make `check` and
+   `watch` skip recording without any message.
 
 ## Recover
 
@@ -50,6 +66,10 @@ empty state, which makes the loss permanent unless a copy was kept.
 3. If no copy exists, re-add the important excuses with `rationguard add`.
    Sighting counts cannot be reconstructed.
 4. If `HOME` was the cause, correct the environment of the service and restart.
+5. If the store was not writable, fix ownership/permissions (or replace the
+   stray file with a directory: `rm ~/.rationguard && mkdir ~/.rationguard`)
+   and restart the watchers. Sightings skipped in the meantime are not
+   recoverable.
 
 ## Prevent
 

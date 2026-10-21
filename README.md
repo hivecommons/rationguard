@@ -295,6 +295,8 @@ rationguard sightings
 
 `rationguard add` and `rationguard sightings` always use the trusted per-user `~/.rationguard/` store. `add` records sightings in `~/.rationguard/sightings.json`; after 3 sightings of the same pattern, it promotes the pattern into `~/.rationguard/custom-excuses.json`. `sightings` lists the recorded sightings.
 
+Auto-learning from `check` and `watch` is best-effort: if `~/.rationguard/` cannot be written (read-only HOME, permission denied), detection and rebuttals still work and the sighting is skipped silently. See `runbooks/learned-excuses-store.md` to diagnose a store that stops accumulating sightings.
+
 A project-local `./.rationguard/custom-excuses.json` is read-only to the CLI and untrusted: its excuses are used for detection/display, but their rebuttals are never auto-sent and matches on them never count toward auto-promotion.
 
 ---
