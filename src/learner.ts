@@ -342,5 +342,10 @@ export function recordSightingIfEligible(match: MatchResult): void {
   if (!match.excuse) return;
   if (match.excuse.source === 'project') return;
   if (match.confidence < AUTO_LEARN_CONFIDENCE_THRESHOLD) return;
-  recordSighting(match.matchedText, match.excuse.category, undefined, undefined, { promote: false });
+  try {
+    recordSighting(match.matchedText, match.excuse.category, undefined, undefined, { promote: false });
+  } catch {
+    // Learning is best-effort: an unwritable store (read-only HOME, sandboxed
+    // hook) must never take down detection, output, or rebuttal delivery.
+  }
 }

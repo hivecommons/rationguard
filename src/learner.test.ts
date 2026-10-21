@@ -384,6 +384,11 @@ describe('recordSightingIfEligible', () => {
     assert.deepStrictEqual(listSightings(), []);
   });
 
+  it('does not throw when the trusted store is not writable', () => {
+    fs.writeFileSync(path.join(dir, '.rationguard'), 'not a directory');
+    assert.doesNotThrow(() => recordSightingIfEligible(makeMatch({ confidence: 1 })));
+  });
+
   it('records a user excuse at exactly the threshold under its category', () => {
     recordSightingIfEligible(makeMatch());
     const sightings = listSightings();

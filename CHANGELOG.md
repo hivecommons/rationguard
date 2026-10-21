@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `check`/`watch`: an unwritable `~/.rationguard` store (read-only HOME) made auto-learning throw, so `check` crashed with a stack trace and no detection output and `watch` died before emitting the detection or sending the rebuttal; learning is now best-effort (#306)
 - `--help`/`-h` now print usage from any position, including after a subcommand, instead of being ignored or checked as text (#301)
 - Clarify that `add`/`sightings` use the trusted per-user `~/.rationguard/` store, distinguish sighting records from promoted excuses, and document project-local excuses as read-only and untrusted (#292)
 - `watch`: a subscriber `error` event (e.g. the pluk log never appearing within 60s) was only printed and the process exited 0; it now sets exit code 1 once the loop drains, and the message is sanitized for terminal output (#290)
