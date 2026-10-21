@@ -610,7 +610,7 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const { command, positional, flags } = parseFlags(args);
 
-  if (flags['help'] === 'true' || args.includes('-h')) {
+  if (flags['help'] === 'true') {
     console.log(HELP);
     return;
   }

@@ -427,6 +427,13 @@ describe('check', () => {
       assert.strictEqual(res.status, 0);
       assert.match(stripAnsi(res.stdout), /Clean — no rationalization patterns detected/);
     });
+
+    it('treats -h after -- as literal text, not help', () => {
+      const res = run(['check', '--', '-h']);
+      assert.strictEqual(res.status, 0);
+      assert.match(stripAnsi(res.stdout), /Clean — no rationalization patterns detected/);
+      assert.doesNotMatch(stripAnsi(res.stdout), /QUICK START/);
+    });
   });
 });
 

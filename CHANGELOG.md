@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `check`/`add`: `-h` after `--` is now treated as literal text instead of triggering help, respecting the POSIX `--` end-of-options marker (#315)
 - `check`/`add`: `parseFlags` now supports the POSIX `--` end-of-options marker, allowing positional text that starts with `--` to be passed to commands (e.g., `rationguard check -- "--no tests needed"`) instead of being parsed as a flag (#311)
 - `add`: an unwritable `~/.rationguard` store made `recordSighting` throw and `add` crashed with a raw stack trace; it now prints a concise error and exits 1 (#309)
 - `check`/`watch`: an unwritable `~/.rationguard` store (read-only HOME) made auto-learning throw, so `check` crashed with a stack trace and no detection output and `watch` died before emitting the detection or sending the rebuttal; learning is now best-effort (#306)
