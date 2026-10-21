@@ -405,6 +405,29 @@ describe('check', () => {
       assert.ok(JSON.stringify(parsed).includes('zorble\u009b2J\u009d0;pwned\u009c rebuttal'), 'value must round-trip unchanged');
     }
   });
+
+  describe('-- end-of-options separator', () => {
+    it('allows positional text starting with -- after the separator', () => {
+      const res = run(['check', '--', '--no tests needed, trivial']);
+      assert.strictEqual(res.status, 0);
+      assert.match(stripAnsi(res.stdout), /Clean — no rationalization patterns detected/);
+    });
+
+    it('allows positional text starting with -- in add after the separator', () => {
+      const res = run(['add', '--', '--no tests needed', '--category=false-completion', '--rebuttal=it is tested']);
+      assert.strictEqual(res.status, 0);
+      const store = JSON.parse(
+        fs.readFileSync(path.join(homeDir, '.rationguard', 'sightings.json'), 'utf-8'),
+      ) as { sightings: Array<{ text: string }> };
+      assert.strictEqual(store.sightings[0].text, '--no tests needed');
+    });
+
+    it('ignores flags after --', () => {
+      const res = run(['check', '--', '--clearly-not-a-flag']);
+      assert.strictEqual(res.status, 0);
+      assert.match(stripAnsi(res.stdout), /Clean — no rationalization patterns detected/);
+    });
+  });
 });
 
 describe('prompt', () => {

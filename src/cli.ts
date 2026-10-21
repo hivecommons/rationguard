@@ -137,10 +137,15 @@ function parseFlags(args: string[]): { command: string; positional: string[]; fl
   const flags: Record<string, string> = {};
   const positional: string[] = [];
   let command = '';
+  let endOfOptions = false;
 
   for (const arg of args) {
-    if (!command && !arg.startsWith('-')) {
+    if (endOfOptions) {
+      positional.push(arg);
+    } else if (!command && !arg.startsWith('-')) {
       command = arg;
+    } else if (arg === '--') {
+      endOfOptions = true;
     } else if (arg.startsWith('--')) {
       const eqIdx = arg.indexOf('=');
       if (eqIdx > 0) {
@@ -184,7 +189,7 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
   }
 
   if (!input) {
-    console.error(`${ANSI_RED}Error:${ANSI_RESET} No input. Provide text, --file=<path>, or pipe input.`);
+    console.error(`${ANSI_RED}Error:${ANSI_RESET} No input. Provide text, --file=<path>, or pipe input. Use -- to mark the end of options before positional text.`);
     process.exit(1);
   }
 
@@ -251,7 +256,7 @@ function cmdAdd(positional: string[], flags: Record<string, string>): void {
   requireValueFlag('rebuttal', flags['rebuttal']);
   const excuse = positional.join(' ') || flags['excuse'];
   if (!excuse) {
-    console.error(`${ANSI_RED}Error:${ANSI_RESET} Provide excuse text as an argument or --excuse="<text>".`);
+    console.error(`${ANSI_RED}Error:${ANSI_RESET} Provide excuse text as an argument or --excuse="<text>". Use -- to mark the end of options before positional text.`);
     console.error(`  rationguard add "I already handled that" --category=false-completion`);
     process.exit(1);
   }
