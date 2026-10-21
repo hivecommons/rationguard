@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 
 // End-to-end tests: run the compiled CLI as a subprocess with HOME and cwd
 // sandboxed so sightings/custom-excuse stores never touch real state.
@@ -971,6 +972,54 @@ describe('watch (live subscribe)', () => {
     assert.strictEqual(unreadable.status, 1);
     assert.match(stripAnsi(unreadable.stderr), /--patterns-dir ".*unreadable-patterns" claude\.patterns cannot be read: .*EISDIR/);
     assert.ok(!unreadable.stdout.includes('watching'));
+  });
+
+  it("unknown --cli error lists pluk's BUILTIN_PATTERNS when its bundled patterns/ dir is absent", async () => {
+    // The "Known CLIs" list is read from pluk's bundled patterns/ directory;
+    // when that is missing (an unusual install layout) the error must fall
+    // back to the inline BUILTIN_PATTERNS keys rather than print an empty
+    // list. bundledPatternsDir() resolves relative to pluk's own dist/, so
+    // the only way to exercise the fallback is a scratch install whose
+    // node_modules/@hivecommons/pluk has dist/ and package.json but no
+    // patterns/. Mirrors pluk's own test/cli-builtin-fallback.test.js.
+    const { BUILTIN_PATTERNS } = await import('@hivecommons/pluk');
+    const builtins = Object.keys(BUILTIN_PATTERNS);
+    assert.ok(builtins.length > 0, 'BUILTIN_PATTERNS must name at least one CLI');
+
+    const distDir = path.dirname(CLI);
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'rationguard-builtin-clis-'));
+    try {
+      const copyDir = path.join(root, 'dist');
+      fs.mkdirSync(copyDir);
+      for (const f of fs.readdirSync(distDir)) {
+        if (f.endsWith('.js') && !f.endsWith('.test.js')) fs.copyFileSync(path.join(distDir, f), path.join(copyDir, f));
+      }
+      fs.copyFileSync(path.join(distDir, '..', 'package.json'), path.join(root, 'package.json'));
+
+      const plukSrc = path.dirname(createRequire(import.meta.url).resolve('@hivecommons/pluk/package.json'));
+      const plukDst = path.join(root, 'node_modules', '@hivecommons', 'pluk');
+      fs.mkdirSync(plukDst, { recursive: true });
+      fs.copyFileSync(path.join(plukSrc, 'package.json'), path.join(plukDst, 'package.json'));
+      fs.cpSync(path.join(plukSrc, 'dist'), path.join(plukDst, 'dist'), { recursive: true });
+      assert.ok(!fs.existsSync(path.join(plukDst, 'patterns')), 'scratch pluk must have no patterns/ dir');
+
+      const env: NodeJS.ProcessEnv = { ...process.env, HOME: homeDir, NODE_PATH: '' };
+      const res = spawnSync(process.execPath, [path.join(copyDir, 'cli.js'), 'watch', 'watch-cli-builtin', '--mode=watch', '--cli=cluade'], {
+        cwd: root,
+        env,
+        encoding: 'utf-8',
+        timeout: 15_000,
+      });
+      assert.strictEqual(res.status, 1, `stderr: ${res.stderr}`);
+      const err = stripAnsi(res.stderr ?? '');
+      const m = err.match(/Unknown --cli "cluade"\. Known CLIs: (.*)\./);
+      assert.ok(m, `expected an Unknown --cli error, got: ${err}`);
+      const listed = m[1].split(', ');
+      assert.deepStrictEqual(listed.sort(), [...builtins].sort(), `Known CLIs must be exactly the BUILTIN_PATTERNS keys: ${err}`);
+      assert.ok(!(res.stdout ?? '').includes('watching'));
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('does not reject a known --cli with --mode=watch', async () => {
