@@ -155,6 +155,46 @@ describe('check', () => {
     assert.ok(store.sightings.some(s => s.text === 'no work found'));
   });
 
+  describe('with an unwritable sightings store', () => {
+    // A file where $HOME/.rationguard should be a directory makes every
+    // store write fail (EEXIST/ENOTDIR) — the same failure mode as a
+    // read-only HOME or a sandboxed hook. Learning is best-effort, so
+    // detection output and exit codes must be unaffected and nothing may
+    // leak onto stderr (a Stop hook treats stderr as the rebuttal).
+    beforeEach(() => {
+      fs.writeFileSync(path.join(homeDir, '.rationguard'), 'not a directory');
+    });
+
+    it('check still reports the match, exits 0 and stays silent on stderr', () => {
+      const res = run(['check', 'no work found']);
+      assert.strictEqual(res.status, 0);
+      assert.match(stripAnsi(res.stdout), /Found \d+ rationalization pattern/);
+      assert.strictEqual(res.stderr, '');
+      assert.strictEqual(fs.readFileSync(path.join(homeDir, '.rationguard'), 'utf-8'), 'not a directory');
+    });
+
+    it('check --json still emits the full result', () => {
+      const res = run(['check', '--json', 'no work found']);
+      assert.strictEqual(res.status, 0);
+      assert.strictEqual(res.stderr, '');
+      const out = JSON.parse(res.stdout) as { clean: boolean; matches: Array<{ matchedText: string }> };
+      assert.strictEqual(out.clean, false);
+      assert.ok(out.matches.some(m => m.matchedText === 'no work found'));
+    });
+
+    it('check --fail-on-match keeps the exit-2 contract', () => {
+      const res = run(['check', '--fail-on-match', 'no work found']);
+      assert.strictEqual(res.status, 2);
+      assert.strictEqual(res.stderr, '');
+    });
+
+    it('check --fail-on-match still exits 0 on clean text', () => {
+      const res = run(['check', '--fail-on-match', 'hello world']);
+      assert.strictEqual(res.status, 0);
+      assert.strictEqual(res.stderr, '');
+    });
+  });
+
   it('lists a custom excuse once when cwd is $HOME', () => {
     const dir = path.join(homeDir, '.rationguard');
     fs.mkdirSync(dir, { recursive: true });

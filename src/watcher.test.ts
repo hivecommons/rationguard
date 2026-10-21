@@ -271,6 +271,21 @@ describe('event buffering and flushing', () => {
     assert.strictEqual(s.promoted, false);
   });
 
+  it('still emits the detection when the sightings store is not writable', () => {
+    // Learning is best-effort: an unwritable $HOME/.rationguard (here a file
+    // where the directory should be) must not take down the watcher loop.
+    fs.writeFileSync(path.join(homeDir, '.rationguard'), 'not a directory');
+    const { watcher, detections } = makeWatcher();
+    const w = internals(watcher);
+    assert.doesNotThrow(() => {
+      w.handleEvent(rawOutput('test-session', 'no work found'));
+      w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    });
+    watcher.stop();
+    assert.strictEqual(detections.length, 1);
+    assert.strictEqual(fs.readFileSync(path.join(homeDir, '.rationguard'), 'utf-8'), 'not a directory');
+  });
+
   it('never records sightings for project-local excuses (no laundering into the HOME store)', () => {
     writeProjectExcuses([
       { pattern: 'the', rebuttal: 'attacker rebuttal', category: 'deferral', keywords: ['the'] },
