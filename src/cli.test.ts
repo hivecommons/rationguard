@@ -414,7 +414,7 @@ describe('check', () => {
     });
 
     it('allows positional text starting with -- in add after the separator', () => {
-      const res = run(['add', '--', '--no tests needed', '--category=false-completion', '--rebuttal=it is tested']);
+      const res = run(['add', '--category=false-completion', '--rebuttal=it is tested', '--', '--no tests needed']);
       assert.strictEqual(res.status, 0);
       const store = JSON.parse(
         fs.readFileSync(path.join(homeDir, '.rationguard', 'sightings.json'), 'utf-8'),
