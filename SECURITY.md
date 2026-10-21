@@ -10,14 +10,18 @@ vulnerabilities responsibly.
 pull requests, or discussions.** Public reports expose users to the very
 weakness being reported before a fix is available.
 
-Instead, use **private vulnerability reporting**:
+Instead, use one of these private channels:
 
-1. Go to this repository's **Security** tab.
-2. Click **Report a vulnerability** (GitHub's private security advisory flow).
-3. Provide a description of the issue and how to reproduce it.
+- **E-mail:** [security@hivecommons.dev](mailto:security@hivecommons.dev) — the
+  Hive Commons security contact published in
+  [hivecommons.dev/.well-known/security.txt](https://hivecommons.dev/.well-known/security.txt).
+- **GitHub private vulnerability reporting**, where it is enabled for this
+  repository: go to the **Security** tab, click **Report a vulnerability**
+  (GitHub's private security advisory flow), and describe the issue and how to
+  reproduce it.
 
-If private reporting is unavailable to you for any reason, contact a repository
-maintainer directly rather than opening a public issue.
+If neither channel works for you, contact a repository maintainer directly
+rather than opening a public issue.
 
 Please include, as much as you can:
 
