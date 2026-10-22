@@ -247,9 +247,13 @@ export function withStoreLock<T>(dir: string, fn: () => T, opts: StoreLockOption
 function normalizeForDedup(text: string): string {
   // Unicode-aware: an ASCII-only class would reduce every non-Latin excuse to
   // '' and merge unrelated sightings into one counter.
+  // NFKC folds decomposed/compatibility forms so the same visible excuse
+  // typed via different IMEs lands on one key; \p{M} keeps combining marks
+  // that have no precomposed form.
   const normalized = text
+    .normalize('NFKC')
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}\s]/gu, '')
+    .replace(/[^\p{L}\p{M}\p{N}\s]/gu, '')
     .replace(/\s+/g, ' ')
     .trim();
   return normalized || text.toLowerCase().replace(/\s+/g, ' ').trim();

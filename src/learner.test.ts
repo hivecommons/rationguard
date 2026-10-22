@@ -29,6 +29,14 @@ describe('recordSighting', () => {
     assert.strictEqual(listSightings(dir).length, 3);
   });
 
+  it('merges decomposed and precomposed forms of the same excuse', () => {
+    recordSighting('caf\u00e9 later', undefined, undefined, dir);
+    const res = recordSighting('cafe\u0301 later', undefined, undefined, dir);
+    assert.strictEqual(res.isNew, false);
+    assert.strictEqual(res.count, 2);
+    assert.strictEqual(listSightings(dir).length, 1);
+  });
+
   it('records a new sighting with count 1', () => {
     const res = recordSighting('I will handle this later', undefined, undefined, dir);
     assert.strictEqual(res.isNew, true);
