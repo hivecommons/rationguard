@@ -146,7 +146,8 @@ export interface StoreLockOptions {
 
 type LockState = 'acquired' | 'held' | 'unavailable' | 'nested';
 
-let lockDepth = 0;
+/** Re-entrancy depth per lock path, so nesting is only recognised for the same store dir. */
+const lockDepths = new Map<string, number>();
 
 function sleepSync(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
@@ -164,11 +165,37 @@ function tryAcquireLock(dir: string, lockPath: string): LockState {
   }
 }
 
-function reclaimIfStale(lockPath: string, staleMs: number): void {
+/**
+ * Removes `lockPath` if its mtime is older than `staleMs`. The reclaim is
+ * exclusive: the lock is first moved aside with an atomic rename to a
+ * per-pid name, so of several waiters that all saw the same stale lock only
+ * one can win the rename and remove it; the others find nothing to reclaim.
+ * If the file we moved turns out to be a different (fresh) lock that another
+ * waiter created in between, it is put back rather than removed.
+ *
+ * @internal Exported for tests.
+ */
+export function reclaimStaleLock(lockPath: string, staleMs: number): boolean {
   const st = fs.statSync(lockPath, { throwIfNoEntry: false });
-  if (st && Date.now() - st.mtimeMs > staleMs) {
-    fs.rmSync(lockPath, { force: true });
+  if (!st || Date.now() - st.mtimeMs <= staleMs) return false;
+  const reclaimPath = `${lockPath}.reclaim.${process.pid}`;
+  try {
+    fs.renameSync(lockPath, reclaimPath);
+  } catch {
+    return false; // another waiter reclaimed it (or it was released) first
   }
+  const moved = fs.statSync(reclaimPath, { throwIfNoEntry: false });
+  if (moved && moved.ino === st.ino && Date.now() - moved.mtimeMs > staleMs) {
+    fs.rmSync(reclaimPath, { force: true });
+    return true;
+  }
+  // We grabbed a live lock created after our stat: restore it.
+  try {
+    fs.renameSync(reclaimPath, lockPath);
+  } catch {
+    fs.rmSync(reclaimPath, { force: true });
+  }
+  return false;
 }
 
 function acquireLock(dir: string, lockPath: string, opts: StoreLockOptions): LockState {
@@ -176,7 +203,7 @@ function acquireLock(dir: string, lockPath: string, opts: StoreLockOptions): Loc
   const staleMs = opts.staleMs ?? LOCK_STALE_MS;
   let state = tryAcquireLock(dir, lockPath);
   while (state === 'held' && Date.now() < deadline) {
-    reclaimIfStale(lockPath, staleMs);
+    reclaimStaleLock(lockPath, staleMs);
     sleepSync(LOCK_RETRY_MIN_MS + Math.random() * LOCK_RETRY_JITTER_MS);
     state = tryAcquireLock(dir, lockPath);
   }
@@ -195,16 +222,24 @@ function acquireLock(dir: string, lockPath: string, opts: StoreLockOptions): Loc
  * reason (unwritable/read-only store, EACCES, EROFS, ENOTDIR) or is still
  * held after `maxWaitMs`, `fn` runs unlocked and any write error surfaces
  * from `fn` itself exactly as before. A lock older than `staleMs` (crashed
- * holder) is removed. Nested calls in the same process are re-entrant.
+ * holder) is reclaimed exclusively (see `reclaimStaleLock`).
+ *
+ * Nested calls in the same process are re-entrant per lock path: a nested
+ * call for the *same* `dir` runs under the outer call's lock, while a nested
+ * call for a different `dir` acquires that dir's lock independently. The one
+ * lock file guards every store file in `dir` (sightings and custom excuses);
+ * its name is kept as `.sightings.lock` for compatibility.
  */
 export function withStoreLock<T>(dir: string, fn: () => T, opts: StoreLockOptions = {}): T {
   const lockPath = path.join(dir, LOCK_FILE);
-  const state = lockDepth > 0 ? 'nested' : acquireLock(dir, lockPath, opts);
-  lockDepth++;
+  const depth = lockDepths.get(lockPath) ?? 0;
+  const state = depth > 0 ? 'nested' : acquireLock(dir, lockPath, opts);
+  lockDepths.set(lockPath, depth + 1);
   try {
     return fn();
   } finally {
-    lockDepth--;
+    if (depth > 0) lockDepths.set(lockPath, depth);
+    else lockDepths.delete(lockPath);
     if (state === 'acquired') fs.rmSync(lockPath, { force: true });
   }
 }

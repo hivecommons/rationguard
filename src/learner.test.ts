@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { recordSighting, recordSightingIfEligible, loadCustomExcuses, listSightings, withStoreLock, AUTO_LEARN_CONFIDENCE_THRESHOLD } from './learner.js';
+import { recordSighting, recordSightingIfEligible, loadCustomExcuses, listSightings, withStoreLock, reclaimStaleLock, AUTO_LEARN_CONFIDENCE_THRESHOLD } from './learner.js';
 import { check } from './checker.js';
 import type { Excuse, MatchResult } from './types.js';
 
@@ -278,6 +278,77 @@ describe('store lock', () => {
     assert.strictEqual(res.count, 1);
     assert.ok(!fs.existsSync(lockPath()));
     assert.deepStrictEqual(fs.readdirSync(storeDir()), ['sightings.json']);
+  });
+
+  it('is re-entrant per store dir: a nested call for a different dir takes its own lock', () => {
+    const otherDir = path.join(dir, 'other');
+    const otherLock = path.join(otherDir, '.sightings.lock');
+    withStoreLock(storeDir(), () => {
+      withStoreLock(otherDir, () => {
+        assert.strictEqual(fs.readFileSync(otherLock, 'utf-8'), String(process.pid));
+        assert.strictEqual(fs.readFileSync(lockPath(), 'utf-8'), String(process.pid));
+      });
+      assert.ok(!fs.existsSync(otherLock), 'inner lock for the other dir must be released');
+      assert.ok(fs.existsSync(lockPath()), 'outer lock must survive the inner release');
+    });
+    assert.ok(!fs.existsSync(lockPath()));
+  });
+
+  it('reclaimStaleLock: leaves a fresh lock alone and removes a stale one exactly once', () => {
+    fs.mkdirSync(storeDir(), { recursive: true });
+    fs.writeFileSync(lockPath(), 'fresh');
+    assert.strictEqual(reclaimStaleLock(lockPath(), 10_000), false);
+    assert.strictEqual(fs.readFileSync(lockPath(), 'utf-8'), 'fresh');
+    const old = new Date(Date.now() - 60_000);
+    fs.utimesSync(lockPath(), old, old);
+    assert.strictEqual(reclaimStaleLock(lockPath(), 10_000), true);
+    assert.ok(!fs.existsSync(lockPath()));
+    assert.strictEqual(reclaimStaleLock(lockPath(), 10_000), false, 'nothing left to reclaim');
+    assert.deepStrictEqual(fs.readdirSync(storeDir()), [], 'no reclaim temp file left behind');
+  });
+
+  it('reclaimStaleLock: restores a live lock that replaced the stale one after the stat', () => {
+    fs.mkdirSync(storeDir(), { recursive: true });
+    fs.writeFileSync(lockPath(), 'stale');
+    const old = new Date(Date.now() - 60_000);
+    fs.utimesSync(lockPath(), old, old);
+    // Between our stat and rename another waiter reclaims the stale lock and creates its own.
+    const realStat = fs.statSync;
+    let swapped = false;
+    const statSpy = ((p: fs.PathLike, o?: unknown) => {
+      const st = realStat(p, o as never);
+      if (!swapped && p === lockPath()) {
+        swapped = true;
+        fs.rmSync(lockPath());
+        fs.writeFileSync(lockPath(), 'live', { flag: 'wx' });
+      }
+      return st;
+    }) as typeof fs.statSync;
+    (fs as { statSync: typeof fs.statSync }).statSync = statSpy;
+    try {
+      assert.strictEqual(reclaimStaleLock(lockPath(), 10_000), false);
+    } finally {
+      (fs as { statSync: typeof fs.statSync }).statSync = realStat;
+    }
+    assert.strictEqual(fs.readFileSync(lockPath(), 'utf-8'), 'live', 'the live lock must be put back');
+    assert.deepStrictEqual(fs.readdirSync(storeDir()), ['.sightings.lock']);
+  });
+
+  it('reclaimStaleLock: only one of several concurrent waiters removes a stale lock', async () => {
+    fs.mkdirSync(storeDir(), { recursive: true });
+    fs.writeFileSync(lockPath(), '999999');
+    const old = new Date(Date.now() - 60_000);
+    fs.utimesSync(lockPath(), old, old);
+    const script = `const { reclaimStaleLock } = await import(${JSON.stringify(LEARNER_URL)});
+process.exit(reclaimStaleLock(process.argv[1], 10_000) ? 10 : 0);`;
+    const children = Array.from({ length: 6 }, () => {
+      const child = spawn(process.execPath, ['--input-type=module', '-e', script, lockPath()], { stdio: ['ignore', 'ignore', 'inherit'] });
+      return once(child, 'exit').then(([code]) => code);
+    });
+    const codes = await Promise.all(children);
+    assert.strictEqual(codes.filter((c) => c === 10).length, 1, `exactly one reclaimer, got ${codes}`);
+    assert.ok(codes.every((c) => c === 10 || c === 0));
+    assert.deepStrictEqual(fs.readdirSync(storeDir()), []);
   });
 
   it('runs fn unlocked when the lock cannot be created (unwritable store path)', () => {
