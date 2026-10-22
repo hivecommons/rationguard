@@ -809,6 +809,13 @@ describe('watch and attach argument validation', () => {
     assert.strictEqual(res.status, 1);
     assert.match(stripAnsi(res.stderr), /session name is required/);
   });
+
+  it('attach rejects a dotted session before starting', () => {
+    const res = run(['attach', 'agent.0', '--cli=claude']);
+    assert.strictEqual(res.status, 1);
+    assert.match(stripAnsi(res.stderr), /invalid session name "agent\.0"/);
+    assert.doesNotMatch(stripAnsi(res.stderr), /at .*node_modules/);
+  });
 });
 
 // --- Long-path tests: populated sessions, stdin timeout, live watch ---

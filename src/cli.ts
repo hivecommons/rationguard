@@ -415,6 +415,11 @@ function cmdAttach(positional: string[], flags: Record<string, string>): void {
     process.exit(1);
   }
 
+  if (!isValidSessionName(session)) {
+    console.error(`${ANSI_RED}Error:${ANSI_RESET} invalid session name "${sanitizeForTerminal(session)}" — use only letters, numbers, underscore, and dash`);
+    process.exit(1);
+  }
+
   requireOneOf('rebuttal', flags['rebuttal'], ['log', 'send'], 'Valid values');
   requirePathFlag('run-dir', flags['run-dir']);
   requireValueFlag('cli', flags['cli']);
