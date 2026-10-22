@@ -31,6 +31,14 @@ on top of `npm test`. Check it locally before pushing:
 npm run test:coverage
 ```
 
+An advisory mutation-testing report (Stryker, configured in
+`stryker.config.json`) shows which mutants the tests do not catch, which line
+coverage alone cannot. It is report-only and never blocks CI. Run it locally with:
+
+```bash
+npm run test:mutation
+```
+
 CI additionally runs a workflow regression suite (`.github/tests/*.test.cjs`)
 that executes the real `run:` scripts from the release, publish, changelog-guard
 and tarball-guard workflows against fixture repositories, and checks that every
