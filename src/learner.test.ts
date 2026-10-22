@@ -20,6 +20,15 @@ afterEach(() => {
 });
 
 describe('recordSighting', () => {
+  it('keeps non-ASCII and punctuation-only excuses as distinct sightings', () => {
+    recordSighting('明天再做', undefined, undefined, dir);
+    recordSighting('已经完成了', undefined, undefined, dir);
+    const res = recordSighting('!!!', undefined, undefined, dir);
+    assert.strictEqual(res.isNew, true);
+    assert.strictEqual(res.count, 1);
+    assert.strictEqual(listSightings(dir).length, 3);
+  });
+
   it('records a new sighting with count 1', () => {
     const res = recordSighting('I will handle this later', undefined, undefined, dir);
     assert.strictEqual(res.isNew, true);
