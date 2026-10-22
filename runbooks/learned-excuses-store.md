@@ -71,6 +71,36 @@ empty state, which makes the loss permanent unless a copy was kept.
    and restart the watchers. Sightings skipped in the meantime are not
    recoverable.
 
+## Clean up residue from the empty-key merge bug
+
+If a store was affected by the bug fixed in PR #327 (before October 2024) where
+non-Latin excuse text normalized to an empty dedup key, it retains merged
+sighting counters and possibly a wrongly promoted excuse.
+
+**Recognise the residue:**
+
+- In `~/.rationguard/sightings.json`, look for entries whose `text` is
+  non-Latin characters (e.g. `'明天再做'`, `'已经完成了'`) or punctuation-only
+  (e.g. `'!!!'`). These should not normally appear after the fix.
+- Such entries have `"promoted": true` if their `count` reached 3 (AUTO_ADD_THRESHOLD) before
+  the fix landed.
+- In `~/.rationguard/custom-excuses.json`, find entries promoted by these merged
+  counters; they have low-quality `pattern` fields derived from the first
+  sighting text rather than user intent.
+
+**Clean it up:**
+
+1. Stop long-running watchers (same as "Diagnose" step 1).
+2. Remove the merged sighting entries by opening `~/.rationguard/sightings.json`
+   and deleting entries with non-Latin or punctuation-only `text`.
+3. Check `~/.rationguard/custom-excuses.json`: if it contains entries with
+   low-quality patterns (e.g. `"pattern": "!!!"` or non-Latin text), delete
+   them. You can safely remove any entry you do not recognize or explicitly
+   added.
+4. Restart the watchers. `recordSighting` re-keys all sightings correctly on
+   the next detection, so new non-Latin excuses will accumulate under the
+   correct entry.
+
 ## Prevent
 
 Back up `~/.rationguard/` with the rest of the user's configuration. If the
