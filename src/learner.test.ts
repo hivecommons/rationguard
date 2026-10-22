@@ -29,6 +29,34 @@ describe('recordSighting', () => {
     assert.strictEqual(listSightings(dir).length, 3);
   });
 
+  it('keeps two different punctuation-only excuses on separate counters', () => {
+    // Both normalize to '' under the letter/digit filter; without the raw-text
+    // fallback key they would share one counter.
+    recordSighting('!!!', undefined, undefined, dir);
+    const res = recordSighting('???', undefined, undefined, dir);
+    assert.strictEqual(res.isNew, true);
+    assert.strictEqual(res.count, 1);
+    assert.strictEqual(listSightings(dir).length, 2);
+  });
+
+  it('still merges repeat punctuation-only excuses under the fallback key', () => {
+    recordSighting('!!!', undefined, undefined, dir);
+    const res = recordSighting('  !!!  ', undefined, undefined, dir);
+    assert.strictEqual(res.isNew, false);
+    assert.strictEqual(res.count, 2);
+    assert.strictEqual(listSightings(dir).length, 1);
+  });
+
+  it('keeps combining marks that have no precomposed form', () => {
+    // Devanagari KA + vowel sign I has no NFKC precomposed form; stripping
+    // the mark would collapse it onto bare KA.
+    recordSighting('\u0915\u093f', undefined, undefined, dir);
+    const res = recordSighting('\u0915', undefined, undefined, dir);
+    assert.strictEqual(res.isNew, true);
+    assert.strictEqual(res.count, 1);
+    assert.strictEqual(listSightings(dir).length, 2);
+  });
+
   it('merges decomposed and precomposed forms of the same excuse', () => {
     recordSighting('caf\u00e9 later', undefined, undefined, dir);
     const res = recordSighting('cafe\u0301 later', undefined, undefined, dir);
