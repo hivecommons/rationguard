@@ -379,6 +379,19 @@ The 15 default excuses in rationguard are the universal patterns that apply to a
 
 ---
 
+## Contributing & Community
+
+rationguard is part of [Hive Commons](https://hivecommons.dev), a family of tools for working with AI agents.
+
+- Want to contribute? See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, the test and coverage gates, and pull request guidelines.
+- rationguard flagged text that is not an excuse, missed one that is, or you want to propose a new default excuse? Open an [excuse pattern report](https://github.com/hivecommons/rationguard/issues/new?template=excuse_pattern.yml).
+- Found a bug or have an idea? Open an [issue](https://github.com/hivecommons/rationguard/issues/new/choose).
+- Reporting a security vulnerability? Follow [SECURITY.md](SECURITY.md) to report it privately, not through public issues.
+- Questions? Join the [Hive Commons Discord](https://hivecommons.dev/discord).
+- Please follow the [Hive Commons Code of Conduct](https://github.com/hivecommons/.github/blob/main/CODE_OF_CONDUCT.md).
+
+---
+
 ## License
 
 Apache-2.0
