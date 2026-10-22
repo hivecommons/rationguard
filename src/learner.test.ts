@@ -334,6 +334,72 @@ describe('store lock', () => {
     assert.deepStrictEqual(fs.readdirSync(storeDir()), ['.sightings.lock']);
   });
 
+  it('reclaimStaleLock: returns false without throwing when the stale lock vanishes between stat and rename', () => {
+    fs.mkdirSync(storeDir(), { recursive: true });
+    fs.writeFileSync(lockPath(), 'stale');
+    const old = new Date(Date.now() - 60_000);
+    fs.utimesSync(lockPath(), old, old);
+    // Another waiter reclaims (or the holder releases) the lock right after our stat.
+    const realStat = fs.statSync;
+    let removed = false;
+    const statSpy = ((p: fs.PathLike, o?: unknown) => {
+      const st = realStat(p, o as never);
+      if (!removed && p === lockPath()) {
+        removed = true;
+        fs.rmSync(lockPath());
+      }
+      return st;
+    }) as typeof fs.statSync;
+    (fs as { statSync: typeof fs.statSync }).statSync = statSpy;
+    try {
+      assert.strictEqual(reclaimStaleLock(lockPath(), 10_000), false);
+    } finally {
+      (fs as { statSync: typeof fs.statSync }).statSync = realStat;
+    }
+    assert.ok(removed, 'the lock must have been stat-ed before the rename');
+    assert.deepStrictEqual(fs.readdirSync(storeDir()), [], 'no reclaim temp file left behind');
+  });
+
+  it('reclaimStaleLock: drops its reclaim file instead of orphaning it when a live lock cannot be put back', () => {
+    fs.mkdirSync(storeDir(), { recursive: true });
+    fs.writeFileSync(lockPath(), 'stale');
+    const old = new Date(Date.now() - 60_000);
+    fs.utimesSync(lockPath(), old, old);
+    const realStat = fs.statSync;
+    const realRename = fs.renameSync;
+    let swapped = false;
+    let renames = 0;
+    const statSpy = ((p: fs.PathLike, o?: unknown) => {
+      const st = realStat(p, o as never);
+      if (!swapped && p === lockPath()) {
+        swapped = true;
+        fs.rmSync(lockPath());
+        fs.writeFileSync(lockPath(), 'live', { flag: 'wx' });
+      }
+      return st;
+    }) as typeof fs.statSync;
+    // The first rename (move aside) succeeds; the restore rename fails as if the
+    // store directory became unwritable in between.
+    const renameSpy = ((from: fs.PathLike, to: fs.PathLike) => {
+      renames += 1;
+      if (renames === 2) throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
+      return realRename(from, to);
+    }) as typeof fs.renameSync;
+    (fs as { statSync: typeof fs.statSync }).statSync = statSpy;
+    (fs as { renameSync: typeof fs.renameSync }).renameSync = renameSpy;
+    try {
+      assert.strictEqual(reclaimStaleLock(lockPath(), 10_000), false);
+    } finally {
+      (fs as { statSync: typeof fs.statSync }).statSync = realStat;
+      (fs as { renameSync: typeof fs.renameSync }).renameSync = realRename;
+    }
+    assert.strictEqual(renames, 2, 'the restore rename must have been attempted');
+    assert.ok(
+      !fs.readdirSync(storeDir()).some((f) => f.includes('.reclaim.')),
+      'a per-pid reclaim file must never be left behind to block later reclaims',
+    );
+  });
+
   it('reclaimStaleLock: only one of several concurrent waiters removes a stale lock', async () => {
     fs.mkdirSync(storeDir(), { recursive: true });
     fs.writeFileSync(lockPath(), '999999');
