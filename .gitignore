@@ -8,3 +8,7 @@ dist/
 *.env
 *.pem
 *.key
+
+# Stryker mutation testing output
+reports/
+.stryker-tmp/
