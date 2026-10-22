@@ -106,7 +106,9 @@ function loadStore(storePath: string): SightingsStore {
  * `rationguard watch`/`attach` (long-running) concurrently, so a bare
  * writeFileSync risks leaving a truncated file if the process is killed
  * mid-write; loadStore/loadCustomExcuses would then silently treat the
- * corrupted file as empty and discard all prior history.
+ * corrupted file as empty and discard all prior history. Lost updates
+ * between concurrent read-modify-write cycles are prevented separately by
+ * `withStoreLock`.
  *
  * The directory and files are created owner-only (0700/0600) rather than
  * umask-default. `~/.rationguard/custom-excuses.json` is the trusted store:
@@ -127,6 +129,84 @@ function writeJsonAtomic(filePath: string, data: unknown): void {
 
 function saveStore(storePath: string, store: SightingsStore): void {
   writeJsonAtomic(storePath, store);
+}
+
+const LOCK_FILE = '.sightings.lock';
+const LOCK_MAX_WAIT_MS = 2000;
+const LOCK_STALE_MS = 10_000;
+const LOCK_RETRY_MIN_MS = 5;
+const LOCK_RETRY_JITTER_MS = 15;
+
+export interface StoreLockOptions {
+  /** Give up waiting for a held lock after this long and run unlocked. */
+  maxWaitMs?: number;
+  /** A lock whose mtime is older than this is assumed abandoned and removed. */
+  staleMs?: number;
+}
+
+type LockState = 'acquired' | 'held' | 'unavailable' | 'nested';
+
+let lockDepth = 0;
+
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+}
+
+function tryAcquireLock(dir: string, lockPath: string): LockState {
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+    }
+    fs.writeFileSync(lockPath, String(process.pid), { flag: 'wx', mode: 0o600 });
+    return 'acquired';
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === 'EEXIST' ? 'held' : 'unavailable';
+  }
+}
+
+function reclaimIfStale(lockPath: string, staleMs: number): void {
+  const st = fs.statSync(lockPath, { throwIfNoEntry: false });
+  if (st && Date.now() - st.mtimeMs > staleMs) {
+    fs.rmSync(lockPath, { force: true });
+  }
+}
+
+function acquireLock(dir: string, lockPath: string, opts: StoreLockOptions): LockState {
+  const deadline = Date.now() + (opts.maxWaitMs ?? LOCK_MAX_WAIT_MS);
+  const staleMs = opts.staleMs ?? LOCK_STALE_MS;
+  let state = tryAcquireLock(dir, lockPath);
+  while (state === 'held' && Date.now() < deadline) {
+    reclaimIfStale(lockPath, staleMs);
+    sleepSync(LOCK_RETRY_MIN_MS + Math.random() * LOCK_RETRY_JITTER_MS);
+    state = tryAcquireLock(dir, lockPath);
+  }
+  return state;
+}
+
+/**
+ * Runs `fn` while holding an inter-process lock (`<dir>/.sightings.lock`,
+ * created with O_EXCL) so concurrent `check`/`watch`/`add` processes
+ * serialize their load → modify → save of the store files. `writeJsonAtomic`
+ * alone only prevents torn writes; two writers that loaded the same prior
+ * state would otherwise silently drop each other's update.
+ *
+ * Learning is best-effort, so the lock never makes things worse than the
+ * unlocked behaviour: if the lock cannot be created for a non-contention
+ * reason (unwritable/read-only store, EACCES, EROFS, ENOTDIR) or is still
+ * held after `maxWaitMs`, `fn` runs unlocked and any write error surfaces
+ * from `fn` itself exactly as before. A lock older than `staleMs` (crashed
+ * holder) is removed. Nested calls in the same process are re-entrant.
+ */
+export function withStoreLock<T>(dir: string, fn: () => T, opts: StoreLockOptions = {}): T {
+  const lockPath = path.join(dir, LOCK_FILE);
+  const state = lockDepth > 0 ? 'nested' : acquireLock(dir, lockPath, opts);
+  lockDepth++;
+  try {
+    return fn();
+  } finally {
+    lockDepth--;
+    if (state === 'acquired') fs.rmSync(lockPath, { force: true });
+  }
 }
 
 function normalizeForDedup(text: string): string {
@@ -201,47 +281,49 @@ export function recordSighting(
     // a "trusted" store into the untrusted working directory.
     return { isNew: false, count: 0, autoPromoted: false, excuse: null };
   }
-  const store = loadStore(storePath);
-  const normalized = normalizeForDedup(text);
-  const now = new Date().toISOString();
+  return withStoreLock(path.dirname(storePath), () => {
+    const store = loadStore(storePath);
+    const normalized = normalizeForDedup(text);
+    const now = new Date().toISOString();
 
-  let existing = store.sightings.find(s => normalizeForDedup(s.text) === normalized);
+    let existing = store.sightings.find(s => normalizeForDedup(s.text) === normalized);
 
-  if (existing) {
-    existing.count++;
-    existing.lastSeen = now;
-    if (category) existing.suggestedCategory = category;
-    if (rebuttal) existing.suggestedRebuttal = rebuttal;
+    if (existing) {
+      existing.count++;
+      existing.lastSeen = now;
+      if (category) existing.suggestedCategory = category;
+      if (rebuttal) existing.suggestedRebuttal = rebuttal;
 
-    let autoPromoted = false;
-    let excuse: Excuse | null = null;
+      let autoPromoted = false;
+      let excuse: Excuse | null = null;
 
-    if (promote && existing.count >= AUTO_ADD_THRESHOLD && !existing.promoted) {
-      existing.promoted = true;
-      autoPromoted = true;
-      excuse = promoteToExcuse(existing);
-      addToCustomExcuses(excuse, projectDir);
+      if (promote && existing.count >= AUTO_ADD_THRESHOLD && !existing.promoted) {
+        existing.promoted = true;
+        autoPromoted = true;
+        excuse = promoteToExcuse(existing);
+        addToCustomExcuses(excuse, projectDir);
+      }
+
+      saveStore(storePath, store);
+      return { isNew: false, count: existing.count, autoPromoted, excuse };
     }
 
+    const guessedCategory = category ?? guessCategory(text);
+    const sighting: Sighting = {
+      text,
+      count: 1,
+      firstSeen: now,
+      lastSeen: now,
+      suggestedCategory: guessedCategory,
+      suggestedRebuttal: rebuttal ?? generateRebuttal(guessedCategory),
+      promoted: false,
+    };
+
+    store.sightings.push(sighting);
     saveStore(storePath, store);
-    return { isNew: false, count: existing.count, autoPromoted, excuse };
-  }
 
-  const guessedCategory = category ?? guessCategory(text);
-  const sighting: Sighting = {
-    text,
-    count: 1,
-    firstSeen: now,
-    lastSeen: now,
-    suggestedCategory: guessedCategory,
-    suggestedRebuttal: rebuttal ?? generateRebuttal(guessedCategory),
-    promoted: false,
-  };
-
-  store.sightings.push(sighting);
-  saveStore(storePath, store);
-
-  return { isNew: true, count: 1, autoPromoted: false, excuse: null };
+    return { isNew: true, count: 1, autoPromoted: false, excuse: null };
+  });
 }
 
 // Contraction tails ("don't" -> "don", "that's" -> "that") are removed before
@@ -306,9 +388,11 @@ export function loadCustomExcuses(projectDir?: string): Excuse[] {
 function addToCustomExcuses(excuse: Excuse, projectDir?: string): void {
   const filePath = getCustomExcusesPath(projectDir);
   if (!filePath) return;
-  const excuses = loadCustomExcuses(projectDir);
-  excuses.push(excuse);
-  writeJsonAtomic(filePath, excuses);
+  withStoreLock(path.dirname(filePath), () => {
+    const excuses = loadCustomExcuses(projectDir);
+    excuses.push(excuse);
+    writeJsonAtomic(filePath, excuses);
+  });
 }
 
 export function listSightings(projectDir?: string): Sighting[] {

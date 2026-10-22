@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - `attach` now rejects an invalid session name with the same one-line error as `watch` instead of a stack trace (#319)
+- Sightings and custom-excuse stores are updated under an inter-process lock so concurrent `check`/`watch`/`add` processes no longer lose sightings or drop a promoted excuse (#320)
 - `check`/`add`: `-h` after `--` is now treated as literal text instead of triggering help, respecting the POSIX `--` end-of-options marker (#315)
 - `check`/`add`: `parseFlags` now supports the POSIX `--` end-of-options marker, allowing positional text that starts with `--` to be passed to commands (e.g., `rationguard check -- "--no tests needed"`) instead of being parsed as a flag (#311)
 - `add`: an unwritable `~/.rationguard` store made `recordSighting` throw and `add` crashed with a raw stack trace; it now prints a concise error and exits 1 (#309)
