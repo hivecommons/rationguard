@@ -73,33 +73,41 @@ empty state, which makes the loss permanent unless a copy was kept.
 
 ## Clean up residue from the empty-key merge bug
 
-If a store was affected by the bug fixed in PR #327 (before October 2024) where
-non-Latin excuse text normalized to an empty dedup key, it retains merged
-sighting counters and possibly a wrongly promoted excuse.
+Before #327 (commit `ecb2016`, 2026-10-22) the dedup key stripped every
+character outside `a-z0-9` and whitespace, so any non-Latin or
+punctuation-only excuse normalized to an empty key. Every such text therefore
+matched the *first* entry of that kind ever recorded and bumped its counter
+instead of getting its own entry. A store written by an earlier build may
+still carry that one merged entry.
 
 **Recognise the residue:**
 
-- In `~/.rationguard/sightings.json`, look for entries whose `text` is
-  non-Latin characters (e.g. `'明天再做'`, `'已经完成了'`) or punctuation-only
-  (e.g. `'!!!'`). These should not normally appear after the fix.
-- Such entries have `"promoted": true` if their `count` reached 3 (AUTO_ADD_THRESHOLD) before
-  the fix landed.
-- In `~/.rationguard/custom-excuses.json`, find entries promoted by these merged
-  counters; they have low-quality `pattern` fields derived from the first
-  sighting text rather than user intent.
+- In `~/.rationguard/sightings.json`, the residue is a *single* entry whose
+  `text` is non-Latin or punctuation-only (e.g. `'明天再做'` or `'!!!'`) with
+  an implausibly high `count` for its `firstSeen`/`lastSeen` window and a
+  `firstSeen` that predates the upgrade. Other non-Latin entries are
+  legitimate: since the fix, each distinct excuse is stored under its own raw
+  `text`, so they are expected to appear and must be kept.
+- Detections have been count-only since #162 (`3d7cd7f`): they never set
+  `promoted: true` or write to `custom-excuses.json`; only `rationguard add`
+  promotes. The merged entry can be `promoted: true` only if the store
+  predates #162, or if `rationguard add` was run three times
+  (`AUTO_ADD_THRESHOLD`) with distinct empty-key texts. Otherwise skip the
+  `custom-excuses.json` step below.
 
 **Clean it up:**
 
-1. Stop long-running watchers (same as "Diagnose" step 1).
-2. Remove the merged sighting entries by opening `~/.rationguard/sightings.json`
-   and deleting entries with non-Latin or punctuation-only `text`.
-3. Check `~/.rationguard/custom-excuses.json`: if it contains entries with
-   low-quality patterns (e.g. `"pattern": "!!!"` or non-Latin text), delete
-   them. You can safely remove any entry you do not recognize or explicitly
-   added.
-4. Restart the watchers. `recordSighting` re-keys all sightings correctly on
-   the next detection, so new non-Latin excuses will accumulate under the
-   correct entry.
+1. Stop long-running watchers (same as "Diagnose" step 1) and back up
+   `~/.rationguard/`.
+2. Open `~/.rationguard/sightings.json` and delete only the one merged entry
+   identified above. Do not delete other non-Latin or punctuation-only
+   entries.
+3. If that entry had `promoted: true`, open
+   `~/.rationguard/custom-excuses.json` and delete the entry whose `pattern`
+   matches its lowercased `text`. Leave every other entry in place.
+4. Restart the watchers. Stored entries are never rewritten; from now on the
+   lookup matches each excuse to its own entry, so new sightings accumulate
+   correctly.
 
 ## Prevent
 
