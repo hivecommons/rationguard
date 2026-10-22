@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `check()` via the library API no longer matches every input when an excuse has an empty or whitespace-only pattern (#324)
 - `attach` now rejects an invalid session name with the same one-line error as `watch` instead of a stack trace (#319)
 - Sightings and custom-excuse stores are updated under an inter-process lock so concurrent `check`/`watch`/`add` processes no longer lose sightings or drop a promoted excuse (#320)
 - `check`/`add`: `-h` after `--` is now treated as literal text instead of triggering help, respecting the POSIX `--` end-of-options marker (#315)

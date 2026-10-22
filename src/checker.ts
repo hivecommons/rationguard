@@ -60,7 +60,7 @@ function scoreExcuse(text: string, excuse: Excuse): MatchResult {
   const normalized = normalizeText(text);
   const patternNorm = normalizeText(excuse.pattern);
 
-  if (containsKeyword(normalized, patternNorm)) {
+  if (patternNorm.length > 0 && containsKeyword(normalized, patternNorm)) {
     return {
       matched: true,
       excuse,
