@@ -11,6 +11,17 @@ import { createRequire } from 'node:module';
 // sandboxed so sightings/custom-excuse stores never touch real state.
 const CLI = fileURLToPath(new URL('./cli.js', import.meta.url));
 
+// Stryker rewrites every expression in the sandboxed source as a mutant
+// switch (`stryMutAct_9fa48("12") ? ... : (stryCov_9fa48("12"), 'x')`), so
+// tests that regex the source text for flag names cannot see it any more.
+// They lint the source rather than exercise behaviour, so skipping them under
+// instrumentation loses nothing — without the skip, the dry run fails and the
+// mutation report is never produced.
+function sourceIsInstrumented(text: string): boolean {
+  return /\bstry(?:MutAct|Cov)_[0-9a-f]+\(/.test(text);
+}
+const SKIP_UNDER_MUTATION = 'source-introspection test; skipped under Stryker instrumentation';
+
 let sandbox: string;
 let homeDir: string;
 let projectDir: string;
@@ -89,19 +100,20 @@ describe('help', () => {
   // the other fails here instead of shipping silently.
   describe('help text and parseFlags agree on the flag set', () => {
     const source = fs.readFileSync(CLI, 'utf-8');
+    const skip = sourceIsInstrumented(source) && SKIP_UNDER_MUTATION;
     const parsed = new Set([...source.matchAll(/flags\['([a-z-]+)'\]/g)].map(m => m[1]));
     const documented = new Set([...stripAnsi(run(['help']).stdout).matchAll(/(?<![\w-])--([a-z][a-z-]*)/g)].map(m => m[1]));
 
-    it('reads a non-trivial flag set from cli.js', () => {
+    it('reads a non-trivial flag set from cli.js', { skip }, () => {
       assert.ok(parsed.size >= 10, `only ${parsed.size} flags parsed: ${[...parsed].join(', ')}`);
     });
 
-    it('every parsed flag is documented in help', () => {
+    it('every parsed flag is documented in help', { skip }, () => {
       const missing = [...parsed].filter(f => !documented.has(f)).sort();
       assert.deepStrictEqual(missing, [], `parsed but undocumented: ${missing.join(', ')}`);
     });
 
-    it('every documented flag is parsed', () => {
+    it('every documented flag is parsed', { skip }, () => {
       const unused = [...documented].filter(f => !parsed.has(f)).sort();
       assert.deepStrictEqual(unused, [], `documented but never parsed: ${unused.join(', ')}`);
     });
@@ -1641,8 +1653,9 @@ describe('check --fail-on-match', () => {
     assert.match(ok.stdout, /rationguard/);
   });
 
-  it('keeps KNOWN_FLAGS in sync with HELP and the flags read in cli.ts', () => {
+  it('keeps KNOWN_FLAGS in sync with HELP and the flags read in cli.ts', (t) => {
     const src = fs.readFileSync(path.resolve(path.dirname(CLI), '..', 'src', 'cli.ts'), 'utf-8');
+    if (sourceIsInstrumented(src)) return t.skip(SKIP_UNDER_MUTATION);
     const known = new Set(
       [...(src.match(/const KNOWN_FLAGS = new Set\(\[([^\]]*)\]/)?.[1] ?? '').matchAll(/'([^']+)'/g)].map((m) => m[1]),
     );
