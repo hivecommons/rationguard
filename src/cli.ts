@@ -165,6 +165,8 @@ function parseFlags(args: string[]): { command: string; positional: string[]; fl
 }
 
 async function cmdCheck(positional: string[], flags: Record<string, string>): Promise<void> {
+  requireBooleanFlag('fail-on-match', flags['fail-on-match']);
+  requireBooleanFlag('json', flags['json']);
   let input = positional.join(' ');
 
   const fromFile = flags['file'] !== undefined;
@@ -301,6 +303,7 @@ function cmdAdd(positional: string[], flags: Record<string, string>): void {
 }
 
 function cmdList(flags: Record<string, string>): void {
+  requireBooleanFlag('json', flags['json']);
   const allExcuses = getAllExcuses();
 
   if (flags['json'] === 'true') {
@@ -329,6 +332,12 @@ function requirePathFlag(flag: string, raw: string | undefined): void {
   if (raw !== 'true') return;
   console.error(`${ANSI_RED}Error:${ANSI_RESET} --${flag} needs a value.`);
   console.error(`  Note: write --${flag}=PATH (with '='); a bare --${flag} is parsed as "true". For a path literally named "true", write --${flag}=./true.`);
+  process.exit(1);
+}
+
+function requireBooleanFlag(flag: string, raw: string | undefined): void {
+  if (raw === undefined || raw === 'true' || raw === 'false') return;
+  console.error(`${ANSI_RED}Error:${ANSI_RESET} Unknown --${flag} "${sanitizeForTerminal(raw)}". Boolean flags take no value (write --${flag}, or --${flag}=true|false).`);
   process.exit(1);
 }
 
@@ -407,6 +416,10 @@ function selfCommand(): string {
 }
 
 function cmdAttach(positional: string[], flags: Record<string, string>): void {
+  requireBooleanFlag('no-raw', flags['no-raw']);
+  requireBooleanFlag('no-open', flags['no-open']);
+  requireBooleanFlag('verbose', flags['verbose']);
+  requireBooleanFlag('dangerous', flags['dangerous']);
   const session = positional[0];
 
   if (!session) {
@@ -454,6 +467,7 @@ function cmdAttach(positional: string[], flags: Record<string, string>): void {
 }
 
 function cmdSessions(flags: Record<string, string>): void {
+  requireBooleanFlag('json', flags['json']);
   requirePathFlag('run-dir', flags['run-dir']);
   const runDir = flags['run-dir'] ?? process.env['PLUK_RUN_DIR'];
   const sessions = discoverSessions(runDir);
@@ -491,6 +505,8 @@ function cmdSessions(flags: Record<string, string>): void {
 }
 
 async function cmdWatch(positional: string[], flags: Record<string, string>): Promise<void> {
+  requireBooleanFlag('json', flags['json']);
+  requireBooleanFlag('verbose', flags['verbose']);
   const session = positional[0];
 
   if (!session) {
@@ -588,6 +604,7 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
 }
 
 function cmdSightings(flags: Record<string, string>): void {
+  requireBooleanFlag('json', flags['json']);
   const sightings = listSightings();
 
   if (flags['json'] === 'true') {
@@ -652,7 +669,7 @@ async function main(): Promise<void> {
     case '':
       // Implicit check fallback: if we have input (positional text or file flag),
       // treat as check; otherwise show help
-      if (positional.length > 0 || flags['file']) {
+      if (positional.length > 0 || flags['file'] !== undefined) {
         await cmdCheck(positional, flags);
       } else {
         console.log(HELP);

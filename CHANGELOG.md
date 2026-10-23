@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `cli`: boolean flags (`--fail-on-match`, `--json`, `--verbose`, …) now reject values other than `true`/`false` instead of silently treating them as false, and a bare `--file=` is reported as an input error instead of printing help with exit 0 (#337)
 - `learner`: sighting dedup now normalizes text with Unicode-aware letter/number classes, so non-Latin excuses no longer collapse to an empty key and merge unrelated sightings into one counter (#327)
 - `check()` via the library API no longer matches every input when an excuse has an empty or whitespace-only pattern (#324)
 - `attach` now rejects an invalid session name with the same one-line error as `watch` instead of a stack trace (#319)

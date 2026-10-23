@@ -190,7 +190,7 @@ rationguard check --json "I will defer this to next pass"
 rationguard check --fail-on-match --file=agent-output.txt || echo "rationalization detected"
 ```
 
-Exit codes: `0` = clean (or matches found without `--fail-on-match`), `1` = usage/input error, `2` = matches found with `--fail-on-match`.
+Exit codes: `0` = clean (or matches found without `--fail-on-match`), `1` = usage/input error, `2` = matches found with `--fail-on-match`. Boolean flags reject values other than `true`/`false` (e.g. `--fail-on-match=tru` exits 1).
 
 ```
 ✗ Found 2 rationalization pattern(s):

@@ -1019,6 +1019,21 @@ describe('watch (live subscribe)', () => {
     }
   });
 
+  it('rejects invalid boolean flag values and accepts true/false', () => {
+    const bad = run(['check', '--fail-on-match=tru', 'no work found']);
+    assert.strictEqual(bad.status, 1);
+    assert.match(stripAnsi(bad.stderr), /Error: Unknown --fail-on-match "tru"/);
+    assert.strictEqual(run(['check', '--json=flase', 'hello world']).status, 1);
+    assert.strictEqual(run(['check', '--fail-on-match=true', 'no work found']).status, 2);
+    assert.strictEqual(run(['check', '--fail-on-match=false', 'no work found']).status, 0);
+  });
+
+  it('treats a bare --file= as an input error instead of printing help', () => {
+    const res = run(['--file=']);
+    assert.strictEqual(res.status, 1);
+    assert.doesNotMatch(res.stdout, /Usage/i);
+  });
+
   it('rejects non-numeric and non-positive --diagnostics values', () => {
     for (const v of ['abc', '0', '-5', '5min']) {
       const bad = run(['watch', 'watch-diag-bad', `--diagnostics=${v}`]);
