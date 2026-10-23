@@ -133,6 +133,31 @@ async function readStdin(): Promise<string> {
   });
 }
 
+const KNOWN_FLAGS = new Set([
+  'category',
+  'cli',
+  'cli-args',
+  'command',
+  'dangerous',
+  'diagnostics',
+  'dir',
+  'excuse',
+  'fail-on-match',
+  'file',
+  'format',
+  'help',
+  'json',
+  'log-format',
+  'mode',
+  'no-open',
+  'no-raw',
+  'patterns-dir',
+  'rationguard-bin',
+  'rebuttal',
+  'run-dir',
+  'verbose',
+]);
+
 function parseFlags(args: string[]): { command: string; positional: string[]; flags: Record<string, string> } {
   const flags: Record<string, string> = {};
   const positional: string[] = [];
@@ -148,11 +173,12 @@ function parseFlags(args: string[]): { command: string; positional: string[]; fl
       endOfOptions = true;
     } else if (arg.startsWith('--')) {
       const eqIdx = arg.indexOf('=');
-      if (eqIdx > 0) {
-        flags[arg.slice(2, eqIdx)] = arg.slice(eqIdx + 1);
-      } else {
-        flags[arg.slice(2)] = 'true';
+      const name = eqIdx > 0 ? arg.slice(2, eqIdx) : arg.slice(2);
+      if (!KNOWN_FLAGS.has(name)) {
+        console.error(`${ANSI_RED}Error:${ANSI_RESET} Unknown flag --${sanitizeForTerminal(name)}. See rationguard --help.`);
+        process.exit(1);
       }
+      flags[name] = eqIdx > 0 ? arg.slice(eqIdx + 1) : 'true';
     } else if (arg === '-h') {
       flags['help'] = 'true';
     } else {
@@ -632,6 +658,7 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const { command, positional, flags } = parseFlags(args);
 
+  requireBooleanFlag('help', flags['help']);
   if (flags['help'] === 'true') {
     console.log(HELP);
     return;

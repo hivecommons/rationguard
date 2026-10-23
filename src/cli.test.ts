@@ -1028,6 +1028,43 @@ describe('watch (live subscribe)', () => {
     assert.strictEqual(run(['check', '--fail-on-match=false', 'no work found']).status, 0);
   });
 
+  it('rejects unknown --flags with exit 1 instead of ignoring them', () => {
+    const typo = run(['check', 'no work found', '--fail-on-mtach']);
+    assert.strictEqual(typo.status, 1);
+    assert.match(stripAnsi(typo.stderr), /Error: Unknown flag --fail-on-mtach/);
+    assert.strictEqual(typo.stdout, '');
+    const empty = run(['check', 'hello world', '--=x']);
+    assert.strictEqual(empty.status, 1);
+    assert.match(stripAnsi(empty.stderr), /Error: Unknown flag --\./);
+  });
+
+  it('validates --help like other boolean flags', () => {
+    const bad = run(['--help=x']);
+    assert.strictEqual(bad.status, 1);
+    assert.match(stripAnsi(bad.stderr), /Error: Unknown --help "x"/);
+    const ok = run(['--help=true']);
+    assert.strictEqual(ok.status, 0);
+    assert.match(ok.stdout, /rationguard/);
+  });
+
+  it('keeps KNOWN_FLAGS in sync with HELP and the flags read in cli.ts', () => {
+    const src = fs.readFileSync(path.resolve(path.dirname(CLI), '..', 'src', 'cli.ts'), 'utf-8');
+    const known = new Set(
+      [...(src.match(/const KNOWN_FLAGS = new Set\(\[([^\]]*)\]/)?.[1] ?? '').matchAll(/'([^']+)'/g)].map((m) => m[1]),
+    );
+    assert.ok(known.size > 0, 'KNOWN_FLAGS not found in src/cli.ts');
+    const helpText = src.match(/const HELP = `([\s\S]*?)\n`;/)?.[1] ?? '';
+    const documented = [...helpText.matchAll(/(?<![\w-])--([a-z][a-z0-9-]*)/g)].map((m) => m[1]);
+    assert.ok(documented.length > 0, 'HELP not found in src/cli.ts');
+    for (const name of documented) {
+      assert.ok(known.has(name), `--${name} is documented in HELP but missing from KNOWN_FLAGS`);
+    }
+    const read = [...src.matchAll(/flags\['([a-z][a-z0-9-]*)'\]/g)].map((m) => m[1]);
+    for (const name of read) {
+      assert.ok(known.has(name), `flags['${name}'] is read in cli.ts but missing from KNOWN_FLAGS`);
+    }
+  });
+
   it('treats a bare --file= as an input error instead of printing help', () => {
     const res = run(['--file=']);
     assert.strictEqual(res.status, 1);
