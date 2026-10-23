@@ -109,7 +109,8 @@ helper           claude    idle      ●     45s ago       892
 rationguard watch scanner --rebuttal=send
 ```
 
-`sessions` and `watch` look for pluk logs in `/var/run/pluk` by default. Point them
+`sessions` and `watch` look for pluk logs in pluk's default run directory
+(`$XDG_RUNTIME_DIR/pluk`, else `<tmpdir>/pluk-<uid>`). Point them
 elsewhere with `--run-dir=/path/to/pluk/run` or by setting the `PLUK_RUN_DIR`
 environment variable (the flag takes precedence if both are set). Add
 `--verbose` to `watch` to print debug output, and `--patterns-dir=<path>`

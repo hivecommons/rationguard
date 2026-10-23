@@ -40,8 +40,8 @@ that falls back to tmux is always logged to stderr, and
 
 1. `rationguard sessions` — confirm the session is listed and its state and
    tmux column are healthy. If it is missing, check the run directory
-   (`--run-dir` takes precedence over `PLUK_RUN_DIR`; default
-   `/var/run/pluk`).
+   (`--run-dir` takes precedence over `PLUK_RUN_DIR`; default is pluk's
+   `$XDG_RUNTIME_DIR/pluk`, else `<tmpdir>/pluk-<uid>`).
 2. Confirm the rebuttal mode: `--rebuttal=log` only prints; delivery requires
    `--rebuttal=send`.
 3. Project-local excuses are detection-only and never trigger a rebuttal, so
