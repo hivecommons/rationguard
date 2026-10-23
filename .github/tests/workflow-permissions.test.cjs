@@ -65,6 +65,12 @@ const ALLOWLIST = {
   'label-helper.yml': {
     workflow: { contents: 'read', issues: 'write', 'pull-requests': 'write' },
   },
+  'mutation.yml': {
+    workflow: { contents: 'read' },
+    jobs: {
+      mutation: { contents: 'read', 'pull-requests': 'write' },
+    },
+  },
   'pr-verifier.yml': {
     workflow: { checks: 'write', contents: 'read', packages: 'read', 'pull-requests': 'read' },
   },
