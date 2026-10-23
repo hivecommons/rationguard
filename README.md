@@ -33,7 +33,7 @@ npm install -g @hivecommons/rationguard @hivecommons/pluk
 
 ## Releases
 
-Maintainers publish releases by pushing a `v*` tag. The tag workflow runs the test gate, then publishes `@hivecommons/rationguard` to npm with provenance via [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers) (GitHub Actions OIDC, `npm` environment) — no long-lived npm token is stored in the repository.
+Releases ship from a version-bump PR: on merge to `main`, the Auto Release workflow creates the `v<version>` tag and dispatches the publish workflow (a manual `v*` tag push also works; see [CONTRIBUTING.md](CONTRIBUTING.md#releases)). The publish workflow runs the test gate, then publishes `@hivecommons/rationguard` to npm with provenance via [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers) (GitHub Actions OIDC, `npm` environment) — no long-lived npm token is stored in the repository.
 
 ---
 
