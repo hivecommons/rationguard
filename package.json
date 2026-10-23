@@ -15,6 +15,7 @@
     "test:coverage": "node --test --experimental-test-coverage --test-coverage-lines=99 --test-coverage-branches=95 --test-coverage-functions=100 dist/*.test.js",
     "test:workflows": "node --test .github/tests/*.test.cjs",
     "test:mutation": "stryker run",
+    "test:mutation:summary": "node .github/scripts/mutation-summary.cjs",
     "lint": "tsc --noEmit"
   },
   "keywords": [

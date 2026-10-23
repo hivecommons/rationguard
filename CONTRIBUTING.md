@@ -37,7 +37,12 @@ coverage alone cannot. It is report-only and never blocks CI. Run it locally wit
 
 ```bash
 npm run test:mutation
+npm run test:mutation:summary   # Markdown score + surviving mutants per file
 ```
+
+The summary script (`.github/scripts/mutation-summary.cjs`) renders
+`reports/mutation/mutation.json` as the job summary / sticky PR comment used by
+the advisory mutation workflow, and always exits 0.
 
 CI additionally runs a workflow regression suite (`.github/tests/*.test.cjs`)
 that executes the real `run:` scripts from the release, publish, changelog-guard
