@@ -1,7 +1,7 @@
 # Advisory mutation-testing report (#331). Report-only: the job never fails
 # CI on mutation score (stryker thresholds.break is null) and is not a required
 # check. Nightly runs mutate the whole tree; pull requests mutate only changed
-# src files under a 3-minute budget. Ratchet is a separate, later decision.
+# src files under a 20-minute budget. Ratchet is a separate, later decision.
 name: Mutation (advisory)
 
 on:
@@ -38,9 +38,9 @@ jobs:
 
       - run: npm ci
 
-      - name: Stryker (pull request, changed files only, 3 min budget)
+      - name: Stryker (pull request, changed files only, 20 min budget)
         if: github.event_name == 'pull_request'
-        timeout-minutes: 3
+        timeout-minutes: 20
         continue-on-error: true
         run: |
           files=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" -- 'src/*.ts' 'src/**/*.ts' | grep -v '\.test\.ts$' | sort -u | paste -sd, -)
