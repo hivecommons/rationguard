@@ -8,7 +8,7 @@ import type { ExcuseCategory, Excuse } from './types.js';
 import { Watcher, isValidSessionName } from './watcher.js';
 import type { WatcherDetection } from './watcher.js';
 import { discoverSessions, attach, getPatterns, loadPatterns, listAvailableCLIs, bundledPatternsDir, BUILTIN_PATTERNS, type SessionInfo } from '@hivecommons/pluk';
-import { sanitizeForTerminal, stringifyForTerminal } from './sanitize.js';
+import { sanitizeForTerminal, stringifyForTerminal, stripTerminalEscapes } from './sanitize.js';
 import { startDiagnostics } from './diagnostics.js';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -225,7 +225,8 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
   const jsonLog = flags['log-format'] === 'json';
   const failOnMatch = flags['fail-on-match'] === 'true';
   const allExcuses = getAllExcuses();
-  const result = check(input, { excuses: allExcuses }, {
+  // Strip escapes before matching so inline SGR codes cannot split phrases.
+  const result = check(stripTerminalEscapes(input, ''), { excuses: allExcuses }, {
     onEvent: jsonLog ? (event) => console.error(JSON.stringify(event)) : undefined,
   });
 

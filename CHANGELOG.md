@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `check` strips terminal escape sequences before matching, so SGR codes inside a phrase no longer hide detections or let `--fail-on-match` exit 0; the `--json` `input` field now reflects the stripped text that was matched (#355)
 - `watch` no longer warns about `--cli` in the default `--mode=subscribe`: pluk's `attach` always passes it, so the warning fired on every `rationguard attach`; the `--patterns-dir` warning is kept (#353)
 - `watch` now prints a warning when `--patterns-dir` or `--cli` is passed in the default `--mode=subscribe`, where they have no effect; `--help` and the README mark both as `--mode=watch` only (#351)
 - `watch` now handles SIGTERM and SIGHUP like SIGINT, so the pending output buffer is flushed and the `--diagnostics` final snapshot is written when pluk, systemd or tmux stop the watcher (#349)

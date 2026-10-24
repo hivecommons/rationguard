@@ -200,6 +200,22 @@ describe('check', () => {
       assert.strictEqual(res.stderr, '');
     });
 
+    it('check --fail-on-match detects a phrase split by SGR codes', () => {
+      const res = run(['check', '--fail-on-match', "I'll handle that la\u001b[1mter\u001b[0m"]);
+      assert.strictEqual(res.status, 2);
+      assert.strictEqual(res.stderr, '');
+      assert.ok(res.stdout.includes('Found'));
+    });
+
+    it('check --json matches a phrase split by SGR codes and emits no escape bytes', () => {
+      const res = run(['check', '--json', "I'll handle that la\u001b[1mter\u001b[0m"]);
+      assert.strictEqual(res.status, 0);
+      const out = JSON.parse(res.stdout) as { clean: boolean; matches: unknown[] };
+      assert.strictEqual(out.clean, false);
+      assert.ok(out.matches.length > 0);
+      assert.ok(!res.stdout.includes('\u001b'));
+    });
+
     it('check --fail-on-match still exits 0 on clean text', () => {
       const res = run(['check', '--fail-on-match', 'hello world']);
       assert.strictEqual(res.status, 0);
