@@ -56,6 +56,28 @@ describe('sanitizeForTerminal', () => {
   });
 });
 
+describe('sanitizeForTerminal string-control strips', () => {
+  it('handles floods of unterminated OSC/APC/PM introducers quickly', () => {
+    for (const intro of ['\x1b]', '\x1b_', '\x1b^']) {
+      const start = Date.now();
+      const out = sanitizeForTerminal(intro.repeat(20000) + 'tail');
+      assert.ok(Date.now() - start < 500);
+      assert.ok(out.endsWith('tail'));
+      assert.ok(!out.includes('\x1b'));
+    }
+  });
+
+  it('still consumes terminated strings whole', () => {
+    assert.strictEqual(sanitizeForTerminal('a\x1b]0;title\x07b'), 'a b');
+    assert.strictEqual(sanitizeForTerminal('a\x1b]0;title\x1b\\b'), 'a b');
+    assert.strictEqual(sanitizeForTerminal('a\x1b_pay\x07b\x1b^pm\x1b\\c'), 'a b c');
+  });
+
+  it('consumes an unterminated introducer before a later terminated string', () => {
+    assert.strictEqual(sanitizeForTerminal('\x1b]x\x1b]y\x07z'), 'z');
+  });
+});
+
 describe('stringifyForTerminal', () => {
   it('escapes DEL and C1 control code points that JSON.stringify leaves raw', () => {
     const out = stringifyForTerminal({ t: 'a\x7fb\x80c\x9bd\x9fe' });

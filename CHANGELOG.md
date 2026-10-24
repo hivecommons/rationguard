@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `sanitizeForTerminal` strips OSC/APC/PM strings in a single pass, so long runs of unterminated `ESC ]` / `ESC _` / `ESC ^` introducers no longer take quadratic time (#360)
 - `sanitizeForTerminal` now consumes APC (`ESC _`) and PM (`ESC ^`) strings whole through their BEL/ST terminator, like OSC and DCS, instead of leaving the string payload in the output as text (#358)
 - `check` strips terminal escape sequences before matching, so SGR codes inside a phrase no longer hide detections or let `--fail-on-match` exit 0; the `--json` `input` field now reflects the stripped text that was matched (#355)
 - `watch` no longer warns about `--cli` in the default `--mode=subscribe`: pluk's `attach` always passes it, so the warning fired on every `rationguard attach`; the `--patterns-dir` warning is kept (#353)

@@ -1,3 +1,25 @@
+// Replaces `intro` ... BEL/ST strings in a single pass. A lazy `[\s\S]*?`
+// regex rescans to end-of-input for every unterminated introducer (quadratic);
+// once one search finds no terminator, no later introducer can have one.
+// Unterminated introducers are left in place, like the regex form did.
+function replaceControlStrings(text: string, intro: RegExp, replacement: string): string {
+  const introducer = new RegExp(intro.source, 'g');
+  const terminator = /\x07|\x1b\\/g;
+  let out = '';
+  let pos = 0;
+  for (;;) {
+    introducer.lastIndex = pos;
+    const start = introducer.exec(text);
+    if (!start) break;
+    terminator.lastIndex = start.index + 2;
+    const end = terminator.exec(text);
+    if (!end) break;
+    out += text.slice(pos, start.index) + replacement;
+    pos = end.index + end[0].length;
+  }
+  return out + text.slice(pos);
+}
+
 /**
  * Low-level "strip terminal escape sequences" helper shared by every place
  * in this codebase that needs to remove escape/control junk from untrusted
@@ -20,15 +42,15 @@
  * sequences removed with no trace.
  */
 export function stripTerminalEscapes(text: string, replacement = ' '): string {
-  return text
-    // OSC (Operating System Command): ESC ] ... terminated by BEL or ST (ESC \).
-    .replace(/\x1b\][\s\S]*?(?:\x07|\x1b\\)/g, replacement)
+  // OSC (Operating System Command): ESC ] ... terminated by BEL or ST (ESC \).
+  const withoutOsc = replaceControlStrings(text, /\x1b\]/, replacement);
+  const withoutDcs = withoutOsc
     // CSI (Control Sequence Introducer): ESC [ ... followed by a final byte in @-~.
     .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, replacement)
     // DCS (Device Control String): ESC P ... terminated by ST (ESC \).
-    .replace(/\x1bP[^\x1b]*\x1b\\/g, replacement)
-    // APC (Application Program Command) / PM (Privacy Message): ESC _ / ESC ^ ... terminated by BEL or ST (ESC \), like OSC.
-    .replace(/\x1b[_^][\s\S]*?(?:\x07|\x1b\\)/g, replacement)
+    .replace(/\x1bP[^\x1b]*\x1b\\/g, replacement);
+  // APC (Application Program Command) / PM (Privacy Message): ESC _ / ESC ^ ... terminated by BEL or ST (ESC \), like OSC.
+  return replaceControlStrings(withoutDcs, /\x1b[_^]/, replacement)
     // Charset designation, e.g. ESC ( B.
     .replace(/\x1b[()][A-Z0-9]/g, replacement)
     // Keypad mode (application/numeric), e.g. ESC = / ESC >.
