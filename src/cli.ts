@@ -619,12 +619,18 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
     console.error(`${ANSI_RED}Error:${ANSI_RESET} ${sanitizeForTerminal(err.message)}`);
   });
 
-  process.on('SIGINT', () => {
+  let shuttingDown = false;
+  const shutdown = (): void => {
+    if (shuttingDown) return;
+    shuttingDown = true;
     watcher.stop();
     stopDiagnostics();
     status(`\n${ANSI_DIM}Stopped watching.${ANSI_RESET}`);
-    process.exit(0);
-  });
+    process.exit(process.exitCode ?? 0);
+  };
+  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
+    process.on(sig, shutdown);
+  }
 
   await watcher.start();
 }

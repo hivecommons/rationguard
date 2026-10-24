@@ -1183,6 +1183,28 @@ describe('watch (live subscribe)', () => {
     }
   });
 
+  for (const signal of ['SIGTERM', 'SIGHUP'] as const) {
+    it(`--diagnostics writes the final summary and stops cleanly on ${signal}`, async () => {
+      const session = `watch-diag-${signal.toLowerCase()}`;
+      const { runDir, logFile } = makeRunDir(`${session}-run-dir`, session, []);
+      const h = spawnWatch([session, `--run-dir=${runDir}`, '--json', '--diagnostics=1']);
+
+      await appendUntil(logFile, session, () => h.stdout().includes('"matches"'));
+      assert.ok(h.stdout().includes('"matches"'), `no JSON detection in: ${h.stdout()} ${h.stderr()}`);
+
+      h.child.kill(signal);
+      const code = await waitForExit(h.child);
+      assert.strictEqual(code, 0);
+
+      const finals = h.stderr().split('\n')
+        .filter(l => l.startsWith('{'))
+        .map(l => JSON.parse(l) as Record<string, unknown>)
+        .filter(p => p['rationguard_diagnostics'] === 1 && p['final'] === true);
+      assert.strictEqual(finals.length, 1, `expected exactly one final diagnostics line: ${h.stderr()}`);
+      assert.match(stripAnsi(h.stderr()), /Stopped watching\./);
+    });
+  }
+
   it('prints detections with sent/suppressed rebuttal status in send mode', async () => {
     const session = 'watch-send';
     const { runDir, logFile } = makeRunDir('watch-send-run-dir', session, []);

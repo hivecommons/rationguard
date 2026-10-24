@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `watch` now handles SIGTERM and SIGHUP like SIGINT, so the pending output buffer is flushed and the `--diagnostics` final snapshot is written when pluk, systemd or tmux stop the watcher (#349)
 - `cli`: unknown `--flags` (e.g. a typo'd `--fail-on-mtach`) are now rejected with an `Error:` line and exit 1 instead of being silently ignored, and `--help=x` is validated like the other boolean flags (#337)
 - `cli`: boolean flags (`--fail-on-match`, `--json`, `--verbose`, …) now reject values other than `true`/`false` instead of silently treating them as false, and a bare `--file=` is reported as an input error instead of printing help with exit 0 (#337)
 - `learner`: sighting dedup now normalizes text with Unicode-aware letter/number classes, so non-Latin excuses no longer collapse to an empty key and merge unrelated sightings into one counter (#327)
