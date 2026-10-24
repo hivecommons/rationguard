@@ -17,6 +17,20 @@ describe('sanitizeForTerminal', () => {
     assert.match(out, /innocent text/);
   });
 
+  it('strips APC/PM strings whole (ESC _ / ESC ^, BEL or ST terminated)', () => {
+    const out = sanitizeForTerminal('\x1b_payload\x07ok\x1b^secret\x1b\\');
+    assert.ok(!out.includes('\x1b'));
+    assert.ok(!out.includes('\x07'));
+    assert.match(out, /ok/);
+    assert.ok(!out.includes('payload'));
+    assert.ok(!out.includes('secret'));
+    // Parity with OSC: same input (different introducer) should produce same output
+    assert.strictEqual(
+      sanitizeForTerminal('\x1b_payload\x07'),
+      sanitizeForTerminal('\x1b]0;payload\x07'),
+    );
+  });
+
   it('strips other C0 control characters and DEL/C1', () => {
     const out = sanitizeForTerminal('a\x00b\x01c\x08d\x0be\x0cf\x0dg\x7fh\x9fi');
     assert.strictEqual(out, 'a b c d e f g h i');

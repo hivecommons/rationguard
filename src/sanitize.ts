@@ -27,6 +27,8 @@ export function stripTerminalEscapes(text: string, replacement = ' '): string {
     .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, replacement)
     // DCS (Device Control String): ESC P ... terminated by ST (ESC \).
     .replace(/\x1bP[^\x1b]*\x1b\\/g, replacement)
+    // APC (Application Program Command) / PM (Privacy Message): ESC _ / ESC ^ ... terminated by BEL or ST (ESC \), like OSC.
+    .replace(/\x1b[_^][\s\S]*?(?:\x07|\x1b\\)/g, replacement)
     // Charset designation, e.g. ESC ( B.
     .replace(/\x1b[()][A-Z0-9]/g, replacement)
     // Keypad mode (application/numeric), e.g. ESC = / ESC >.
