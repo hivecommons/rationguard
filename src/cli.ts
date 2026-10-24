@@ -546,7 +546,7 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
   if (!session) {
     console.error(`${ANSI_RED}Error:${ANSI_RESET} session name is required`);
     console.error('  rationguard watch <session>');
-    console.error('  rationguard watch my-agent --cli=claude --rebuttal=send');
+    console.error('  rationguard watch my-agent --rebuttal=send');
     process.exit(1);
   }
 

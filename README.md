@@ -158,7 +158,7 @@ Connect to a pluk event stream and check agent output as it happens.
 
 ```bash
 # Watch a session (subscribe to pluk JSONL log)
-rationguard watch my-agent --cli=claude
+rationguard watch my-agent
 
 # Auto-rebut: send rebuttals back to the agent
 rationguard watch my-agent --rebuttal=send
