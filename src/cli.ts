@@ -64,7 +64,7 @@ ${ANSI_BOLD}USAGE${ANSI_RESET}
     --mode=subscribe                   subscribe (tail JSONL) or watch (classify stdin)
     --rebuttal=log                     log (print) or send (pluk-send back)
     --run-dir=/var/run/pluk            Pluk run directory
-    --patterns-dir=<path>              Override pluk's CLI pattern directory
+    --patterns-dir=<path>              Override pluk's CLI pattern directory (--mode=watch only)
     --json                             Output detections as JSON
     --verbose                          Show debug output
     --log-format=json                  Log rebuttal delivery (watch) or match (check) events as JSON lines on stderr
@@ -561,6 +561,13 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
   const logFormat = (flags['log-format'] ?? 'text') as 'text' | 'json';
   const cli = flags['cli'] ?? 'claude';
   if (mode === 'watch') requireWatchPatterns(cli, flags['patterns-dir']);
+  else {
+    for (const name of ['patterns-dir', 'cli']) {
+      if (flags[name] !== undefined) {
+        console.error(`${ANSI_YELLOW}Warning:${ANSI_RESET} --${name} is ignored in --mode=subscribe (only --mode=watch classifies through pluk's patterns).`);
+      }
+    }
+  }
 
   // In JSON mode stdout carries only JSON Lines, so status text goes to stderr.
   const status = jsonOutput ? console.error : console.log;
