@@ -60,7 +60,7 @@ ${ANSI_BOLD}USAGE${ANSI_RESET}
     --json                             Output as JSON
 
   ${ANSI_CYAN}rationguard watch${ANSI_RESET} <session>        Real-time detection via pluk event stream
-    --cli=claude                       CLI type (claude, copilot, gemini, goose, codex) (--mode=watch only)
+    --cli=claude                       CLI type (claude, copilot, gemini, goose, codex)
     --mode=subscribe                   subscribe (tail JSONL) or watch (classify stdin)
     --rebuttal=log                     log (print) or send (pluk-send back)
     --run-dir=/var/run/pluk            Pluk run directory
@@ -393,7 +393,9 @@ function requireOneOf(flag: string, raw: string | undefined, valid: string[], la
 }
 
 function warnSubscribeIgnoredFlags(flags: Record<string, string>): void {
-  for (const name of ['patterns-dir', 'cli']) {
+  // --cli is deliberately not warned about: pluk's attach always passes it to
+  // `watch` without --mode, and the watcher still logs it in verbose mode.
+  for (const name of ['patterns-dir']) {
     if (flags[name] !== undefined) {
       console.error(`${ANSI_YELLOW}Warning:${ANSI_RESET} --${name} is ignored in --mode=subscribe (only --mode=watch classifies through pluk's patterns).`);
     }

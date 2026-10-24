@@ -1127,7 +1127,7 @@ describe('watch (live subscribe)', () => {
     }
   });
 
-  it('warns that --patterns-dir and --cli are ignored in the default subscribe mode', async () => {
+  it('warns that --patterns-dir is ignored in the default subscribe mode but not --cli', async () => {
     for (const [session, flag] of [['watch-sub-dir', `--patterns-dir=${path.join(sandbox, 'no-such-patterns')}`], ['watch-sub-cli', '--cli=copilot']]) {
       const { runDir } = makeRunDir(`${session}-run-dir`, session, []);
       const h = spawnWatch([session, flag, `--run-dir=${runDir}`]);
@@ -1136,7 +1136,11 @@ describe('watch (live subscribe)', () => {
       h.child.kill('SIGINT');
       await exited;
       const name = flag.split('=')[0];
-      assert.match(stripAnsi(h.stderr()), new RegExp(`Warning: ${name} is ignored in --mode=subscribe`), h.stderr());
+      if (name === '--cli') {
+        assert.doesNotMatch(stripAnsi(h.stderr()), /--cli is ignored/, h.stderr());
+      } else {
+        assert.match(stripAnsi(h.stderr()), new RegExp(`Warning: ${name} is ignored in --mode=subscribe`), h.stderr());
+      }
       assert.ok(h.stdout().includes('watching'), `should not exit before the banner: ${h.stdout()} ${h.stderr()}`);
     }
   });

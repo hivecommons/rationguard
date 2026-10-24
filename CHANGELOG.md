@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `watch` no longer warns about `--cli` in the default `--mode=subscribe`: pluk's `attach` always passes it, so the warning fired on every `rationguard attach`; the `--patterns-dir` warning is kept (#353)
 - `watch` now prints a warning when `--patterns-dir` or `--cli` is passed in the default `--mode=subscribe`, where they have no effect; `--help` and the README mark both as `--mode=watch` only (#351)
 - `watch` now handles SIGTERM and SIGHUP like SIGINT, so the pending output buffer is flushed and the `--diagnostics` final snapshot is written when pluk, systemd or tmux stop the watcher (#349)
 - `cli`: unknown `--flags` (e.g. a typo'd `--fail-on-mtach`) are now rejected with an `Error:` line and exit 1 instead of being silently ignored, and `--help=x` is validated like the other boolean flags (#337)
