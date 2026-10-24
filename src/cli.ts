@@ -60,7 +60,7 @@ ${ANSI_BOLD}USAGE${ANSI_RESET}
     --json                             Output as JSON
 
   ${ANSI_CYAN}rationguard watch${ANSI_RESET} <session>        Real-time detection via pluk event stream
-    --cli=claude                       CLI type (claude, copilot, gemini, goose, codex)
+    --cli=claude                       CLI type (claude, copilot, gemini, goose, codex) (--mode=watch only)
     --mode=subscribe                   subscribe (tail JSONL) or watch (classify stdin)
     --rebuttal=log                     log (print) or send (pluk-send back)
     --run-dir=/var/run/pluk            Pluk run directory
@@ -392,6 +392,14 @@ function requireOneOf(flag: string, raw: string | undefined, valid: string[], la
   process.exit(1);
 }
 
+function warnSubscribeIgnoredFlags(flags: Record<string, string>): void {
+  for (const name of ['patterns-dir', 'cli']) {
+    if (flags[name] !== undefined) {
+      console.error(`${ANSI_YELLOW}Warning:${ANSI_RESET} --${name} is ignored in --mode=subscribe (only --mode=watch classifies through pluk's patterns).`);
+    }
+  }
+}
+
 // Only --mode=watch hands --cli/--patterns-dir to pluk, which would otherwise
 // run silently with an all-null pattern set (unknown --cli) or fall back to the
 // bundled patterns (missing --patterns-dir).
@@ -561,13 +569,7 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
   const logFormat = (flags['log-format'] ?? 'text') as 'text' | 'json';
   const cli = flags['cli'] ?? 'claude';
   if (mode === 'watch') requireWatchPatterns(cli, flags['patterns-dir']);
-  else {
-    for (const name of ['patterns-dir', 'cli']) {
-      if (flags[name] !== undefined) {
-        console.error(`${ANSI_YELLOW}Warning:${ANSI_RESET} --${name} is ignored in --mode=subscribe (only --mode=watch classifies through pluk's patterns).`);
-      }
-    }
-  }
+  else warnSubscribeIgnoredFlags(flags);
 
   // In JSON mode stdout carries only JSON Lines, so status text goes to stderr.
   const status = jsonOutput ? console.error : console.log;
