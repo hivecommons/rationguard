@@ -27,7 +27,7 @@ Read the counters in each `rationguard_diagnostics` line:
 |---|---|
 | `flushCount` stays 0 | No output is reaching the watcher — pluk is not capturing, or `--run-dir`/`PLUK_RUN_DIR` points at the wrong directory. |
 | `flushCount` grows, `cleanCount` equals it | Output is arriving but nothing matches. Expected for a clean agent; suspect the matcher only if excuses are visibly present. |
-| `matchCount` grows, `rebuttalSent` is 0, `rebuttalSuppressed` grows | Cooldown (30s per pattern) or the 60s post-rebuttal quiet period is suppressing sends. Normal under bursts. |
+| `matchCount` grows, `rebuttalSent` is 0, `rebuttalSuppressed` grows | Sends are being skipped: per-pattern cooldown (30s), the 60s post-rebuttal quiet period, duplicate rebuttal text, the confidence floor (<70%) or project-local excuses (detection only, never auto-sent). The text output footer names the reason (`Detection only (…)` vs `Rebuttal suppressed (cooldown/dedup)`). Normal under bursts. |
 | `rebuttalFailed` grows | Detection works but `pluk-send` delivery fails. See "Delivery failing". |
 | `bufferFlushedFull` grows quickly | Output volume is overflowing the buffer; matches may be split. Check for a runaway log loop in the agent. |
 

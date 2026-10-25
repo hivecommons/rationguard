@@ -352,6 +352,7 @@ export class Watcher extends EventEmitter {
           if (!match.excuse) continue;
           if (match.excuse.source === 'project') {
             this.log(`skipping rebuttal for "${this.safe(match.excuse.pattern)}" (project-local excuse — untrusted working directory, detection only)`);
+            this.stats_.rebuttalSuppressed++;
             continue;
           }
           if (match.confidence < REBUTTAL_SEND_CONFIDENCE_THRESHOLD) {

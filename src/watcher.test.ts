@@ -573,6 +573,7 @@ describe('rebuttal sending', () => {
     assert.strictEqual(detections.length, 1);
     assert.strictEqual(detections[0].sentRebuttals, undefined);
     assert.strictEqual(fs.existsSync(argsFile), false);
+    assert.strictEqual(watcher.stats().rebuttalSuppressed, 1);
   });
 
   it('reports no sent rebuttals when both pluk-send and tmux are unavailable', () => {

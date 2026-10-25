@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `watch --rebuttal=send` text output now names the real reason a rebuttal was not sent (`Detection only (project-local excuse, never auto-sent)` or `Detection only (confidence below 70%)`) instead of always claiming cooldown/dedup, and project-local skips are now counted in `rebuttalSuppressed` (#373)
 - `writeJsonAtomic` now removes its temp file when `writeFileSync` or `renameSync` throws, preventing repeated failed store writes from accumulating orphan `.*.tmp` files in `~/.rationguard` (#369)
 - `--diagnostics=<secs>` now requires at least 1 second (sub-millisecond values were clamped by Node to a 1 ms timer, flooding stderr) and the error message states the exact range `1`–`2147483.647` instead of a floored maximum (#364, #365)
 - `--diagnostics=<secs>` now rejects intervals above Node's timer maximum (~2147483.647 seconds or ~24.8 days) instead of silently firing every millisecond (#362)

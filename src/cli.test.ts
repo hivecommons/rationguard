@@ -1323,6 +1323,55 @@ describe('watch (live subscribe)', () => {
     assert.match(out, /Stopped watching\./);
   });
 
+  it('names the real reason a rebuttal was not sent in send mode', async () => {
+    const session = 'watch-send-reasons';
+    const { runDir, logFile } = makeRunDir('watch-send-reasons-run-dir', session, []);
+
+    const binDir = path.join(sandbox, 'watch-send-reasons-bin');
+    fs.mkdirSync(binDir, { recursive: true });
+    const fakePlukSend = path.join(binDir, 'pluk-send');
+    fs.writeFileSync(fakePlukSend, '#!/bin/sh\nexit 0\n');
+    fs.chmodSync(fakePlukSend, 0o755);
+
+    fs.mkdirSync(path.join(homeDir, '.rationguard'), { recursive: true });
+    fs.writeFileSync(
+      path.join(homeDir, '.rationguard', 'custom-excuses.json'),
+      JSON.stringify([
+        { pattern: 'zorble reason low', rebuttal: 'low rebuttal', category: 'deferral', keywords: ['zorble', 'frobnitz'] },
+      ]) + '\n',
+    );
+    fs.mkdirSync(path.join(projectDir, '.rationguard'), { recursive: true });
+    fs.writeFileSync(
+      path.join(projectDir, '.rationguard', 'custom-excuses.json'),
+      JSON.stringify([
+        { pattern: 'quux reason project', rebuttal: 'project rebuttal', category: 'deferral', keywords: ['quux reason project'] },
+      ]) + '\n',
+    );
+
+    const h = spawnWatch(
+      [session, `--run-dir=${runDir}`, '--rebuttal=send'],
+      { PATH: `${binDir}:${process.env['PATH'] ?? ''}`, RATIONGUARD_PLUK_SEND_BIN: fakePlukSend },
+    );
+
+    const lines = jsonlLines([
+      plukEvent(session, 'raw_output', { line: 'the zorble is queued and quux reason project' }),
+      plukEvent(session, 'state_change', { from: 'working', to: 'idle' }),
+    ]);
+    for (let i = 0; i < 40 && !h.stdout().includes('never auto-sent'); i++) {
+      fs.appendFileSync(logFile, lines);
+      await sleep(250);
+    }
+
+    h.child.kill('SIGINT');
+    const code = await waitForExit(h.child);
+    assert.strictEqual(code, 0);
+    fs.rmSync(path.join(projectDir, '.rationguard'), { recursive: true, force: true });
+
+    const out = stripAnsi(h.stdout());
+    assert.match(out, /→ Detection only \(project-local excuse, never auto-sent\)/);
+    assert.match(out, /→ Detection only \(confidence below 70%\)/);
+  });
+
   it('exits 1 with the underlying error when the session log path is unreadable', async () => {
     const session = 'watch-unreadable';
     const runDir = path.join(sandbox, 'watch-unreadable-run-dir');
