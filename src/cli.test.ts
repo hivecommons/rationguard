@@ -633,10 +633,22 @@ describe('add', () => {
     for (const cmd of ['watch']) {
       const overflow1 = run([cmd, 'sess', '--diagnostics=3000000']);
       assert.strictEqual(overflow1.status, 1);
-      assert.match(stripAnsi(overflow1.stderr), /Error: --diagnostics "3000000" must be a positive number of seconds no greater than/);
+      assert.match(stripAnsi(overflow1.stderr), /Error: --diagnostics "3000000" must be a number of seconds between 1 and 2147483\.647\./);
       const overflow2 = run([cmd, 'sess', '--diagnostics=1e308']);
       assert.strictEqual(overflow2.status, 1);
-      assert.match(stripAnsi(overflow2.stderr), /Error: --diagnostics "1e308" must be a positive number of seconds no greater than/);
+      assert.match(stripAnsi(overflow2.stderr), /Error: --diagnostics "1e308" must be a number of seconds between 1 and 2147483\.647\./);
+      const fractional = run([cmd, 'sess', '--diagnostics=2147483.648']);
+      assert.strictEqual(fractional.status, 1);
+    }
+  });
+
+  it('rejects --diagnostics values below one second', () => {
+    for (const cmd of ['watch']) {
+      for (const v of ['0.0001', '0.5', '0.999']) {
+        const res = run([cmd, 'sess', `--diagnostics=${v}`]);
+        assert.strictEqual(res.status, 1, v);
+        assert.match(stripAnsi(res.stderr), new RegExp(`Error: --diagnostics "${v.replace('.', '\\.')}" must be a number of seconds between 1 and 2147483\\.647\\.`));
+      }
     }
   });
 
@@ -1068,7 +1080,7 @@ describe('watch (live subscribe)', () => {
     for (const v of ['abc', '0', '-5', '5min']) {
       const bad = run(['watch', 'watch-diag-bad', `--diagnostics=${v}`]);
       assert.strictEqual(bad.status, 1, `--diagnostics=${v}`);
-      assert.match(stripAnsi(bad.stderr), /--diagnostics ".*" must be a positive number of seconds/);
+      assert.match(stripAnsi(bad.stderr), /--diagnostics ".*" must be a number of seconds between 1 and/);
     }
   });
 

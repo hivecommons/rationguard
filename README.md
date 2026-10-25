@@ -126,7 +126,7 @@ stderr (`event`, `category`, `confidence`, `matched` count; never the text).
 Library users can pass `check(text, config, { onEvent })` to receive the same
 events and feed their own counters.
 
-Add `--diagnostics` (or `--diagnostics=<seconds>`, a positive number; anything else is rejected) to `watch` for opt-in,
+Add `--diagnostics` (or `--diagnostics=<seconds>`, a number from 1 to 2147483.647; anything else is rejected) to `watch` for opt-in,
 local-only health visibility on a long-running session: a bounded JSON
 summary (flush/match/rebuttal counts) is printed to stderr on a fixed
 interval (default 60s) and once more when the watcher stops. It never

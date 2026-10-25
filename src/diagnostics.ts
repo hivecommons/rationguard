@@ -13,6 +13,13 @@ const DIAGNOSTICS_INTERVAL_MS = 60_000;
 // Node's setInterval caps timer delays at 2^31 - 1 ms (~24.8 days); larger
 // values or Infinity are silently clamped to 1 ms, causing diagnostics spam.
 export const MAX_TIMER_DELAY_MS = 2_147_483_647;
+// Delays below 1 ms are clamped to 1 ms too, and anything this fast floods stderr.
+export const MIN_DIAGNOSTICS_INTERVAL_MS = 1000;
+
+export function isValidDiagnosticsSeconds(seconds: number): boolean {
+  const ms = seconds * 1000;
+  return Number.isFinite(ms) && ms >= MIN_DIAGNOSTICS_INTERVAL_MS && ms <= MAX_TIMER_DELAY_MS;
+}
 
 export function startDiagnostics(
   command: 'watch',
@@ -22,7 +29,7 @@ export function startDiagnostics(
 ): () => void {
   if (!flag) return () => {};
   const seconds = flag === 'true' ? NaN : Number(flag);
-  const intervalMs = Number.isFinite(seconds) && seconds > 0 && seconds * 1000 <= MAX_TIMER_DELAY_MS ? seconds * 1000 : DIAGNOSTICS_INTERVAL_MS;
+  const intervalMs = isValidDiagnosticsSeconds(seconds) ? seconds * 1000 : DIAGNOSTICS_INTERVAL_MS;
   const startedAt = Date.now();
   const report = (final: boolean): void => {
     try {

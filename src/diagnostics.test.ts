@@ -1,8 +1,8 @@
 // Tests for the opt-in, local-only `--diagnostics` summary (mirrors
 // @hivecommons/pluk's startDiagnostics, hivecommons/pluk#102).
-import { describe, it } from 'node:test';
+import { describe, it, mock } from 'node:test';
 import assert from 'node:assert';
-import { startDiagnostics } from './diagnostics.js';
+import { startDiagnostics, isValidDiagnosticsSeconds } from './diagnostics.js';
 
 const settle = (ms = 60): Promise<void> => new Promise(r => setTimeout(r, ms));
 
@@ -17,8 +17,10 @@ describe('startDiagnostics', () => {
   it('writes periodic and final JSON lines with fixed keys only', async () => {
     const lines: string[] = [];
     let n = 0;
-    const stop = startDiagnostics('watch', () => ({ flushCount: ++n }), '0.02', l => lines.push(l));
-    await settle(70);
+    mock.timers.enable({ apis: ['setInterval'] });
+    const stop = startDiagnostics('watch', () => ({ flushCount: ++n }), '1', l => lines.push(l));
+    mock.timers.tick(2000);
+    mock.timers.reset();
     stop();
     stop(); // idempotent
     assert.ok(lines.length >= 2, `expected periodic + final, got ${lines.length}`);
@@ -66,7 +68,7 @@ describe('startDiagnostics', () => {
 
   it('never includes a session name or raw output', async () => {
     const lines: string[] = [];
-    const stop = startDiagnostics('watch', () => ({ flushCount: 3, matchCount: 1 }), '0.02', l => lines.push(l));
+    const stop = startDiagnostics('watch', () => ({ flushCount: 3, matchCount: 1 }), '1', l => lines.push(l));
     await settle(30);
     stop();
     assert.ok(lines.length >= 1);
@@ -81,5 +83,20 @@ describe('startDiagnostics', () => {
     await settle(30);
     stop();
     assert.equal(lines.length, 1, 'overflow value should fall back to default (60s), so no periodic line within 30ms');
+  });
+
+  it('falls back to the default period for a sub-second value', async () => {
+    const lines: string[] = [];
+    const stop = startDiagnostics('watch', () => ({ x: 1 }), '0.0001', l => lines.push(l));
+    await settle(30);
+    stop();
+    assert.equal(lines.length, 1, 'sub-second value should fall back to default (60s), so no periodic line within 30ms');
+  });
+
+  it('accepts exactly the 1s..2147483.647s range', () => {
+    assert.equal(isValidDiagnosticsSeconds(0.999), false);
+    assert.equal(isValidDiagnosticsSeconds(1), true);
+    assert.equal(isValidDiagnosticsSeconds(2147483.647), true);
+    assert.equal(isValidDiagnosticsSeconds(2147483.648), false);
   });
 });
