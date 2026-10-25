@@ -68,10 +68,12 @@ describe('startDiagnostics', () => {
 
   it('never includes a session name or raw output', async () => {
     const lines: string[] = [];
+    mock.timers.enable({ apis: ['setInterval'] });
     const stop = startDiagnostics('watch', () => ({ flushCount: 3, matchCount: 1 }), '1', l => lines.push(l));
-    await settle(30);
+    mock.timers.tick(2000);
+    mock.timers.reset();
     stop();
-    assert.ok(lines.length >= 1);
+    assert.ok(lines.length >= 2, `expected periodic + final, got ${lines.length}`);
     for (const l of lines) {
       assert.ok(!l.includes('session'), `unexpected session-like field in: ${l}`);
     }
