@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { recordSighting, recordSightingIfEligible, loadCustomExcuses, listSightings, withStoreLock, reclaimStaleLock, AUTO_LEARN_CONFIDENCE_THRESHOLD } from './learner.js';
+import { recordSighting, recordSightingIfEligible, loadCustomExcuses, listSightings, withStoreLock, reclaimStaleLock, releaseOwnLock, AUTO_LEARN_CONFIDENCE_THRESHOLD } from './learner.js';
 import { check } from './checker.js';
 import type { Excuse, MatchResult } from './types.js';
 
@@ -345,6 +345,55 @@ describe('store lock', () => {
       assert.ok(fs.existsSync(lockPath()), 'outer lock must survive the inner release');
     });
     assert.ok(!fs.existsSync(lockPath()));
+  });
+
+  it('withStoreLock: does not delete a live lock that replaced ours while fn was stalled', () => {
+    withStoreLock(storeDir(), () => {
+      fs.rmSync(lockPath());
+      fs.writeFileSync(lockPath(), 'reclaimer', { flag: 'wx' });
+    });
+    assert.strictEqual(fs.readFileSync(lockPath(), 'utf-8'), 'reclaimer');
+    assert.deepStrictEqual(fs.readdirSync(storeDir()), ['.sightings.lock']);
+  });
+
+  it('releaseOwnLock: removes the lock when the inode matches and leaves no release file', () => {
+    fs.mkdirSync(storeDir(), { recursive: true });
+    fs.writeFileSync(lockPath(), 'mine');
+    releaseOwnLock(lockPath(), fs.statSync(lockPath()).ino);
+    assert.deepStrictEqual(fs.readdirSync(storeDir()), []);
+  });
+
+  it('releaseOwnLock: returns without throwing when the lock has vanished', () => {
+    fs.mkdirSync(storeDir(), { recursive: true });
+    assert.doesNotThrow(() => releaseOwnLock(lockPath(), 1));
+    assert.deepStrictEqual(fs.readdirSync(storeDir()), []);
+  });
+
+  it('releaseOwnLock: restores a foreign lock and leaves no release file', () => {
+    fs.mkdirSync(storeDir(), { recursive: true });
+    fs.writeFileSync(lockPath(), 'theirs');
+    releaseOwnLock(lockPath(), fs.statSync(lockPath()).ino + 1);
+    assert.strictEqual(fs.readFileSync(lockPath(), 'utf-8'), 'theirs');
+    assert.ok(!fs.readdirSync(storeDir()).some((f) => f.includes('.release.')));
+  });
+
+  it('releaseOwnLock: drops its release file instead of orphaning it when a foreign lock cannot be put back', () => {
+    fs.mkdirSync(storeDir(), { recursive: true });
+    fs.writeFileSync(lockPath(), 'theirs');
+    const ino = fs.statSync(lockPath()).ino + 1;
+    const realRename = fs.renameSync;
+    let renames = 0;
+    (fs as { renameSync: typeof fs.renameSync }).renameSync = ((from: fs.PathLike, to: fs.PathLike) => {
+      renames += 1;
+      if (renames === 2) throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
+      return realRename(from, to);
+    }) as typeof fs.renameSync;
+    try {
+      releaseOwnLock(lockPath(), ino);
+    } finally {
+      (fs as { renameSync: typeof fs.renameSync }).renameSync = realRename;
+    }
+    assert.ok(!fs.readdirSync(storeDir()).some((f) => f.includes('.release.')));
   });
 
   it('reclaimStaleLock: leaves a fresh lock alone and removes a stale one exactly once', () => {
