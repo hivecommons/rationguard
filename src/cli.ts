@@ -9,7 +9,7 @@ import { Watcher, isValidSessionName } from './watcher.js';
 import type { WatcherDetection } from './watcher.js';
 import { discoverSessions, attach, getPatterns, loadPatterns, listAvailableCLIs, bundledPatternsDir, BUILTIN_PATTERNS, type SessionInfo } from '@hivecommons/pluk';
 import { sanitizeForTerminal, stringifyForTerminal, stripTerminalEscapes } from './sanitize.js';
-import { startDiagnostics } from './diagnostics.js';
+import { startDiagnostics, MAX_TIMER_DELAY_MS } from './diagnostics.js';
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -378,8 +378,8 @@ function requireValueFlag(flag: string, raw: string | undefined): void {
 function requirePositiveSeconds(flag: string, raw: string | undefined): void {
   if (raw === undefined || raw === 'true') return;
   const seconds = Number(raw);
-  if (Number.isFinite(seconds) && seconds > 0) return;
-  console.error(`${ANSI_RED}Error:${ANSI_RESET} --${flag} "${sanitizeForTerminal(raw)}" must be a positive number of seconds.`);
+  if (Number.isFinite(seconds) && seconds > 0 && seconds * 1000 <= MAX_TIMER_DELAY_MS) return;
+  console.error(`${ANSI_RED}Error:${ANSI_RESET} --${flag} "${sanitizeForTerminal(raw)}" must be a positive number of seconds no greater than ${Math.floor(MAX_TIMER_DELAY_MS / 1000)}.`);
   console.error(`  Note: write --${flag}=<seconds> (e.g. --${flag}=30), or a bare --${flag} for the 60s default.`);
   process.exit(1);
 }

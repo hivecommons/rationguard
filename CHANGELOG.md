@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `--diagnostics=<secs>` now rejects intervals above Node's timer maximum (~2147483.647 seconds or ~24.8 days) instead of silently firing every millisecond (#362)
 - `sanitizeForTerminal` strips OSC/APC/PM strings in a single pass, so long runs of unterminated `ESC ]` / `ESC _` / `ESC ^` introducers no longer take quadratic time (#360)
 - `sanitizeForTerminal` now consumes APC (`ESC _`) and PM (`ESC ^`) strings whole through their BEL/ST terminator, like OSC and DCS, instead of leaving the string payload in the output as text (#358)
 - `check` strips terminal escape sequences before matching, so SGR codes inside a phrase no longer hide detections or let `--fail-on-match` exit 0; the `--json` `input` field now reflects the stripped text that was matched (#355)

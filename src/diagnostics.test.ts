@@ -74,4 +74,12 @@ describe('startDiagnostics', () => {
       assert.ok(!l.includes('session'), `unexpected session-like field in: ${l}`);
     }
   });
+
+  it('falls back to the default period for an overflow value', async () => {
+    const lines: string[] = [];
+    const stop = startDiagnostics('watch', () => ({ x: 1 }), '3000000', l => lines.push(l));
+    await settle(30);
+    stop();
+    assert.equal(lines.length, 1, 'overflow value should fall back to default (60s), so no periodic line within 30ms');
+  });
 });

@@ -629,6 +629,17 @@ describe('add', () => {
     assert.match(stripAnsi(run(['watch', 'sess', '--mode']).stderr), /bare --mode/);
   });
 
+  it('rejects --diagnostics values that overflow the timer', () => {
+    for (const cmd of ['watch']) {
+      const overflow1 = run([cmd, 'sess', '--diagnostics=3000000']);
+      assert.strictEqual(overflow1.status, 1);
+      assert.match(stripAnsi(overflow1.stderr), /Error: --diagnostics "3000000" must be a positive number of seconds no greater than/);
+      const overflow2 = run([cmd, 'sess', '--diagnostics=1e308']);
+      assert.strictEqual(overflow2.status, 1);
+      assert.match(stripAnsi(overflow2.stderr), /Error: --diagnostics "1e308" must be a positive number of seconds no greater than/);
+    }
+  });
+
   it('rejects a bare --file instead of reading a file named "true"', () => {
     const trap = path.join(projectDir, 'true');
     fs.writeFileSync(trap, "that's out of scope");
