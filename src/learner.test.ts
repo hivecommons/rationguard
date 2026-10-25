@@ -369,31 +369,83 @@ describe('store lock', () => {
     assert.deepStrictEqual(fs.readdirSync(storeDir()), []);
   });
 
-  it('releaseOwnLock: restores a foreign lock and leaves no release file', () => {
+  it('releaseOwnLock: leaves a foreign lock in place without ever renaming it', () => {
     fs.mkdirSync(storeDir(), { recursive: true });
     fs.writeFileSync(lockPath(), 'theirs');
-    releaseOwnLock(lockPath(), 'mine');
-    assert.strictEqual(fs.readFileSync(lockPath(), 'utf-8'), 'theirs');
-    assert.ok(!fs.readdirSync(storeDir()).some((f) => f.includes('.release.')));
-  });
-
-  it('releaseOwnLock: treats an unreadable lock as foreign and puts it back', () => {
-    fs.mkdirSync(storeDir(), { recursive: true });
-    // A directory renames fine but readFileSync throws EISDIR, exercising the
-    // read-failure arm: the content never matches, so the entry is restored.
-    fs.mkdirSync(lockPath());
-    assert.doesNotThrow(() => releaseOwnLock(lockPath(), 'mine'));
-    assert.ok(fs.statSync(lockPath()).isDirectory(), 'unreadable lock must be put back');
-    assert.deepStrictEqual(fs.readdirSync(storeDir()), ['.sightings.lock']);
-  });
-
-  it('releaseOwnLock: drops its release file instead of orphaning it when a foreign lock cannot be put back', () => {
-    fs.mkdirSync(storeDir(), { recursive: true });
-    fs.writeFileSync(lockPath(), 'theirs');
+    const before = fs.statSync(lockPath()).ino;
     const realRename = fs.renameSync;
     let renames = 0;
     (fs as { renameSync: typeof fs.renameSync }).renameSync = ((from: fs.PathLike, to: fs.PathLike) => {
       renames += 1;
+      return realRename(from, to);
+    }) as typeof fs.renameSync;
+    try {
+      releaseOwnLock(lockPath(), 'mine');
+    } finally {
+      (fs as { renameSync: typeof fs.renameSync }).renameSync = realRename;
+    }
+    // Moving a live lock aside, even briefly, would let a waiter's O_EXCL
+    // create succeed and the restoring rename would then replace that lock.
+    assert.strictEqual(renames, 0, 'a lock that is not ours must never be moved aside');
+    assert.strictEqual(fs.statSync(lockPath()).ino, before, 'foreign lock inode must be unchanged');
+    assert.strictEqual(fs.readFileSync(lockPath(), 'utf-8'), 'theirs');
+    assert.deepStrictEqual(fs.readdirSync(storeDir()), ['.sightings.lock']);
+  });
+
+  it('releaseOwnLock: treats an unreadable lock as foreign and leaves it alone', () => {
+    fs.mkdirSync(storeDir(), { recursive: true });
+    // readFileSync throws EISDIR on a directory, exercising the read-failure
+    // arm of the ownership check: the entry is left untouched.
+    fs.mkdirSync(lockPath());
+    assert.doesNotThrow(() => releaseOwnLock(lockPath(), 'mine'));
+    assert.ok(fs.statSync(lockPath()).isDirectory(), 'unreadable lock must be left in place');
+    assert.deepStrictEqual(fs.readdirSync(storeDir()), ['.sightings.lock']);
+  });
+
+  it('releaseOwnLock: restores a lock that was reclaimed between the ownership check and the rename', () => {
+    fs.mkdirSync(storeDir(), { recursive: true });
+    fs.writeFileSync(lockPath(), 'mine');
+    const realRename = fs.renameSync;
+    let renames = 0;
+    (fs as { renameSync: typeof fs.renameSync }).renameSync = ((from: fs.PathLike, to: fs.PathLike) => {
+      renames += 1;
+      // Simulate a reclaimer replacing our lock just before we move it aside.
+      if (renames === 1) fs.writeFileSync(lockPath(), 'theirs');
+      return realRename(from, to);
+    }) as typeof fs.renameSync;
+    try {
+      releaseOwnLock(lockPath(), 'mine');
+    } finally {
+      (fs as { renameSync: typeof fs.renameSync }).renameSync = realRename;
+    }
+    assert.strictEqual(fs.readFileSync(lockPath(), 'utf-8'), 'theirs');
+    assert.deepStrictEqual(fs.readdirSync(storeDir()), ['.sightings.lock']);
+  });
+
+  it('releaseOwnLock: returns quietly when the lock vanishes between the ownership check and the rename', () => {
+    fs.mkdirSync(storeDir(), { recursive: true });
+    fs.writeFileSync(lockPath(), 'mine');
+    const realRename = fs.renameSync;
+    (fs as { renameSync: typeof fs.renameSync }).renameSync = ((from: fs.PathLike, to: fs.PathLike) => {
+      fs.rmSync(lockPath(), { force: true });
+      return realRename(from, to);
+    }) as typeof fs.renameSync;
+    try {
+      assert.doesNotThrow(() => releaseOwnLock(lockPath(), 'mine'));
+    } finally {
+      (fs as { renameSync: typeof fs.renameSync }).renameSync = realRename;
+    }
+    assert.deepStrictEqual(fs.readdirSync(storeDir()), []);
+  });
+
+  it('releaseOwnLock: drops its release file instead of orphaning it when a reclaimed lock cannot be put back', () => {
+    fs.mkdirSync(storeDir(), { recursive: true });
+    fs.writeFileSync(lockPath(), 'mine');
+    const realRename = fs.renameSync;
+    let renames = 0;
+    (fs as { renameSync: typeof fs.renameSync }).renameSync = ((from: fs.PathLike, to: fs.PathLike) => {
+      renames += 1;
+      if (renames === 1) fs.writeFileSync(lockPath(), 'theirs');
       if (renames === 2) throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
       return realRename(from, to);
     }) as typeof fs.renameSync;

@@ -227,18 +227,29 @@ export function reclaimStaleLock(lockPath: string, staleMs: number): boolean {
  * Removes `lockPath` only if it is still the lock we created (its content is
  * `token`). A holder that stalled past the stale timeout may have had its lock
  * reclaimed and replaced by a live one; a blind remove would delete that live
- * lock. The lock is moved aside with an atomic rename first, so the token
- * check and the remove act on the same file; a lock that is not ours is put
- * back.
+ * lock. Ownership is checked in place first: a lock that does not carry our
+ * token is never touched, because moving a live lock aside — even briefly —
+ * empties the slot, lets a waiter create a new lock there, and the restoring
+ * rename would then silently replace that new lock. Only a lock that reads as
+ * ours is moved aside with an atomic rename, so the final token check and the
+ * remove act on the same file; if a reclaim raced in between, the file we
+ * moved is put back.
  *
  * @internal Exported for tests.
  */
 export function releaseOwnLock(lockPath: string, token: string): void {
+  let current: string | undefined;
+  try {
+    current = fs.readFileSync(lockPath, 'utf-8');
+  } catch {
+    return; // already reclaimed and released by someone else
+  }
+  if (current !== token) return; // reclaimed and replaced by a live holder: leave it alone
   const releasePath = `${lockPath}.release.${process.pid}`;
   try {
     fs.renameSync(lockPath, releasePath);
   } catch {
-    return; // already reclaimed and released by someone else
+    return; // reclaimed between the read and the rename
   }
   let content: string | undefined;
   try {
