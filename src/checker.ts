@@ -70,7 +70,9 @@ function scoreExcuse(text: string, excuse: Excuse): MatchResult {
   }
 
   const reduced = reduceText(text);
-  let keywordHits = 0;
+  // Inflected variants of one word (defer/deferred/deferring) share a stem and
+  // count as a single hit.
+  const hitStems = new Set<string>();
   let bestMatch = '';
   for (const kw of excuse.keywords) {
     const kwNorm = normalizeText(kw);
@@ -80,11 +82,12 @@ function scoreExcuse(text: string, excuse: Excuse): MatchResult {
     // reduced form count as a hit.
     const kwReduced = reduceText(kw);
     if (containsKeyword(normalized, kwNorm) || (kwReduced.length > 0 && containsKeyword(reduced, kwReduced))) {
-      keywordHits++;
+      hitStems.add(kwReduced.length > 0 ? kwReduced : kwNorm);
       if (kw.length > bestMatch.length) bestMatch = kw;
     }
   }
 
+  const keywordHits = hitStems.size;
   if (keywordHits === 0) {
     return { matched: false, excuse: null, confidence: 0, matchedText: '' };
   }

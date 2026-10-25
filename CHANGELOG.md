@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `check`: inflected variants of one keyword (`defer`/`deferred`/`deferring`, `postpone`/`postponed`) now count as a single hit, so "I deferred this" scores 45% instead of 75% (#379)
 - `withStoreLock` releases the store lock only if it is still the file it created (checked by a per-acquisition token written into the lock), so a holder that stalled past the stale timeout no longer deletes the live lock of the process that reclaimed it and lets a third writer in (#376)
 - `watch --rebuttal=send`: the text footer now says `→ Detection only (project-local excuse, never auto-sent)` or `→ Detection only (confidence below 70%)` instead of labelling those skips `cooldown/dedup`, and project-local skips now count toward `rebuttalSuppressed` like every other unsent match (#373)
 - `writeJsonAtomic` now removes its temp file when `writeFileSync` or `renameSync` throws, preventing repeated failed store writes from accumulating orphan `.*.tmp` files in `~/.rationguard` (#369)
