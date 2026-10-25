@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { check, generatePromptBlock } from './checker.js';
-import { recordSighting, recordSightingIfEligible, listSightings, AUTO_LEARN_CONFIDENCE_THRESHOLD } from './learner.js';
+import { recordSighting, recordSightingIfEligible, listSightings, AUTO_LEARN_CONFIDENCE_THRESHOLD, REBUTTAL_SEND_CONFIDENCE_THRESHOLD } from './learner.js';
 import { getAllExcuses } from './excuses.js';
 import { CATEGORY_LABELS } from './types.js';
 import type { ExcuseCategory, Excuse } from './types.js';
@@ -614,6 +614,12 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
         if (rebuttalMode === 'send') {
           if (sentPatterns.has(match.excuse.pattern)) {
             console.log(`  ${ANSI_GREEN}→ Sent rebuttal to ${session}${ANSI_RESET}`);
+          } else if (match.excuse.source === 'project') {
+            // Same skip order as the watcher's send loop, so the footer names
+            // the reason it actually skipped instead of always "cooldown".
+            console.log(`  ${ANSI_DIM}→ Detection only (project-local excuse, never auto-sent)${ANSI_RESET}`);
+          } else if (match.confidence < REBUTTAL_SEND_CONFIDENCE_THRESHOLD) {
+            console.log(`  ${ANSI_DIM}→ Detection only (confidence below ${Math.round(REBUTTAL_SEND_CONFIDENCE_THRESHOLD * 100)}%)${ANSI_RESET}`);
           } else {
             console.log(`  ${ANSI_DIM}→ Rebuttal suppressed (cooldown/dedup)${ANSI_RESET}`);
           }

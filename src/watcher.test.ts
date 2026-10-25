@@ -573,6 +573,10 @@ describe('rebuttal sending', () => {
     assert.strictEqual(detections.length, 1);
     assert.strictEqual(detections[0].sentRebuttals, undefined);
     assert.strictEqual(fs.existsSync(argsFile), false);
+    // Counted like every other unsent match, so --diagnostics never shows
+    // matchCount > 0 with rebuttalSent and rebuttalSuppressed both 0 (#373).
+    assert.strictEqual(watcher.stats().matchCount, 1);
+    assert.strictEqual(watcher.stats().rebuttalSuppressed, 1);
   });
 
   it('reports no sent rebuttals when both pluk-send and tmux are unavailable', () => {

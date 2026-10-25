@@ -1323,6 +1323,62 @@ describe('watch (live subscribe)', () => {
     assert.match(out, /Stopped watching\./);
   });
 
+  it('names the project-local and low-confidence skip reasons in send-mode footers', async () => {
+    const session = 'watch-send-reasons';
+    const { runDir, logFile } = makeRunDir('watch-send-reasons-run-dir', session, []);
+
+    const binDir = path.join(sandbox, 'watch-send-reasons-bin');
+    fs.mkdirSync(binDir, { recursive: true });
+    const fakePlukSend = path.join(binDir, 'pluk-send');
+    const argsFile = path.join(sandbox, 'watch-send-reasons-args');
+    fs.writeFileSync(fakePlukSend, `#!/bin/sh\necho "$@" >> '${argsFile}'\nexit 0\n`);
+    fs.chmodSync(fakePlukSend, 0o755);
+
+    // A full-confidence project-local excuse and a one-keyword (45%) user
+    // excuse: neither is sent, and neither is a cooldown (#373).
+    const projectStore = path.join(projectDir, '.rationguard');
+    fs.mkdirSync(projectStore, { recursive: true });
+    fs.writeFileSync(
+      path.join(projectStore, 'custom-excuses.json'),
+      JSON.stringify([
+        { pattern: 'quux watch project excuse', rebuttal: 'project rebuttal', category: 'deferral', keywords: ['quux watch project'] },
+      ]) + '\n',
+    );
+    const userStore = path.join(homeDir, '.rationguard');
+    fs.mkdirSync(userStore, { recursive: true });
+    fs.writeFileSync(
+      path.join(userStore, 'custom-excuses.json'),
+      JSON.stringify([
+        { pattern: 'zorble exact phrase', rebuttal: 'low confidence rebuttal', category: 'deferral', keywords: ['zorble', 'frobnitz'] },
+      ]) + '\n',
+    );
+
+    const h = spawnWatch(
+      [session, `--run-dir=${runDir}`, '--rebuttal=send'],
+      { PATH: `${binDir}:${process.env['PATH'] ?? ''}`, RATIONGUARD_PLUK_SEND_BIN: fakePlukSend },
+    );
+
+    const lines = jsonlLines([
+      plukEvent(session, 'raw_output', { line: 'quux watch project excuse, then the zorble sat there' }),
+      plukEvent(session, 'state_change', { from: 'working', to: 'idle' }),
+    ]);
+    for (let i = 0; i < 40 && !h.stdout().includes('low confidence rebuttal'); i++) {
+      fs.appendFileSync(logFile, lines);
+      await sleep(250);
+    }
+
+    h.child.kill('SIGINT');
+    const code = await waitForExit(h.child);
+    assert.strictEqual(code, 0);
+
+    const out = stripAnsi(h.stdout());
+    assert.match(out, /Rebuttal: project rebuttal\n {2}→ Detection only \(project-local excuse, never auto-sent\)/);
+    assert.match(out, /Rebuttal: low confidence rebuttal\n {2}→ Detection only \(confidence below 70%\)/);
+    assert.doesNotMatch(out, /cooldown\/dedup/);
+    assert.doesNotMatch(out, /→ Sent rebuttal/);
+    assert.strictEqual(fs.existsSync(argsFile), false, 'neither rebuttal may be sent');
+  });
+
   it('exits 1 with the underlying error when the session log path is unreadable', async () => {
     const session = 'watch-unreadable';
     const runDir = path.join(sandbox, 'watch-unreadable-run-dir');
