@@ -356,23 +356,23 @@ describe('store lock', () => {
     assert.deepStrictEqual(fs.readdirSync(storeDir()), ['.sightings.lock']);
   });
 
-  it('releaseOwnLock: removes the lock when the inode matches and leaves no release file', () => {
+  it('releaseOwnLock: removes the lock when the token matches and leaves no release file', () => {
     fs.mkdirSync(storeDir(), { recursive: true });
     fs.writeFileSync(lockPath(), 'mine');
-    releaseOwnLock(lockPath(), fs.statSync(lockPath()).ino);
+    releaseOwnLock(lockPath(), 'mine');
     assert.deepStrictEqual(fs.readdirSync(storeDir()), []);
   });
 
   it('releaseOwnLock: returns without throwing when the lock has vanished', () => {
     fs.mkdirSync(storeDir(), { recursive: true });
-    assert.doesNotThrow(() => releaseOwnLock(lockPath(), 1));
+    assert.doesNotThrow(() => releaseOwnLock(lockPath(), 'mine'));
     assert.deepStrictEqual(fs.readdirSync(storeDir()), []);
   });
 
   it('releaseOwnLock: restores a foreign lock and leaves no release file', () => {
     fs.mkdirSync(storeDir(), { recursive: true });
     fs.writeFileSync(lockPath(), 'theirs');
-    releaseOwnLock(lockPath(), fs.statSync(lockPath()).ino + 1);
+    releaseOwnLock(lockPath(), 'mine');
     assert.strictEqual(fs.readFileSync(lockPath(), 'utf-8'), 'theirs');
     assert.ok(!fs.readdirSync(storeDir()).some((f) => f.includes('.release.')));
   });
@@ -380,7 +380,6 @@ describe('store lock', () => {
   it('releaseOwnLock: drops its release file instead of orphaning it when a foreign lock cannot be put back', () => {
     fs.mkdirSync(storeDir(), { recursive: true });
     fs.writeFileSync(lockPath(), 'theirs');
-    const ino = fs.statSync(lockPath()).ino + 1;
     const realRename = fs.renameSync;
     let renames = 0;
     (fs as { renameSync: typeof fs.renameSync }).renameSync = ((from: fs.PathLike, to: fs.PathLike) => {
@@ -389,7 +388,7 @@ describe('store lock', () => {
       return realRename(from, to);
     }) as typeof fs.renameSync;
     try {
-      releaseOwnLock(lockPath(), ino);
+      releaseOwnLock(lockPath(), 'mine');
     } finally {
       (fs as { renameSync: typeof fs.renameSync }).renameSync = realRename;
     }

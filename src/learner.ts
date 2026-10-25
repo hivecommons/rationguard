@@ -163,8 +163,18 @@ function sleepSync(ms: number): void {
 
 interface LockResult {
   state: LockState;
-  /** Inode of the lock file we created; only set when `state` is 'acquired'. */
-  ino?: number;
+  /** Token written into the lock file we created; only set when `state` is 'acquired'. */
+  token?: string;
+}
+
+/**
+ * Per-acquisition lock token. The pid alone is not enough to recognise our
+ * own lock on release, and neither is the inode: Linux filesystems reuse a
+ * freed inode number immediately, so a lock reclaimed and recreated by another
+ * process can carry the same inode as the one we lost.
+ */
+function newLockToken(): string {
+  return `${process.pid}:${process.hrtime.bigint()}:${Math.random().toString(36).slice(2)}`;
 }
 
 function tryAcquireLock(dir: string, lockPath: string): LockResult {
@@ -172,8 +182,9 @@ function tryAcquireLock(dir: string, lockPath: string): LockResult {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
     }
-    fs.writeFileSync(lockPath, String(process.pid), { flag: 'wx', mode: 0o600 });
-    return { state: 'acquired', ino: fs.statSync(lockPath).ino };
+    const token = newLockToken();
+    fs.writeFileSync(lockPath, token, { flag: 'wx', mode: 0o600 });
+    return { state: 'acquired', token };
   } catch (err) {
     return { state: (err as NodeJS.ErrnoException).code === 'EEXIST' ? 'held' : 'unavailable' };
   }
@@ -213,23 +224,29 @@ export function reclaimStaleLock(lockPath: string, staleMs: number): boolean {
 }
 
 /**
- * Removes `lockPath` only if it is still the lock we created (`ino`). A
- * holder that stalled past the stale timeout may have had its lock reclaimed
- * and replaced by a live one; a blind remove would delete that live lock. The
- * lock is moved aside with an atomic rename first, so the inode check and the
- * remove act on the same file; a lock that is not ours is put back.
+ * Removes `lockPath` only if it is still the lock we created (its content is
+ * `token`). A holder that stalled past the stale timeout may have had its lock
+ * reclaimed and replaced by a live one; a blind remove would delete that live
+ * lock. The lock is moved aside with an atomic rename first, so the token
+ * check and the remove act on the same file; a lock that is not ours is put
+ * back.
  *
  * @internal Exported for tests.
  */
-export function releaseOwnLock(lockPath: string, ino: number): void {
+export function releaseOwnLock(lockPath: string, token: string): void {
   const releasePath = `${lockPath}.release.${process.pid}`;
   try {
     fs.renameSync(lockPath, releasePath);
   } catch {
     return; // already reclaimed and released by someone else
   }
-  const moved = fs.statSync(releasePath, { throwIfNoEntry: false });
-  if (moved && moved.ino === ino) {
+  let content: string | undefined;
+  try {
+    content = fs.readFileSync(releasePath, 'utf-8');
+  } catch {
+    content = undefined;
+  }
+  if (content === token) {
     fs.rmSync(releasePath, { force: true });
     return;
   }
@@ -273,20 +290,20 @@ function acquireLock(dir: string, lockPath: string, opts: StoreLockOptions): Loc
  * lock file guards every store file in `dir` (sightings and custom excuses);
  * its name is kept as `.sightings.lock` for compatibility.
  *
- * Release is inode-checked (see `releaseOwnLock`): a holder that stalled past
+ * Release is token-checked (see `releaseOwnLock`): a holder that stalled past
  * `staleMs` never deletes the live lock of the process that reclaimed it.
  */
 export function withStoreLock<T>(dir: string, fn: () => T, opts: StoreLockOptions = {}): T {
   const lockPath = path.join(dir, LOCK_FILE);
   const depth = lockDepths.get(lockPath) ?? 0;
-  const { state, ino } = depth > 0 ? { state: 'nested' as LockState, ino: undefined } : acquireLock(dir, lockPath, opts);
+  const { state, token } = depth > 0 ? { state: 'nested' as LockState, token: undefined } : acquireLock(dir, lockPath, opts);
   lockDepths.set(lockPath, depth + 1);
   try {
     return fn();
   } finally {
     if (depth > 0) lockDepths.set(lockPath, depth);
     else lockDepths.delete(lockPath);
-    if (state === 'acquired') releaseOwnLock(lockPath, ino as number);
+    if (state === 'acquired') releaseOwnLock(lockPath, token as string);
   }
 }
 
