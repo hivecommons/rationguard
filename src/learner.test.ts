@@ -377,6 +377,16 @@ describe('store lock', () => {
     assert.ok(!fs.readdirSync(storeDir()).some((f) => f.includes('.release.')));
   });
 
+  it('releaseOwnLock: treats an unreadable lock as foreign and puts it back', () => {
+    fs.mkdirSync(storeDir(), { recursive: true });
+    // A directory renames fine but readFileSync throws EISDIR, exercising the
+    // read-failure arm: the content never matches, so the entry is restored.
+    fs.mkdirSync(lockPath());
+    assert.doesNotThrow(() => releaseOwnLock(lockPath(), 'mine'));
+    assert.ok(fs.statSync(lockPath()).isDirectory(), 'unreadable lock must be put back');
+    assert.deepStrictEqual(fs.readdirSync(storeDir()), ['.sightings.lock']);
+  });
+
   it('releaseOwnLock: drops its release file instead of orphaning it when a foreign lock cannot be put back', () => {
     fs.mkdirSync(storeDir(), { recursive: true });
     fs.writeFileSync(lockPath(), 'theirs');
