@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `writeJsonAtomic` now removes its temp file when `writeFileSync` or `renameSync` throws, preventing repeated failed store writes from accumulating orphan `.*.tmp` files in `~/.rationguard` (#369)
 - `--diagnostics=<secs>` now requires at least 1 second (sub-millisecond values were clamped by Node to a 1 ms timer, flooding stderr) and the error message states the exact range `1`–`2147483.647` instead of a floored maximum (#364, #365)
 - `--diagnostics=<secs>` now rejects intervals above Node's timer maximum (~2147483.647 seconds or ~24.8 days) instead of silently firing every millisecond (#362)
 - `sanitizeForTerminal` strips OSC/APC/PM strings in a single pass, so long runs of unterminated `ESC ]` / `ESC _` / `ESC ^` introducers no longer take quadratic time (#360)

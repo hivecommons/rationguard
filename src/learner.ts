@@ -116,6 +116,9 @@ function loadStore(storePath: string): SightingsStore {
  * another local account that could write it could have its text typed into
  * the agent session. `rename(2)` preserves the temp file's mode, so the
  * final file is 0600 regardless of the process umask.
+ *
+ * If writeFileSync or renameSync fails, the temp file is removed before
+ * rethrow, preventing repeated failed attempts from accumulating orphans.
  */
 function writeJsonAtomic(filePath: string, data: unknown): void {
   const dir = path.dirname(filePath);
@@ -123,8 +126,13 @@ function writeJsonAtomic(filePath: string, data: unknown): void {
     fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
   }
   const tmpPath = path.join(dir, `.${path.basename(filePath)}.${process.pid}.${Date.now()}.tmp`);
-  fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 });
-  fs.renameSync(tmpPath, filePath);
+  try {
+    fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 });
+    fs.renameSync(tmpPath, filePath);
+  } catch (err) {
+    fs.rmSync(tmpPath, { force: true });
+    throw err;
+  }
 }
 
 function saveStore(storePath: string, store: SightingsStore): void {

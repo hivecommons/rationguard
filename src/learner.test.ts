@@ -264,6 +264,14 @@ describe('atomic store writes', () => {
     assert.strictEqual(fs.statSync(path.join(base, 'sightings.json')).mode & 0o777, 0o600);
     assert.strictEqual(fs.statSync(path.join(base, 'custom-excuses.json')).mode & 0o777, 0o600);
   });
+
+  it('removes its temp file when the rename fails', () => {
+    const base = path.join(dir, '.rationguard');
+    fs.mkdirSync(path.join(base, 'sightings.json'), { recursive: true }); // destination is a directory -> renameSync throws
+    assert.throws(() => recordSighting('rename failure cleanup', undefined, undefined, dir));
+    const leftovers = fs.readdirSync(base).filter(e => e.endsWith('.tmp'));
+    assert.deepStrictEqual(leftovers, []);
+  });
 });
 
 describe('store lock', () => {
