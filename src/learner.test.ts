@@ -281,7 +281,7 @@ describe('store lock', () => {
 
   it('holds the lock (owned by this pid) while fn runs and releases it afterwards', () => {
     const res = withStoreLock(storeDir(), () => {
-      assert.strictEqual(fs.readFileSync(lockPath(), 'utf-8'), String(process.pid));
+      assert.ok(fs.readFileSync(lockPath(), 'utf-8').startsWith(`${process.pid}:`));
       return 42;
     });
     assert.strictEqual(res, 42);
@@ -310,7 +310,7 @@ describe('store lock', () => {
     const holder = spawn(process.execPath, ['-e', 'setTimeout(() => require("fs").rmSync(process.argv[1]), 150)', lockPath()], { stdio: 'ignore' });
     const exited = once(holder, 'exit');
     const owner = withStoreLock(storeDir(), () => fs.readFileSync(lockPath(), 'utf-8'), { maxWaitMs: 10_000 });
-    assert.strictEqual(owner, String(process.pid));
+    assert.ok(owner.startsWith(`${process.pid}:`));
     assert.ok(!fs.existsSync(lockPath()));
     await exited;
   });
@@ -338,8 +338,8 @@ describe('store lock', () => {
     const otherLock = path.join(otherDir, '.sightings.lock');
     withStoreLock(storeDir(), () => {
       withStoreLock(otherDir, () => {
-        assert.strictEqual(fs.readFileSync(otherLock, 'utf-8'), String(process.pid));
-        assert.strictEqual(fs.readFileSync(lockPath(), 'utf-8'), String(process.pid));
+        assert.ok(fs.readFileSync(otherLock, 'utf-8').startsWith(`${process.pid}:`));
+        assert.ok(fs.readFileSync(lockPath(), 'utf-8').startsWith(`${process.pid}:`));
       });
       assert.ok(!fs.existsSync(otherLock), 'inner lock for the other dir must be released');
       assert.ok(fs.existsSync(lockPath()), 'outer lock must survive the inner release');
