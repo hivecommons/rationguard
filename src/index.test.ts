@@ -18,6 +18,7 @@ describe('public API surface (index.js)', () => {
     assert.strictEqual(typeof api.listSightings, 'function');
     assert.strictEqual(typeof api.Watcher, 'function');
     assert.strictEqual(typeof api.createWatcher, 'function');
+    assert.strictEqual(typeof api.getAllExcuses, 'function');
     assert.ok(Array.isArray(api.DEFAULT_EXCUSES));
     assert.strictEqual(typeof api.CATEGORY_LABELS, 'object');
   });
@@ -30,6 +31,7 @@ describe('public API surface (index.js)', () => {
       'check',
       'createWatcher',
       'generatePromptBlock',
+      'getAllExcuses',
       'listSightings',
       'loadCustomExcuses',
       'recordSighting',
@@ -45,6 +47,14 @@ describe('public API surface (index.js)', () => {
     const clean: CheckResult = api.check('purple elephants dance gracefully');
     assert.strictEqual(clean.clean, true);
     assert.deepStrictEqual(clean.matches, []);
+  });
+
+  it('getAllExcuses() starts with the builtins and feeds check() through the package entry', () => {
+    const all = api.getAllExcuses();
+    assert.ok(all.length >= api.DEFAULT_EXCUSES.length);
+    assert.deepStrictEqual(all.slice(0, api.DEFAULT_EXCUSES.length), api.DEFAULT_EXCUSES);
+    const result = api.check('no work found', { excuses: all });
+    assert.strictEqual(result.clean, false);
   });
 
   it('generatePromptBlock() works through the package entry', () => {

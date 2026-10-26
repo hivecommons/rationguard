@@ -307,13 +307,13 @@ A project-local `./.rationguard/custom-excuses.json` is read-only to the CLI and
 ## Programmatic API
 
 ```typescript
-import { check, Watcher, generatePromptBlock } from '@hivecommons/rationguard';
+import { check, Watcher, generatePromptBlock, getAllExcuses } from '@hivecommons/rationguard';
 
 // Check text
 const result = check('Standing by for instructions.');
 if (!result.clean) {
   for (const match of result.matches) {
-    console.log(`${match.excuse.category}: ${match.excuse.rebuttal}`);
+    console.log(`${match.excuse?.category}: ${match.excuse?.rebuttal}`);
   }
 }
 
@@ -330,7 +330,13 @@ await watcher.start();
 
 // Generate prompt block for system prompt injection
 const block = generatePromptBlock();
+
+// Include learned and project excuses too
+const full = check('Standing by for instructions.', { excuses: getAllExcuses() });
+const fullBlock = generatePromptBlock({ excuses: getAllExcuses() });
 ```
+
+`check()` and `generatePromptBlock()` called without a config use only the built-in `DEFAULT_EXCUSES`. `getAllExcuses()` returns the same builtin + `~/.rationguard` + project-local set the CLI and `Watcher` use, with each excuse's `source` set (`builtin`, `user` or `project`).
 
 ---
 

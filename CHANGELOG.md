@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Added
+
+- `getAllExcuses()` is exported from the package entry, so library callers can pass the same builtin + `~/.rationguard` + project-local excuse set the CLI and `Watcher` use to `check()` / `generatePromptBlock()`; the bare calls still use only the built-in excuses (#391)
+
 ### Fixed
 
 - `add`: a repeat add of an already-promoted sighting now prints `Already promoted (seen N times)` instead of `N/3 for auto-promotion`, and a `--rebuttal`/`--category` passed on it is propagated to the promoted entry in `custom-excuses.json` (regenerating the generic rebuttal on a category change) instead of only updating `sightings.json`; a deleted entry is not re-added, an unchanged `--category` leaves a hand-edited rebuttal alone, and the `check`/`watch` detection path never edits the promoted entry (#389)
