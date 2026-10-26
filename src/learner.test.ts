@@ -438,6 +438,33 @@ describe('store lock', () => {
     assert.deepStrictEqual(fs.readdirSync(storeDir()), []);
   });
 
+  it('releaseOwnLock: treats a moved-aside lock that cannot be read as not ours and puts it back', () => {
+    fs.mkdirSync(storeDir(), { recursive: true });
+    fs.writeFileSync(lockPath(), 'mine');
+    const releasePath = `${lockPath()}.release.${process.pid}`;
+    const realRename = fs.renameSync;
+    let renames = 0;
+    (fs as { renameSync: typeof fs.renameSync }).renameSync = ((from: fs.PathLike, to: fs.PathLike) => {
+      renames += 1;
+      const result = realRename(from, to);
+      // The ownership check passed, but the file we moved aside is replaced
+      // by a directory before the re-verify read: readFileSync throws EISDIR.
+      if (renames === 1) {
+        fs.rmSync(releasePath, { force: true });
+        fs.mkdirSync(releasePath);
+      }
+      return result;
+    }) as typeof fs.renameSync;
+    try {
+      assert.doesNotThrow(() => releaseOwnLock(lockPath(), 'mine'));
+    } finally {
+      (fs as { renameSync: typeof fs.renameSync }).renameSync = realRename;
+    }
+    assert.strictEqual(renames, 2, 'an unreadable moved-aside entry must be restored, not removed');
+    assert.ok(fs.statSync(lockPath()).isDirectory(), 'the unreadable entry must be put back at the lock path');
+    assert.deepStrictEqual(fs.readdirSync(storeDir()), ['.sightings.lock']);
+  });
+
   it('releaseOwnLock: drops its release file instead of orphaning it when a reclaimed lock cannot be put back', () => {
     fs.mkdirSync(storeDir(), { recursive: true });
     fs.writeFileSync(lockPath(), 'mine');
