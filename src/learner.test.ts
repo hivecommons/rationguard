@@ -104,6 +104,35 @@ describe('recordSighting', () => {
     assert.strictEqual(s.suggestedRebuttal, 'custom rebuttal');
   });
 
+  it('regenerates the generic rebuttal when the category changes without a rebuttal', () => {
+    recordSighting('some phrase here', 'deferral', undefined, dir);
+    const [before] = listSightings(dir);
+    const oldRebuttal = before.suggestedRebuttal;
+    recordSighting('some phrase here', 'lane-confusion', undefined, dir);
+    recordSighting('another phrase entirely', 'lane-confusion', undefined, dir);
+    const sightings = listSightings(dir);
+    const updated = sightings.find(s => s.text === 'some phrase here')!;
+    const fresh = sightings.find(s => s.text === 'another phrase entirely')!;
+    assert.notStrictEqual(updated.suggestedRebuttal, oldRebuttal);
+    assert.strictEqual(updated.suggestedRebuttal, fresh.suggestedRebuttal);
+  });
+
+  it('keeps a custom rebuttal when the category changes', () => {
+    recordSighting('some phrase here', 'deferral', 'custom rebuttal', dir);
+    recordSighting('some phrase here', 'lane-confusion', undefined, dir);
+    const [s] = listSightings(dir);
+    assert.strictEqual(s.suggestedCategory, 'lane-confusion');
+    assert.strictEqual(s.suggestedRebuttal, 'custom rebuttal');
+  });
+
+  it('keeps the rebuttal when the same category is repeated', () => {
+    recordSighting('some phrase here', 'deferral', undefined, dir);
+    const [before] = listSightings(dir);
+    recordSighting('some phrase here', 'deferral', undefined, dir);
+    const [after] = listSightings(dir);
+    assert.strictEqual(after.suggestedRebuttal, before.suggestedRebuttal);
+  });
+
   it('auto-promotes to a custom excuse on the third sighting', () => {
     recordSighting('circling back on this soon', undefined, undefined, dir);
     recordSighting('circling back on this soon', undefined, undefined, dir);

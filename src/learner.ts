@@ -407,6 +407,10 @@ export function recordSighting(
     if (existing) {
       existing.count++;
       existing.lastSeen = now;
+      if (category && category !== existing.suggestedCategory && !rebuttal
+          && existing.suggestedRebuttal === generateRebuttal(existing.suggestedCategory)) {
+        existing.suggestedRebuttal = generateRebuttal(category);
+      }
       if (category) existing.suggestedCategory = category;
       if (rebuttal) existing.suggestedRebuttal = rebuttal;
 
