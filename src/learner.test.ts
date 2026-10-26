@@ -177,6 +177,44 @@ describe('recordSighting', () => {
     assert.strictEqual(loadCustomExcuses(dir).length, 1);
   });
 
+  it('a repeat add after promotion reports promoted without re-promoting (#389)', () => {
+    for (let i = 0; i < 3; i++) recordSighting('already promoted text', 'deferral', undefined, dir);
+    const res = recordSighting('already promoted text', undefined, undefined, dir);
+    assert.strictEqual(res.promoted, true);
+    assert.strictEqual(res.autoPromoted, false);
+    assert.strictEqual(res.promotedUpdated, false);
+    assert.strictEqual(recordSighting('fresh text', undefined, undefined, dir).promoted, false);
+  });
+
+  it('a rebuttal on a promoted sighting updates the custom excuse in place (#389)', () => {
+    for (let i = 0; i < 3; i++) recordSighting('Circle Back Later', 'deferral', undefined, dir);
+    const res = recordSighting('Circle Back Later', undefined, '  Do it now  ', dir);
+    assert.strictEqual(res.promotedUpdated, true);
+    const custom = loadCustomExcuses(dir);
+    assert.strictEqual(custom.length, 1);
+    assert.strictEqual(custom[0].rebuttal, 'Do it now');
+    assert.strictEqual(custom[0].category, 'deferral');
+    assert.strictEqual(recordSighting('Circle Back Later', undefined, 'Do it now', dir).promotedUpdated, false);
+  });
+
+  it('a category change on a promoted sighting updates category and generated rebuttal (#389)', () => {
+    for (let i = 0; i < 3; i++) recordSighting('category flip text', 'deferral', undefined, dir);
+    const res = recordSighting('category flip text', 'false-completion', undefined, dir);
+    assert.strictEqual(res.promotedUpdated, true);
+    const [entry] = loadCustomExcuses(dir);
+    assert.strictEqual(entry.category, 'false-completion');
+    assert.strictEqual(entry.rebuttal, listSightings(dir)[0].suggestedRebuttal);
+  });
+
+  it('does not re-add a deleted custom excuse when a promoted sighting is edited (#389)', () => {
+    for (let i = 0; i < 3; i++) recordSighting('deleted excuse text', 'deferral', undefined, dir);
+    fs.writeFileSync(path.join(dir, '.rationguard', 'custom-excuses.json'), '[]');
+    const res = recordSighting('deleted excuse text', undefined, 'new rebuttal', dir);
+    assert.strictEqual(res.promoted, true);
+    assert.strictEqual(res.promotedUpdated, false);
+    assert.deepStrictEqual(loadCustomExcuses(dir), []);
+  });
+
   it('promoted excuse keywords are lowercase words longer than 3 chars, max 5', () => {
     for (let i = 0; i < 3; i++) {
       recordSighting('The Extremely Complicated Refactoring Cannot Proceed Without Further Explicit Approval', undefined, undefined, dir);

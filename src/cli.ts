@@ -322,6 +322,11 @@ function cmdAdd(positional: string[], flags: Record<string, string>): void {
     console.log(`${ANSI_GREEN}⬆${ANSI_RESET} Auto-promoted to custom excuse! (seen ${result.count} times)`);
     console.log(`   Category: ${CATEGORY_LABELS[result.excuse.category]}`);
     console.log(`   Rebuttal: ${sanitizeForTerminal(result.excuse.rebuttal)}`);
+  } else if (result.promoted) {
+    console.log(`${ANSI_GREEN}✓${ANSI_RESET} Already promoted (seen ${result.count} times)`);
+    if (category || rebuttal) {
+      console.log(result.promotedUpdated ? '   Updated promoted excuse' : '   Promoted excuse unchanged');
+    }
   } else if (result.isNew) {
     console.log(`${ANSI_YELLOW}+${ANSI_RESET} Recorded new sighting (${result.count}/3 for auto-promotion)`);
   } else {

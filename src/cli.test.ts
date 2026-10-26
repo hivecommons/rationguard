@@ -555,6 +555,22 @@ describe('add', () => {
     assert.match(stripAnsi(res.stdout), /Sighting count: 2\/3/);
   });
 
+  it('reports an already-promoted sighting and updates the promoted excuse (#389)', () => {
+    for (let i = 0; i < 3; i++) run(['add', 'circling back on this soon', '--category=deferral']);
+    let res = run(['add', 'circling back on this soon']);
+    assert.strictEqual(res.status, 0);
+    assert.match(stripAnsi(res.stdout), /Already promoted \(seen 4 times\)/);
+    assert.doesNotMatch(stripAnsi(res.stdout), /for auto-promotion|Updated|unchanged/);
+    res = run(['add', 'circling back on this soon', '--rebuttal=Do it now']);
+    assert.match(stripAnsi(res.stdout), /Already promoted \(seen 5 times\)\n\s+Updated promoted excuse/);
+    res = run(['add', 'circling back on this soon', '--rebuttal=Do it now']);
+    assert.match(stripAnsi(res.stdout), /Promoted excuse unchanged/);
+    const custom = JSON.parse(
+      fs.readFileSync(path.join(homeDir, '.rationguard', 'custom-excuses.json'), 'utf-8'),
+    ) as Array<{ rebuttal: string }>;
+    assert.strictEqual(custom[0].rebuttal, 'Do it now');
+  });
+
   it('auto-promotes to a custom excuse on the third sighting', () => {
     run(['add', 'circling back on this soon']);
     run(['add', 'circling back on this soon']);
