@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `add`: whitespace-only excuse text is now rejected with the usual input error instead of being recorded as a blank sighting that is later "auto-promoted" into an excuse `isValidExcuse` silently drops; surrounding whitespace is trimmed before recording (#386)
 - `withStoreLock` now checks that the lock still carries its token *before* moving it aside on release, so a holder that stalled past the stale timeout never empties the lock slot of the process that reclaimed it; previously a third writer could create a new lock in that gap and the restoring rename then silently replaced it, leaving two concurrent holders (#382)
 - `check`: inflected variants of one keyword (`defer`/`deferred`/`deferring`, `postpone`/`postponed`) now count as a single hit, so "I deferred this" scores 45% instead of 75% (#379)
 - `withStoreLock` releases the store lock only if it is still the file it created (checked by a per-acquisition token written into the lock), so a holder that stalled past the stale timeout no longer deletes the live lock of the process that reclaimed it and lets a third writer in (#376)

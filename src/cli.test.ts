@@ -604,6 +604,22 @@ describe('add', () => {
     assert.match(stripAnsi(res.stderr), /Provide excuse text/);
   });
 
+  it('rejects whitespace-only excuse text without recording anything', () => {
+    for (const args of [['add', '   '], ['add', '--excuse=  ']]) {
+      const res = run(args);
+      assert.strictEqual(res.status, 1);
+      assert.match(stripAnsi(res.stderr), /Provide excuse text/);
+      assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'sightings.json')));
+    }
+  });
+
+  it('trims surrounding whitespace from the excuse text before recording', () => {
+    const res = run(['add', '  trimmed text  ']);
+    assert.strictEqual(res.status, 0);
+    const store = JSON.parse(fs.readFileSync(path.join(homeDir, '.rationguard', 'sightings.json'), 'utf8'));
+    assert.strictEqual(store.sightings[0].text, 'trimmed text');
+  });
+
   it('rejects an unknown --category before recording anything', () => {
     const res = run(['add', 'I bogus thing', '--category=nonsense']);
     assert.strictEqual(res.status, 1);
