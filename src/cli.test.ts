@@ -620,6 +620,21 @@ describe('add', () => {
     assert.strictEqual(store.sightings[0].text, 'trimmed text');
   });
 
+  it('treats a whitespace-only --rebuttal as absent and falls back to the generated one', () => {
+    assert.strictEqual(run(['add', 'first excuse', '--category=deferral']).status, 0);
+    assert.strictEqual(run(['add', 'second excuse', '--category=deferral', '--rebuttal=   ']).status, 0);
+    const store = JSON.parse(fs.readFileSync(path.join(homeDir, '.rationguard', 'sightings.json'), 'utf8'));
+    assert.ok(store.sightings[1].suggestedRebuttal.trim().length > 0);
+    assert.strictEqual(store.sightings[1].suggestedRebuttal, store.sightings[0].suggestedRebuttal);
+  });
+
+  it('trims surrounding whitespace from --rebuttal before recording', () => {
+    const res = run(['add', 'some excuse', '--rebuttal=  custom  ']);
+    assert.strictEqual(res.status, 0);
+    const store = JSON.parse(fs.readFileSync(path.join(homeDir, '.rationguard', 'sightings.json'), 'utf8'));
+    assert.strictEqual(store.sightings[0].suggestedRebuttal, 'custom');
+  });
+
   it('rejects an unknown --category before recording anything', () => {
     const res = run(['add', 'I bogus thing', '--category=nonsense']);
     assert.strictEqual(res.status, 1);

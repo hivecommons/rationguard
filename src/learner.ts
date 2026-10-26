@@ -390,6 +390,7 @@ export function recordSighting(
   projectDir?: string,
   opts: RecordSightingOptions = {},
 ): { isNew: boolean; count: number; autoPromoted: boolean; excuse: Excuse | null } {
+  rebuttal = rebuttal?.trim() || undefined;
   const promote = opts.promote ?? true;
   const storePath = getStorePath(projectDir);
   if (!storePath) {

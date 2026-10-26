@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - `add`: re-recording a sighting with a different `--category` and no `--rebuttal` now regenerates the generic rebuttal for the new category instead of keeping the previous category's text, so the promoted excuse no longer carries a mismatched rebuttal (#385)
+- `add`: a blank or whitespace-only `--rebuttal` is now treated like an omitted one and falls back to the generated category rebuttal, and surrounding whitespace on a real rebuttal is trimmed, so a promoted excuse can no longer carry an empty rebuttal that `watch --rebuttal=send` counts as a failed send (#385)
 - `add`: whitespace-only excuse text is now rejected with the usual input error instead of being recorded as a blank sighting that is later "auto-promoted" into an excuse `isValidExcuse` silently drops; surrounding whitespace is trimmed before recording (#386)
 - `withStoreLock` now checks that the lock still carries its token *before* moving it aside on release, so a holder that stalled past the stale timeout never empties the lock slot of the process that reclaimed it; previously a third writer could create a new lock in that gap and the restoring rename then silently replaced it, leaving two concurrent holders (#382)
 - `check`: inflected variants of one keyword (`defer`/`deferred`/`deferring`, `postpone`/`postponed`) now count as a single hit, so "I deferred this" scores 45% instead of 75% (#379)

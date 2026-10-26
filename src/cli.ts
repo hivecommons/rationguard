@@ -303,7 +303,7 @@ function cmdAdd(positional: string[], flags: Record<string, string>): void {
     process.exit(1);
   }
   const category = rawCategory as ExcuseCategory | undefined;
-  const rebuttal = flags['rebuttal'] || undefined;
+  const rebuttal = flags['rebuttal']?.trim() || undefined;
 
   let result: ReturnType<typeof recordSighting>;
   try {
