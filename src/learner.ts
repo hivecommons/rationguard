@@ -408,9 +408,12 @@ export function recordSighting(
     if (existing) {
       existing.count++;
       existing.lastSeen = now;
-      if (category && category !== existing.suggestedCategory && !rebuttal
+      const categoryChanged = category !== undefined && category !== existing.suggestedCategory;
+      let rebuttalRegenerated = false;
+      if (categoryChanged && !rebuttal
           && existing.suggestedRebuttal === generateRebuttal(existing.suggestedCategory)) {
         existing.suggestedRebuttal = generateRebuttal(category);
+        rebuttalRegenerated = true;
       }
       if (category) existing.suggestedCategory = category;
       if (rebuttal) existing.suggestedRebuttal = rebuttal;
@@ -425,8 +428,15 @@ export function recordSighting(
         autoPromoted = true;
         excuse = promoteToExcuse(existing);
         addToCustomExcuses(excuse, projectDir);
-      } else if (alreadyPromoted && (category || rebuttal)) {
-        promotedUpdated = updateCustomExcuse(promoteToExcuse(existing), projectDir);
+      } else if (promote && alreadyPromoted && (categoryChanged || rebuttal)) {
+        // Only an explicit `add` may edit the promoted excuse, and only the
+        // fields it actually changed: the detection path (promote: false)
+        // and an unchanged --category must not clobber a hand-edited
+        // rebuttal in custom-excuses.json.
+        const patch: Partial<Pick<Excuse, 'category' | 'rebuttal'>> = {};
+        if (categoryChanged) patch.category = existing.suggestedCategory;
+        if (rebuttal || rebuttalRegenerated) patch.rebuttal = existing.suggestedRebuttal;
+        promotedUpdated = updateCustomExcuse(existing.text.toLowerCase(), patch, projectDir);
       }
 
       saveStore(storePath, store);
@@ -525,15 +535,27 @@ function addToCustomExcuses(excuse: Excuse, projectDir?: string): void {
  * sighting. Returns whether the file changed; a missing entry (deleted by the
  * user) is left alone rather than re-added.
  */
-function updateCustomExcuse(excuse: Excuse, projectDir?: string): boolean {
+function updateCustomExcuse(
+  pattern: string,
+  patch: Partial<Pick<Excuse, 'category' | 'rebuttal'>>,
+  projectDir?: string,
+): boolean {
   const filePath = getCustomExcusesPath(projectDir);
   if (!filePath) return false;
   return withStoreLock(path.dirname(filePath), () => {
     const excuses = loadCustomExcuses(projectDir);
-    const entry = excuses.find(e => e.pattern === excuse.pattern);
-    if (!entry || (entry.category === excuse.category && entry.rebuttal === excuse.rebuttal)) return false;
-    entry.category = excuse.category;
-    entry.rebuttal = excuse.rebuttal;
+    const entry = excuses.find(e => e.pattern === pattern);
+    if (!entry) return false;
+    let changed = false;
+    if (patch.category !== undefined && entry.category !== patch.category) {
+      entry.category = patch.category;
+      changed = true;
+    }
+    if (patch.rebuttal !== undefined && entry.rebuttal !== patch.rebuttal) {
+      entry.rebuttal = patch.rebuttal;
+      changed = true;
+    }
+    if (!changed) return false;
     writeJsonAtomic(filePath, excuses);
     return true;
   });

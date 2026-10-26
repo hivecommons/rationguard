@@ -206,6 +206,33 @@ describe('recordSighting', () => {
     assert.strictEqual(entry.rebuttal, listSightings(dir)[0].suggestedRebuttal);
   });
 
+  it('the detection path never edits a promoted custom excuse (#389)', () => {
+    for (let i = 0; i < 3; i++) recordSighting('detected promoted text', 'deferral', undefined, dir);
+    const file = path.join(dir, '.rationguard', 'custom-excuses.json');
+    const edited = loadCustomExcuses(dir);
+    edited[0].rebuttal = 'hand-edited rebuttal';
+    fs.writeFileSync(file, JSON.stringify(edited));
+    const res = recordSighting('detected promoted text', 'deferral', undefined, dir, { promote: false });
+    assert.strictEqual(res.promoted, true);
+    assert.strictEqual(res.promotedUpdated, false);
+    assert.strictEqual(loadCustomExcuses(dir)[0].rebuttal, 'hand-edited rebuttal');
+    const flipped = recordSighting('detected promoted text', 'false-completion', undefined, dir, { promote: false });
+    assert.strictEqual(flipped.promotedUpdated, false);
+    assert.strictEqual(loadCustomExcuses(dir)[0].category, 'deferral');
+    assert.strictEqual(loadCustomExcuses(dir)[0].rebuttal, 'hand-edited rebuttal');
+  });
+
+  it('an unchanged --category on a promoted sighting keeps a hand-edited rebuttal (#389)', () => {
+    for (let i = 0; i < 3; i++) recordSighting('same category text', 'deferral', undefined, dir);
+    const file = path.join(dir, '.rationguard', 'custom-excuses.json');
+    const edited = loadCustomExcuses(dir);
+    edited[0].rebuttal = 'hand-edited rebuttal';
+    fs.writeFileSync(file, JSON.stringify(edited));
+    const res = recordSighting('same category text', 'deferral', undefined, dir);
+    assert.strictEqual(res.promotedUpdated, false);
+    assert.strictEqual(loadCustomExcuses(dir)[0].rebuttal, 'hand-edited rebuttal');
+  });
+
   it('does not re-add a deleted custom excuse when a promoted sighting is edited (#389)', () => {
     for (let i = 0; i < 3; i++) recordSighting('deleted excuse text', 'deferral', undefined, dir);
     fs.writeFileSync(path.join(dir, '.rationguard', 'custom-excuses.json'), '[]');
