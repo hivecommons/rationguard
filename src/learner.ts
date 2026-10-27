@@ -86,8 +86,12 @@ function isValidSighting(value: unknown): value is Sighting {
  * Moves an unparsable or wrong-shape store file aside, in the same directory
  * so the rename is atomic, so the next write cannot replace it and destroy the
  * only copy of the history. Never throws: detection must keep working.
+ * Only the trusted per-user store is touched: a project-local file is
+ * repo-controlled, so it is left as is (no write side effect in the checkout).
  */
 function preserveCorruptFile(filePath: string): void {
+  const trusted = getTrustedBase();
+  if (trusted === null || path.resolve(path.dirname(filePath)) !== path.resolve(trusted)) return;
   const corruptPath = path.join(
     path.dirname(filePath),
     `${path.basename(filePath)}.corrupt-${Date.now()}.json`,

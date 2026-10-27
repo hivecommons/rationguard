@@ -774,6 +774,17 @@ describe('corrupt store preservation', () => {
     assert.strictEqual(stderrLines.length, 1);
   });
 
+  it('leaves a corrupt project-local custom-excuses.json untouched', () => {
+    const home = fs.mkdtempSync(path.join(dir, 'home-'));
+    process.env['HOME'] = home;
+    fs.mkdirSync(base(), { recursive: true });
+    fs.writeFileSync(path.join(base(), 'custom-excuses.json'), '{not json');
+    assert.deepStrictEqual(loadCustomExcuses(dir), []);
+    assert.deepStrictEqual(fs.readdirSync(base()), ['custom-excuses.json']);
+    assert.strictEqual(fs.readFileSync(path.join(base(), 'custom-excuses.json'), 'utf-8'), '{not json');
+    assert.strictEqual(stderrLines.length, 0);
+  });
+
   it('preserves a wrong-shape (top-level array) sightings.json', () => {
     fs.mkdirSync(base(), { recursive: true });
     fs.writeFileSync(path.join(base(), 'sightings.json'), '[1,2]');
