@@ -44,7 +44,9 @@ empty state, which makes the loss permanent unless a copy was kept.
    rationguard (a different `HOME` in cron, a service unit or a container means
    a different, empty store).
 5. Look for leftover `.<name>.<pid>.<timestamp>.tmp` files in the directory;
-   they indicate a process was killed during a write.
+   they indicate a process was killed during a write. A
+   `<name>.corrupt-<timestamp>.json` file is a store that could not be parsed
+   and was moved aside.
 6. If detections are reported but sightings stop accumulating, confirm the
    store is a directory the running user can write to:
 
@@ -61,8 +63,10 @@ empty state, which makes the loss permanent unless a copy was kept.
 
 1. Restore the file from backup or snapshot if one exists, then restart the
    watchers.
-2. If the file is invalid JSON, fix it by hand and keep a copy before the next
-   `add`, `check` or `watch` run records a sighting.
+2. If the file was invalid JSON or had the wrong shape, it is preserved
+   automatically as `<name>.corrupt-<timestamp>.json` next to the store (a
+   line on stderr names the path) and detection continues with an empty store.
+   Repair or merge from that copy.
 3. If no copy exists, re-add the important excuses with `rationguard add`.
    Sighting counts cannot be reconstructed.
 4. If `HOME` was the cause, correct the environment of the service and restart.

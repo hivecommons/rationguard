@@ -727,6 +727,92 @@ for (let i = 0; i < ${perProc}; i++) recordSighting('race excuse', 'deferral', '
   });
 });
 
+describe('corrupt store preservation', () => {
+  const originalHome = process.env['HOME'];
+  const originalStderr = process.stderr.write;
+  let stderrLines: string[];
+  const base = () => path.join(dir, '.rationguard');
+  const corruptSiblings = (prefix: string) =>
+    fs.readdirSync(base()).filter(f => f.startsWith(`${prefix}.corrupt-`) && f.endsWith('.json'));
+
+  beforeEach(() => {
+    process.env['HOME'] = dir;
+    stderrLines = [];
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      stderrLines.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+  });
+
+  afterEach(() => {
+    process.stderr.write = originalStderr;
+    if (originalHome === undefined) delete process.env['HOME'];
+    else process.env['HOME'] = originalHome;
+  });
+
+  it('moves a corrupt sightings.json aside and the next save does not destroy it', () => {
+    fs.mkdirSync(base(), { recursive: true });
+    fs.writeFileSync(path.join(base(), 'sightings.json'), '{not json');
+    const result = recordSighting('fresh excuse', undefined, undefined, dir);
+    assert.strictEqual(result.count, 1);
+    const siblings = corruptSiblings('sightings.json');
+    assert.strictEqual(siblings.length, 1);
+    assert.strictEqual(fs.readFileSync(path.join(base(), siblings[0]!), 'utf-8'), '{not json');
+    assert.strictEqual(JSON.parse(fs.readFileSync(path.join(base(), 'sightings.json'), 'utf-8')).sightings.length, 1);
+    assert.strictEqual(stderrLines.length, 1);
+    assert.ok(stderrLines[0]!.includes(path.join(base(), siblings[0]!)));
+  });
+
+  it('moves a corrupt custom-excuses.json aside', () => {
+    fs.mkdirSync(base(), { recursive: true });
+    fs.writeFileSync(path.join(base(), 'custom-excuses.json'), '{not json');
+    assert.deepStrictEqual(loadCustomExcuses(dir), []);
+    const siblings = corruptSiblings('custom-excuses.json');
+    assert.strictEqual(siblings.length, 1);
+    assert.strictEqual(fs.readFileSync(path.join(base(), siblings[0]!), 'utf-8'), '{not json');
+    assert.strictEqual(fs.existsSync(path.join(base(), 'custom-excuses.json')), false);
+    assert.strictEqual(stderrLines.length, 1);
+  });
+
+  it('preserves a wrong-shape (top-level array) sightings.json', () => {
+    fs.mkdirSync(base(), { recursive: true });
+    fs.writeFileSync(path.join(base(), 'sightings.json'), '[1,2]');
+    assert.deepStrictEqual(listSightings(dir), []);
+    assert.strictEqual(corruptSiblings('sightings.json').length, 1);
+  });
+
+  it('preserves a wrong-shape (non-array) custom-excuses.json', () => {
+    fs.mkdirSync(base(), { recursive: true });
+    fs.writeFileSync(path.join(base(), 'custom-excuses.json'), '{"not":"array"}');
+    assert.deepStrictEqual(loadCustomExcuses(dir), []);
+    assert.strictEqual(corruptSiblings('custom-excuses.json').length, 1);
+  });
+
+  it('does not create a corrupt sibling when the files are missing', () => {
+    fs.mkdirSync(base(), { recursive: true });
+    assert.deepStrictEqual(listSightings(dir), []);
+    assert.deepStrictEqual(loadCustomExcuses(dir), []);
+    assert.deepStrictEqual(fs.readdirSync(base()), []);
+    assert.strictEqual(stderrLines.length, 0);
+  });
+
+  it('still returns an empty store when the move-aside rename fails', () => {
+    fs.mkdirSync(base(), { recursive: true });
+    fs.writeFileSync(path.join(base(), 'sightings.json'), 'garbage');
+    const realRename = fs.renameSync;
+    (fs as { renameSync: typeof fs.renameSync }).renameSync = (() => {
+      throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
+    }) as typeof fs.renameSync;
+    try {
+      assert.deepStrictEqual(listSightings(dir), []);
+    } finally {
+      (fs as { renameSync: typeof fs.renameSync }).renameSync = realRename;
+    }
+    assert.strictEqual(stderrLines.length, 0);
+    assert.strictEqual(fs.readFileSync(path.join(base(), 'sightings.json'), 'utf-8'), 'garbage');
+  });
+});
+
 describe('loadCustomExcuses', () => {
   it('returns an empty array when the file does not exist', () => {
     assert.deepStrictEqual(loadCustomExcuses(dir), []);

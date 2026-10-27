@@ -82,19 +82,42 @@ function isValidSighting(value: unknown): value is Sighting {
   );
 }
 
-function loadStore(storePath: string): SightingsStore {
+/**
+ * Moves an unparsable or wrong-shape store file aside, in the same directory
+ * so the rename is atomic, so the next write cannot replace it and destroy the
+ * only copy of the history. Never throws: detection must keep working.
+ */
+function preserveCorruptFile(filePath: string): void {
+  const corruptPath = path.join(
+    path.dirname(filePath),
+    `${path.basename(filePath)}.corrupt-${Date.now()}.json`,
+  );
   try {
-    const raw = fs.readFileSync(storePath, 'utf-8');
-    const parsed: unknown = JSON.parse(raw);
-    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
-      return { sightings: [] };
-    }
-    const sightings = (parsed as Record<string, unknown>)['sightings'];
-    if (!Array.isArray(sightings)) return { sightings: [] };
-    return { sightings: sightings.filter(isValidSighting) };
+    fs.renameSync(filePath, corruptPath);
+    process.stderr.write(`rationguard: ${filePath} was not valid JSON; preserved as ${corruptPath}\n`);
+  } catch {
+    // Best effort; fall through to an empty store.
+  }
+}
+
+function loadStore(storePath: string): SightingsStore {
+  let raw: string;
+  try {
+    raw = fs.readFileSync(storePath, 'utf-8');
   } catch {
     return { sightings: [] };
   }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
+      const sightings = (parsed as Record<string, unknown>)['sightings'];
+      if (Array.isArray(sightings)) return { sightings: sightings.filter(isValidSighting) };
+    }
+  } catch {
+    // Unparsable; handled below.
+  }
+  preserveCorruptFile(storePath);
+  return { sightings: [] };
 }
 
 /**
@@ -510,14 +533,20 @@ function isValidExcuse(value: unknown): value is Excuse {
 export function loadCustomExcuses(projectDir?: string): Excuse[] {
   const filePath = getCustomExcusesPath(projectDir);
   if (!filePath) return [];
+  let raw: string;
   try {
-    const raw = fs.readFileSync(filePath, 'utf-8');
-    const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isValidExcuse);
+    raw = fs.readFileSync(filePath, 'utf-8');
   } catch {
     return [];
   }
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.filter(isValidExcuse);
+  } catch {
+    // Unparsable; handled below.
+  }
+  preserveCorruptFile(filePath);
+  return [];
 }
 
 function addToCustomExcuses(excuse: Excuse, projectDir?: string): void {
