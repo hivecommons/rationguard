@@ -760,7 +760,11 @@ describe('corrupt store preservation', () => {
     assert.strictEqual(fs.readFileSync(path.join(base(), siblings[0]!), 'utf-8'), '{not json');
     assert.strictEqual(JSON.parse(fs.readFileSync(path.join(base(), 'sightings.json'), 'utf-8')).sightings.length, 1);
     assert.strictEqual(stderrLines.length, 1);
-    assert.ok(stderrLines[0]!.includes(path.join(base(), siblings[0]!)));
+    assert.deepStrictEqual(JSON.parse(stderrLines[0]!), {
+      event: 'store_preserved',
+      filePath: path.join(base(), 'sightings.json'),
+      corruptPath: path.join(base(), siblings[0]!),
+    });
   });
 
   it('moves a corrupt custom-excuses.json aside', () => {

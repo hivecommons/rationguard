@@ -1782,6 +1782,32 @@ describe('check --log-format', () => {
     assert.ok(!res.stderr.includes('later'));
   });
 
+  for (const fileName of ['sightings.json', 'custom-excuses.json']) {
+    for (const contents of ['{not json', 'null']) {
+      it(`keeps every stderr line JSON when preserving ${fileName}: ${contents}`, () => {
+        // Include a newline in HOME to exercise JSON escaping of diagnostic paths.
+        const recoveryHome = path.join(homeDir, 'recovery\nhome');
+        const storeDir = path.join(recoveryHome, '.rationguard');
+        fs.rmSync(recoveryHome, { recursive: true, force: true });
+        fs.mkdirSync(storeDir, { recursive: true });
+        const filePath = path.join(storeDir, fileName);
+        fs.writeFileSync(filePath, contents);
+        const res = run(['check', '--log-format=json', '--json', 'I will defer this until the next cycle and revisit later.'],
+          undefined, { HOME: recoveryHome });
+        assert.strictEqual(res.status, 0);
+        assert.strictEqual(JSON.parse(res.stdout).clean, false);
+        const events = res.stderr.trim().split('\n').map(line => JSON.parse(line));
+        assert.ok(events.some(event => event.event === 'match'));
+        const preserved = events.filter(event => event.event === 'store_preserved');
+        assert.strictEqual(preserved.length, 1);
+        assert.strictEqual(preserved[0].filePath, filePath);
+        assert.strictEqual(path.dirname(preserved[0].corruptPath), storeDir);
+        assert.ok(path.basename(preserved[0].corruptPath).startsWith(`${fileName}.corrupt-`));
+        assert.strictEqual(fs.readFileSync(preserved[0].corruptPath, 'utf-8'), contents);
+      });
+    }
+  }
+
   it('is silent on stderr by default and rejects unknown values', () => {
     assert.strictEqual(run(['check', 'I will do it later.']).stderr, '');
     const bad = run(['check', '--log-format=xml', 'hi']);

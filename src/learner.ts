@@ -98,7 +98,13 @@ function preserveCorruptFile(filePath: string): void {
   );
   try {
     fs.renameSync(filePath, corruptPath);
-    process.stderr.write(`rationguard: ${filePath} was not valid JSON; preserved as ${corruptPath}\n`);
+    // Recovery can run before or after check's JSON match events. Keep this
+    // diagnostic line-oriented JSON too, including when paths contain newlines.
+    process.stderr.write(JSON.stringify({
+      event: 'store_preserved',
+      filePath,
+      corruptPath,
+    }) + '\n');
   } catch {
     // Best effort; fall through to an empty store.
   }
