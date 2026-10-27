@@ -139,7 +139,9 @@ function tableCell(text: string): string {
 }
 
 export function generatePromptBlock(config?: RationguardConfig): string {
-  const excuses = config?.excuses ?? DEFAULT_EXCUSES;
+  // Project-local excuses are repo-controlled and detection-only: never let
+  // their text reach an agent's instructions, whatever the caller passed in.
+  const excuses = (config?.excuses ?? DEFAULT_EXCUSES).filter(e => e.source !== 'project');
   const lines: string[] = [
     '## Rationalization Defense — Known Excuses',
     '',

@@ -334,14 +334,12 @@ const block = generatePromptBlock();
 // Detect against learned and project excuses too
 const full = check('Standing by for instructions.', { excuses: getAllExcuses() });
 
-// Prompt blocks are destined for agent instructions: exclude untrusted
-// project-local excuses, exactly as `rationguard prompt` does
-const fullBlock = generatePromptBlock({
-  excuses: getAllExcuses().filter(e => e.source !== 'project'),
-});
+// Prompt blocks are destined for agent instructions: project-local excuses
+// (`source: 'project'`) are dropped automatically, exactly as `rationguard prompt` does
+const fullBlock = generatePromptBlock({ excuses: getAllExcuses() });
 ```
 
-`check()` and `generatePromptBlock()` called without a config use only the built-in `DEFAULT_EXCUSES`. `getAllExcuses()` returns the same builtin + `~/.rationguard` + project-local set the CLI and `Watcher` use. User and project excuses are tagged `source: 'user'` / `'project'`; builtins carry no `source`. Never feed `source: 'project'` excuses into a prompt block — they come from the (potentially untrusted) working directory and are only ever used for detection.
+`check()` and `generatePromptBlock()` called without a config use only the built-in `DEFAULT_EXCUSES`. `getAllExcuses()` returns the same builtin + `~/.rationguard` + project-local set the CLI and `Watcher` use. User and project excuses are tagged `source: 'user'` / `'project'`; builtins carry no `source`. `generatePromptBlock()` never emits `source: 'project'` excuses, whatever it is passed — they come from the (potentially untrusted) working directory and are only ever used for detection.
 
 ---
 
