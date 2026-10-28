@@ -66,8 +66,10 @@ empty state, which makes the loss permanent unless a copy was kept.
 1. Restore the file from backup or snapshot if one exists, then restart the
    watchers.
 2. If the file was invalid JSON or had the wrong shape, it is preserved
-   automatically as `<name>.corrupt-<timestamp>.json` next to the store (a
-   line on stderr names the path) and detection continues with an empty store.
+   automatically as `<name>.corrupt-<timestamp>.json` next to the store and
+   detection continues with an empty store. Stderr gets one JSON line,
+   `{"event":"store_preserved","filePath":...,"corruptPath":...}`, naming both
+   paths; filter for it in logs with `grep store_preserved`.
    Repair or merge from that copy. If the store directory is not writable the
    rename fails and stderr instead reports `... could not be moved aside to
    <path>: <error>`; copy the original file elsewhere before the next write
