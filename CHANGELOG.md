@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.14.0 - 2026-10-28
+
 ### Added
 
 - `getAllExcuses()` is exported from the package entry, so library callers can pass the same builtin + `~/.rationguard` + project-local excuse set the CLI and `Watcher` use to `check()` / `generatePromptBlock()`; the bare calls still use only the built-in excuses (#391)
