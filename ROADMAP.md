@@ -28,7 +28,7 @@ The five values accepted by `--cli` are `claude`, `copilot`, `gemini`, `goose` a
 | `claude` | First-class | Default for `--cli`; `--dangerous` maps to `--dangerously-skip-permissions`; the README documents a Claude Code `Stop` hook for post-response detection |
 | `codex` | Best-effort | `--dangerous` maps to `--full-auto`; no CLI-specific test or fixture |
 | `goose` | Best-effort | `--dangerous` maps to `--non-interactive`; one `src/cli.test.ts` case uses `goose` only as a label in a pluk event fixture |
-| `copilot` | Best-effort | Accepted by `--cli`; `--dangerous` is a no-op (pass the CLI's own option via `--cli-args`); only a test that `--cli=copilot` is rejected in a non-watch mode |
+| `copilot` | Best-effort | Accepted by `--cli`; `--dangerous` is a no-op (pass the CLI's own option via `--cli-args`); only test asserts `--cli=copilot` is accepted without an "--cli is ignored" warning in the default subscribe mode |
 | `gemini` | Best-effort | Accepted by `--cli`; `--dangerous` is a no-op; no CLI-specific test or fixture |
 
 Levels meaning:
