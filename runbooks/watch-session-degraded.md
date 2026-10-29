@@ -5,7 +5,7 @@ detect nothing, or the agent keeps "standing by" without receiving a rebuttal.
 The failure is silent by design (the agent session itself keeps running), so
 confirm with counters before assuming the agent is clean.
 
-Related runbooks: `release-rollback.md`, `postmortem-template.md`.
+Related runbooks: `attach-startup-failing.md`, `release-rollback.md`, `postmortem-template.md`.
 
 ## Impact
 
