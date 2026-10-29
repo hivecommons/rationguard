@@ -32,7 +32,8 @@ function replaceControlStrings(text: string, intro: RegExp, replacement: string)
  *
  * Covers OSC (window-title spoofing, OSC 52 clipboard writes), CSI (cursor
  * movement, screen clear/overwrite), DCS, charset-designation and
- * keypad-mode two-byte ESC forms, any other two-byte ESC sequence (e.g.
+ * keypad-mode two-byte ESC forms, nF sequences with intermediate bytes (e.g.
+ * ESC # 8, ESC % G, ESC SP F), any other two-byte ESC sequence (e.g.
  * ESC c full reset), and the raw C0/DEL/C1 control-character ranges (with
  * `\t` and `\n` left untouched by the caller, since this helper only removes
  * escape junk, not plain whitespace).
@@ -55,6 +56,8 @@ export function stripTerminalEscapes(text: string, replacement = ' '): string {
     .replace(/\x1b[()][A-Z0-9]/g, replacement)
     // Keypad mode (application/numeric), e.g. ESC = / ESC >.
     .replace(/\x1b[=>]/g, replacement)
+    // nF sequences: ESC + one or more intermediates (0x20–0x2F) + final (0x30–0x7E), e.g. ESC # 8.
+    .replace(/\x1b[ -/]+[0-~]/g, replacement)
     // Any other two-byte ESC sequence not matched above (Fp/Fe/Fs finals 0x30–0x7E).
     .replace(/\x1b[0-~]/g, replacement)
     // Remaining raw C0 control chars (except \t and \n), DEL, and C1 range —

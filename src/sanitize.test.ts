@@ -96,6 +96,13 @@ describe('stripTerminalEscapes', () => {
     assert.strictEqual(stripTerminalEscapes('a\x1b=b\x1b>c'), 'a b c');
   });
 
+  it('strips nF intermediate-byte ESC sequences whole', () => {
+    assert.strictEqual(stripTerminalEscapes('a\x1b#8b'), 'a b');
+    assert.strictEqual(stripTerminalEscapes('a\x1b%Gb'), 'a b');
+    assert.strictEqual(stripTerminalEscapes('a\x1b Fb'), 'a b');
+    assert.strictEqual(stripTerminalEscapes('\x1b(xq'), ' q');
+  });
+
   it('strips other two-byte ESC sequences whole (ESC M reverse index)', () => {
     assert.strictEqual(stripTerminalEscapes('a\x1bMb'), 'a b');
   });
