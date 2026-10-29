@@ -397,6 +397,7 @@ rationguard is part of [Hive Commons](https://hivecommons.dev), a family of tool
 
 - Want to contribute? See [CONTRIBUTING.md](CONTRIBUTING.md) for local setup, the test and coverage gates, and pull request guidelines.
 - rationguard flagged text that is not an excuse, missed one that is, or you want to propose a new default excuse? Open an [excuse pattern report](https://github.com/hivecommons/rationguard/issues/new?template=excuse_pattern.yml).
+- Curious what 1.0 requires or which CLIs are first-class? See [ROADMAP.md](ROADMAP.md).
 - Found a bug or have an idea? Open an [issue](https://github.com/hivecommons/rationguard/issues/new/choose).
 - Reporting a security vulnerability? Follow [SECURITY.md](SECURITY.md) to report it privately, not through public issues.
 - Questions? Join the [Hive Commons Discord](https://hivecommons.dev/discord).

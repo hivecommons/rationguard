@@ -2,6 +2,8 @@
 
 Thanks for helping improve rationguard. This project follows the Hive Commons contribution conventions used across the organization.
 
+See [ROADMAP.md](ROADMAP.md) for the 1.0 exit criteria, supported-CLI matrix and detection-pattern contribution policy.
+
 ## Local setup
 
 Prerequisites:
