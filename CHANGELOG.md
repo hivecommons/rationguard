@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Fixed
+
+- `stripTerminalEscapes` now removes Fs/Fp two-byte ESC sequences (ESC c, ESC 7, ESC 8) matching the full ECMA-35 final range (0x30–0x7E) covered by its docblock; the generic rule previously only accepted Fe finals (0x40–0x5F), leaving the final byte in the output (#414)
+
 ## 0.14.0 - 2026-10-28
 
 ### Added

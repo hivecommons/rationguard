@@ -100,6 +100,12 @@ describe('stripTerminalEscapes', () => {
     assert.strictEqual(stripTerminalEscapes('a\x1bMb'), 'a b');
   });
 
+  it('removes the final byte of Fs/Fp two-byte sequences (ESC c, ESC 7, ESC 8)', () => {
+    assert.strictEqual(stripTerminalEscapes('a\x1bcb'), 'a b');
+    assert.strictEqual(stripTerminalEscapes('a\x1b7b'), 'a b');
+    assert.strictEqual(stripTerminalEscapes('a\x1b8b'), 'a b');
+  });
+
   it('collapses a run of raw C0/C1 control bytes to one replacement', () => {
     assert.strictEqual(stripTerminalEscapes('a\x01\x02\x9b\x9dz'), 'a z');
   });

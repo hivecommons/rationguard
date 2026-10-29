@@ -55,8 +55,8 @@ export function stripTerminalEscapes(text: string, replacement = ' '): string {
     .replace(/\x1b[()][A-Z0-9]/g, replacement)
     // Keypad mode (application/numeric), e.g. ESC = / ESC >.
     .replace(/\x1b[=>]/g, replacement)
-    // Any other two-byte ESC sequence not matched above.
-    .replace(/\x1b[@-Z\\-_]/g, replacement)
+    // Any other two-byte ESC sequence not matched above (Fp/Fe/Fs finals 0x30–0x7E).
+    .replace(/\x1b[0-~]/g, replacement)
     // Remaining raw C0 control chars (except \t and \n), DEL, and C1 range —
     // covers any stray/incomplete escape bytes not matched above.
     .replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]+/g, replacement);
