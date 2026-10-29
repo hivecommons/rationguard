@@ -142,3 +142,35 @@ describe('stringifyForTerminal', () => {
     assert.strictEqual(stringifyForTerminal([1, 2]), '[1,2]');
   });
 });
+
+// Generate sequences by the ECMA-48 byte classes (entry, parameters,
+// intermediates, final), independent of the sanitizer's recognisers.
+describe('ECMA-48 conformance corpus', () => {
+  it('removes complete sequences while preserving surrounding text', () => {
+    // Enumerate paths through a small reference grammar state machine.
+    type State = 'entry' | 'csiParams' | 'csiIntermediate' | 'escIntermediate' | 'string' | 'done';
+    const transitions: Record<State, Array<[string, State]>> = {
+      entry: [['\x1b[', 'csiParams'], ['\x9b', 'csiParams'], ['\x1b', 'escIntermediate'], ...['\x1b]', '\x1bP', '\x1b_', '\x1b^', '\x1bX', '\x9d', '\x90', '\x9f', '\x9e', '\x98'].map(intro => [intro, 'string'] as [string, State])],
+      csiParams: [['', 'csiIntermediate'], ['1;23', 'csiIntermediate'], ['?25', 'csiIntermediate']],
+      csiIntermediate: ['', ' ', ' !'].flatMap(bytes => ['@', 'm', '~'].map(final => [bytes + final, 'done'] as [string, State])),
+      escIntermediate: [' ', '#', ' /'].flatMap(bytes => ['0', '8', 'G', '~'].map(final => [bytes + final, 'done'] as [string, State])),
+      string: ['\x07', '\x1b\\', '\x9c'].map(end => ['0;payload' + end, 'done']),
+      done: [],
+    };
+    const sequences: string[] = [];
+    function generate(state: State, prefix: string): void {
+      if (state === 'done') { sequences.push(prefix); return; }
+      for (const [bytes, next] of transitions[state]) generate(next, prefix + bytes);
+    }
+    generate('entry', '');
+    for (const sequence of sequences) {
+      assert.strictEqual(stripTerminalEscapes(`before${sequence}after`, ''), 'beforeafter', JSON.stringify(sequence));
+      assert.strictEqual(stripTerminalEscapes(`before${sequence}after`), 'before after', JSON.stringify(sequence));
+    }
+  });
+
+  it('does not swallow text between different terminators', () => {
+    const input = '\x1b]0;title\x9c I cannot run the tests \x1b]2;x\x07 tail';
+    assert.strictEqual(stripTerminalEscapes(input, ''), ' I cannot run the tests  tail');
+  });
+});

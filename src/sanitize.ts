@@ -4,14 +4,14 @@
 // Unterminated introducers are left in place, like the regex form did.
 function replaceControlStrings(text: string, intro: RegExp, replacement: string): string {
   const introducer = new RegExp(intro.source, 'g');
-  const terminator = /\x07|\x1b\\/g;
+  const terminator = /\x07|\x9c|\x1b\\/g;
   let out = '';
   let pos = 0;
   for (;;) {
     introducer.lastIndex = pos;
     const start = introducer.exec(text);
     if (!start) break;
-    terminator.lastIndex = start.index + 2;
+    terminator.lastIndex = start.index + start[0].length;
     const end = terminator.exec(text);
     if (!end) break;
     out += text.slice(pos, start.index) + replacement;
@@ -31,7 +31,9 @@ function replaceControlStrings(text: string, intro: RegExp, replacement: string)
  * regex chain at the call site.
  *
  * Covers OSC (window-title spoofing, OSC 52 clipboard writes), CSI (cursor
- * movement, screen clear/overwrite), DCS, charset-designation and
+ * movement, screen clear/overwrite), and DCS, SOS, PM and APC control strings,
+ * including their 7-bit ESC and 8-bit C1 forms. Control strings end at BEL,
+ * ST or 8-bit ST. Also covers charset-designation and
  * keypad-mode two-byte ESC forms, nF sequences with intermediate bytes (e.g.
  * ESC # 8, ESC % G, ESC SP F), any other two-byte ESC sequence (e.g.
  * ESC c full reset), and the raw C0/DEL/C1 control-character ranges (with
@@ -43,15 +45,11 @@ function replaceControlStrings(text: string, intro: RegExp, replacement: string)
  * sequences removed with no trace.
  */
 export function stripTerminalEscapes(text: string, replacement = ' '): string {
-  // OSC (Operating System Command): ESC ] ... terminated by BEL or ST (ESC \).
-  const withoutOsc = replaceControlStrings(text, /\x1b\]/, replacement);
-  const withoutDcs = withoutOsc
-    // CSI (Control Sequence Introducer): ESC [ ... followed by a final byte in @-~.
-    .replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, replacement)
-    // DCS (Device Control String): ESC P ... terminated by ST (ESC \).
-    .replace(/\x1bP[^\x1b]*\x1b\\/g, replacement);
-  // APC (Application Program Command) / PM (Privacy Message): ESC _ / ESC ^ ... terminated by BEL or ST (ESC \), like OSC.
-  return replaceControlStrings(withoutDcs, /\x1b[_^]/, replacement)
+  // Consume all control strings together so their terminators retain input order.
+  const withoutStrings = replaceControlStrings(text, /\x1b[\]P_^X]|[\x90\x98\x9d\x9e\x9f]/, replacement);
+  return withoutStrings
+    // CSI accepts both the ESC [ and C1 forms.
+    .replace(/(?:\x1b\[|\x9b)[0-?]*[ -/]*[@-~]/g, replacement)
     // Charset designation, e.g. ESC ( B.
     .replace(/\x1b[()][A-Z0-9]/g, replacement)
     // Keypad mode (application/numeric), e.g. ESC = / ESC >.

@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- Strip 8-bit terminal control strings and CSI sequences without swallowing text after 8-bit ST (#418).
+
 - `stripTerminalEscapes` now removes ECMA-35 nF ESC sequences with intermediate bytes (ESC # 8, ESC % G, ESC SP F); previously only the ESC byte was removed and the payload leaked into the output (#416)
 - `stripTerminalEscapes` now removes Fs/Fp two-byte ESC sequences (ESC c, ESC 7, ESC 8) matching the full ECMA-35 final range (0x30–0x7E) covered by its docblock; the generic rule previously only accepted Fe finals (0x40–0x5F), leaving the final byte in the output (#414)
 
