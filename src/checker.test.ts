@@ -328,6 +328,67 @@ describe('check', () => {
     assert.strictEqual(result.matches[0]?.confidence, 1.0);
   });
 
+  // Each case below pins one normalisation or scoring rule that the
+  // symmetric stemmer would otherwise hide: because text and keyword are
+  // reduced the same way, a rule only becomes observable where the two sides
+  // take different paths to the stem.
+  describe('normalisation and scoring rules', () => {
+    const excuse = (pattern: string, keywords: string[]) =>
+      ({ excuses: [{ pattern, category: 'deferral', keywords, rebuttal: 'r' }] }) as never;
+
+    it('folds curly double quotes into ASCII before matching', () => {
+      const result = check('I will say \u201cdone\u201d now', excuse('say "done"', ['zzz']));
+      assert.strictEqual(result.matches[0]?.confidence, 1.0);
+    });
+
+    it('collapses a run of whitespace in the text to one space for exact matching', () => {
+      const result = check('this is out \t\n of scope', excuse('out of scope', ['zzz']));
+      assert.strictEqual(result.matches[0]?.confidence, 1.0);
+    });
+
+    it('collapses the gap left by a removed filler word before keyword matching', () => {
+      assert.strictEqual(check('fix the bug later', excuse('zzz', ['fix bug later'])).clean, false);
+    });
+
+    it('matches a keyword containing regex metacharacters literally', () => {
+      assert.strictEqual(check('see e.g. the spec', excuse('zzz', ['e.g.'])).clean, false);
+      assert.strictEqual(check('see eg the spec', excuse('zzz', ['e.g.'])).clean, true);
+    });
+
+    it('only collapses a doubled consonant at the end of the stem', () => {
+      // "committed" -> "committ" -> "commit" must land on the keyword "commit";
+      // collapsing the inner "mm" instead would separate the two.
+      assert.strictEqual(check('I committed it', excuse('zzz', ['commit'])).clean, false);
+    });
+
+    it('leaves a three-letter stem alone (no doubled-consonant or silent-e strip)', () => {
+      assert.strictEqual(check('the ad campaign', excuse('zzz', ['add'])).clean, true);
+      assert.strictEqual(check('let us know', excuse('zzz', ['use'])).clean, true);
+    });
+
+    it('counts each filler-only keyword that hits as its own hit', () => {
+      const result = check('we will just see', excuse('zzz', ['will', 'just']));
+      assert.ok(Math.abs(result.matches[0].confidence - 0.6) < 1e-9, String(result.matches[0].confidence));
+    });
+
+    it('reports the first of equally long hit keywords as matchedText', () => {
+      const result = check('defer it until later', excuse('zzz', ['later', 'defer']));
+      assert.strictEqual(result.matches[0].matchedText, 'later');
+    });
+
+    it('orders an exact-pattern match ahead of an earlier keyword-only match', () => {
+      const config = {
+        excuses: [
+          { pattern: 'zzz', category: 'deferral', keywords: ['later'], rebuttal: 'r' },
+          { pattern: 'out of scope', category: 'scope', keywords: ['yyy'], rebuttal: 'r' },
+        ],
+      } as never;
+      const result = check('later: out of scope', config);
+      assert.deepStrictEqual(result.matches.map(m => m.excuse?.category), ['scope', 'deferral']);
+      assert.strictEqual(result.matches[0].confidence, 1.0);
+    });
+  });
+
   describe('confidence floor', () => {
     // 1 * KEYWORD_WEIGHT + MIN_KEYWORD_CONFIDENCE; 0.15 + 0.3 is
     // 0.44999999999999996 in IEEE doubles, so compare with a tolerance.
@@ -418,6 +479,27 @@ describe('generatePromptBlock', () => {
     const lines = block.split('\n');
     assert.deepStrictEqual(lines.filter(l => l.startsWith('| i will handle')), ['| i will handle that later | No. Do it \\| now. |']);
     assert.ok(!lines.some(l => l.startsWith('that later') || l.startsWith('Do it')));
+  });
+
+  it('trims a padded pattern or rebuttal inside its table cell', () => {
+    const block = generatePromptBlock({
+      excuses: [{ pattern: '  padded  ', rebuttal: ' r ', category: 'deferral', keywords: ['padded'] }],
+    });
+    assert.ok(block.split('\n').includes('| padded | r |'));
+  });
+
+  it('emits the fixed instruction text around the table', () => {
+    const lines = generatePromptBlock({ excuses: [] }).split('\n');
+    assert.deepStrictEqual(lines, [
+      '## Rationalization Defense — Known Excuses',
+      '',
+      'Before responding, check your output against these patterns. If you catch yourself producing any of them, apply the rebuttal instead.',
+      '',
+      '| Excuse Pattern | Rebuttal |',
+      '|----------------|----------|',
+      '',
+      'If none of the above match but your response contains no concrete deliverable (PR, commit, fix, file change, specific finding), you are likely rationalizing. Rewrite with a specific action.',
+    ]);
   });
 
   it('never emits project-local excuses, even when passed explicitly', () => {
