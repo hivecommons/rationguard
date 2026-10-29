@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { sanitizeForTerminal, stringifyForTerminal } from './sanitize.js';
+import { sanitizeForTerminal, stringifyForTerminal, stripTerminalEscapes } from './sanitize.js';
 
 describe('sanitizeForTerminal', () => {
   it('strips ESC-based ANSI/CSI sequences', () => {
@@ -75,6 +75,38 @@ describe('sanitizeForTerminal string-control strips', () => {
 
   it('consumes an unterminated introducer before a later terminated string', () => {
     assert.strictEqual(sanitizeForTerminal('\x1b]x\x1b]y\x07z'), 'z');
+  });
+});
+
+// Each case below pins one recogniser in stripTerminalEscapes with an input
+// only that recogniser consumes whole: if its pattern regresses, the generic
+// two-byte ESC rule or the final control-char sweep still removes the ESC
+// byte, but the sequence's payload or final byte leaks into the output.
+describe('stripTerminalEscapes', () => {
+  it('strips a DCS string with a multi-character body whole (ESC P ... ST)', () => {
+    assert.strictEqual(stripTerminalEscapes('a\x1bPq#0;2;0;0;0#0~~\x1b\\b'), 'a b');
+  });
+
+  it('strips charset-designation sequences whole (ESC ( B, ESC ) 0)', () => {
+    assert.strictEqual(stripTerminalEscapes('a\x1b(Bb'), 'a b');
+    assert.strictEqual(stripTerminalEscapes('a\x1b)0b'), 'a b');
+  });
+
+  it('strips keypad-mode sequences whole (ESC =, ESC >)', () => {
+    assert.strictEqual(stripTerminalEscapes('a\x1b=b\x1b>c'), 'a b c');
+  });
+
+  it('strips other two-byte ESC sequences whole (ESC M reverse index)', () => {
+    assert.strictEqual(stripTerminalEscapes('a\x1bMb'), 'a b');
+  });
+
+  it('collapses a run of raw C0/C1 control bytes to one replacement', () => {
+    assert.strictEqual(stripTerminalEscapes('a\x01\x02\x9b\x9dz'), 'a z');
+  });
+
+  it('defaults the replacement to a single space', () => {
+    assert.strictEqual(stripTerminalEscapes('a\x01b'), 'a b');
+    assert.strictEqual(stripTerminalEscapes('a\x01b', ''), 'ab');
   });
 });
 
