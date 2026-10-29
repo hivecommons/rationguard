@@ -6,9 +6,13 @@
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
-Detect and rebut rationalization patterns in AI agent output.
+Flag phrases in AI agent output that may indicate work has stopped too soon.
 
-AI agents make excuses. "Standing by for instructions." "Too complex to fix." "I'll handle it next pass." These sound reasonable but mean the agent stopped working.
+Here, a **rationalization** is wording such as “Standing by for instructions”
+or “I'll handle it next pass” that may explain away unfinished work.
+A **rebuttal** is a suggested response asking the agent to check or continue.
+Matching a phrase is a heuristic signal, not proof the agent is wrong or idle;
+review the task and output before acting.
 
 rationguard catches these patterns and provides rebuttals — in real-time via [pluk](https://www.npmjs.com/package/@hivecommons/pluk), injected into the agent's system prompt (prevention), or checked against agent output after each response (detection).
 
@@ -17,7 +21,8 @@ rationguard catches these patterns and provides rebuttals — in real-time via [
 ## Prerequisites
 
 - Node.js 20 or newer (`engines.node` in `package.json`)
-- [pluk](https://www.npmjs.com/package/@hivecommons/pluk), installed alongside rationguard below
+- For the live stack, Node.js **22 or newer** and
+  [pluk](https://www.npmjs.com/package/@hivecommons/pluk), whose own minimum is 22
 - `tmux`, for `rationguard attach` and for watching live sessions
 - The AI CLI you want to supervise (`claude`, `copilot`, `gemini`, `goose` or `codex`), already installed and authenticated
 
@@ -26,32 +31,62 @@ rationguard catches these patterns and provides rebuttals — in real-time via [
 ## Install
 
 ```bash
-npm install -g @hivecommons/rationguard @hivecommons/pluk
+npm install -g @hivecommons/rationguard
 ```
-
----
-
-## Releases
-
-Releases ship from a version-bump PR: on merge to `main`, the Auto Release workflow creates the `v<version>` tag and dispatches the publish workflow (a manual `v*` tag push also works; see [CONTRIBUTING.md](CONTRIBUTING.md#releases)). The publish workflow runs the test gate, then publishes `@hivecommons/rationguard` to npm with provenance via [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers) (GitHub Actions OIDC, `npm` environment) — no long-lived npm token is stored in the repository.
 
 ---
 
 ## Quick Start
 
-One command — creates a tmux session, starts the AI CLI, wires pluk event capture, opens a terminal window for you to interact, and runs rationguard in this terminal to detect rationalizations:
+### 1. Check text without controlling an agent
 
 ```bash
-rationguard attach my-agent --cli=claude --rebuttal=send --dangerous
+rationguard check "Standing by for further instructions. Nothing to do."
+```
+
+Expect a report containing matching phrases such as `standing by` and
+`nothing to do`, a category, and a suggested rebuttal. Exact scores and match
+counts depend on the installed pattern set. This sends nothing to an agent
+and does not bypass permission prompts. Review false positives before enabling
+automatic responses.
+
+### 2. Optionally watch a live session
+
+Install the companion on Node.js 22+:
+
+```bash
+npm install -g @hivecommons/pluk
+```
+
+Create a tmux session, start the installed and signed-in AI CLI with normal
+permission checks, and log detections:
+
+```bash
+rationguard attach my-agent --cli=claude --rebuttal=log
 ```
 
 What happens:
 1. A tmux session named `my-agent` is created
-2. `claude --dangerously-skip-permissions` starts inside it (the `--dangerous` flag maps to the right permission-skip flag per CLI)
+2. `claude` starts inside it with its normal permission prompts
 3. pluk captures all terminal output via `tmux pipe-pane`
-4. A **new terminal window opens** attached to the tmux session — this is where you interact with the agent
+4. On macOS with iTerm2 or Terminal.app, a new terminal window opens attached
+   to the session. Elsewhere, use the printed `tmux attach -t my-agent` hint
 5. rationguard watches the pluk event stream in your original terminal, printing detections
-6. When a rationalization is detected, the rebuttal is **sent directly into the tmux session** — the agent receives it as its next message
+6. Matches and suggested rebuttals are logged; `--rebuttal=log` does not send them
+
+### 3. Choose interventions separately
+
+`--rebuttal=send` sends another message into the agent session. It is not
+required for detection. For an existing monitored session, opt in with
+`rationguard watch my-agent --rebuttal=send`.
+
+The separate optional `--dangerous` flag skips supported CLIs' permission
+prompts. It is not required for detection or automatic rebuttals; use it only
+in an environment you have deliberately isolated and authorized.
+
+## Live-control reference
+
+The examples below are alternatives, not a sequence to run on one session.
 
 ```bash
 # Start goose with auto-approve
@@ -133,7 +168,8 @@ interval (default 60s) and once more when the watcher stops. It never
 includes the session name, raw output, or excuse text — only fixed counter
 categories — and nothing is sent anywhere.
 
-When rationguard detects an excuse, it prints the match and sends the rebuttal directly to the agent:
+With `--rebuttal=send`, a qualifying detection prints the match and sends the
+rebuttal directly to the agent. In log mode it only prints the suggestion:
 
 ```
 ⚠ 100% False Completion — "tests are all passing"
@@ -151,6 +187,11 @@ After sending any rebuttal, rationguard enters a **60-second quiet period** — 
 ---
 
 ## Three Modes
+
+The following is reference for integrations. For a first check, use
+[Quick Start](#quick-start). [Hooks](#as-a-claude-code-stop-hook) can continue
+an agent automatically; [learning-store rules](#auto-learning) explain which
+patterns are trusted for automatic sending. Review both before enabling them.
 
 ### Mode 1: Real-time detection via pluk (live)
 
@@ -390,6 +431,10 @@ rationguard was extracted from the [Hive](https://github.com/hivecommons/hive) m
 The 15 default excuses in rationguard are the universal patterns that apply to any AI agent, not just Hive's.
 
 ---
+
+## Releases
+
+Releases ship from a version-bump PR: on merge to `main`, the Auto Release workflow creates the `v<version>` tag and dispatches the publish workflow (a manual `v*` tag push also works; see [CONTRIBUTING.md](CONTRIBUTING.md#releases)). The publish workflow runs the test gate, then publishes `@hivecommons/rationguard` to npm with provenance via [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers) (GitHub Actions OIDC, `npm` environment) — no long-lived npm token is stored in the repository.
 
 ## Contributing & Community
 
