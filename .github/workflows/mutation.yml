@@ -137,4 +137,4 @@ jobs:
         run: |
           ls summaries/*.md >/dev/null 2>&1 || { echo "No shard mutated a changed file; nothing to comment."; exit 0; }
           cat summaries/*.md > mutation-summary.md
-          gh pr comment "$PR_NUMBER" --body-file mutation-summary.md --edit-last --create-if-none
+          gh pr comment "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --body-file mutation-summary.md --edit-last --create-if-none
