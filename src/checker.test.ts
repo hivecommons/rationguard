@@ -428,6 +428,28 @@ describe('check', () => {
       assert.ok(scored > 0, 'expected at least one default keyword to match itself');
     });
 
+    it('every default keyword, checked alone, detects the excuse that declares it', () => {
+      // The floor test above iterates result.matches, so a keyword that stops
+      // matching (emptied, misspelled, or dropped from the list) contributes
+      // zero iterations and silently passes. Pin each keyword to its own
+      // excuse so a dead keyword fails by name.
+      for (const excuse of DEFAULT_EXCUSES) {
+        assert.ok(excuse.keywords.length > 0, `${JSON.stringify(excuse.pattern)} has no keywords`);
+        for (const kw of excuse.keywords) {
+          assert.ok(kw.trim().length > 0, `${JSON.stringify(excuse.pattern)} has an empty keyword`);
+          const result = check(kw);
+          const own = result.matches.find((m) => m.excuse?.pattern === excuse.pattern);
+          assert.ok(
+            own,
+            `${JSON.stringify(kw)} does not detect ${JSON.stringify(excuse.pattern)}; matched [${result.matches
+              .map((m) => m.excuse?.pattern)
+              .join(', ')}]`,
+          );
+          assert.strictEqual(own.matched, true);
+        }
+      }
+    });
+
     it('never returns a sub-floor or unmatched entry in matches', () => {
       const inputs = [
         'Standing by for further instructions.',
