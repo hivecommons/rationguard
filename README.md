@@ -296,6 +296,54 @@ Make it executable (`chmod +x .claude/hooks/rationguard-stop.sh`) and register i
 
 For example, a response ending "This is too complex to fix right now" matches `too complex to fix` at 100% confidence, so Claude receives that pattern's rebuttal and continues. Lower-confidence keyword matches pass through, and so do matches against project-local excuses (`source: "project"`): those still count as detections, but — exactly as in `watch --rebuttal=send` — their rebuttal text is never handed to the agent, because the working directory is untrusted. Each run records eligible sightings, just like running `rationguard check` by hand.
 
+#### As a Codex `Stop` or Gemini CLI `AfterAgent` hook
+
+Codex and Gemini CLI have the same kind of post-response hook, so the script above works for them too:
+
+- **Codex** — its [`Stop` hook](https://developers.openai.com/codex/hooks) receives the same `stop_hook_active` and `last_assistant_message` fields, and exit code 2 makes Codex continue with stderr as the next prompt. Use the script unchanged, saved as `.codex/hooks/rationguard-stop.sh`, and register it in `.codex/hooks.json` (or `~/.codex/hooks.json` for every project):
+
+  ```json
+  {
+    "hooks": {
+      "Stop": [
+        {
+          "hooks": [
+            { "type": "command", "command": "\"$(git rev-parse --show-toplevel)/.codex/hooks/rationguard-stop.sh\"" }
+          ]
+        }
+      ]
+    }
+  }
+  ```
+
+  Codex skips a new or changed hook until you review and trust it with `/hooks`.
+
+- **Gemini CLI** — its [`AfterAgent` hook](https://github.com/google-gemini/gemini-cli/blob/main/docs/hooks/reference.md#afteragent) passes the response as `prompt_response` instead, and exit code 2 rejects the response and retries with stderr as the feedback prompt. Save the script as `.gemini/hooks/rationguard-stop.sh`, change its `message=` line to read `.prompt_response`:
+
+  ```bash
+  message=$(jq -r '.prompt_response // empty' <<<"$input")
+  ```
+
+  and register it in `.gemini/settings.json` (or `~/.gemini/settings.json`):
+
+  ```json
+  {
+    "hooks": {
+      "AfterAgent": [
+        {
+          "hooks": [
+            { "name": "rationguard", "type": "command", "command": "$GEMINI_PROJECT_DIR/.gemini/hooks/rationguard-stop.sh" }
+          ]
+        }
+      ]
+    }
+  }
+  ```
+
+  Gemini CLI warns before running a project hook that is new or has changed.
+
+Both use the same guards as the Claude Code hook: one challenge per response (`stop_hook_active`), the 0.7 confidence floor, and no project-local rebuttals.
+
 ### Mode 3: System prompt prevention
 
 Generate a defense table and inject it into your agent's system prompt. The agent self-polices against known excuses.
