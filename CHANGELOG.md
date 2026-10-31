@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Changed
+
+- Move the stop-word list into its own module so `learner` no longer depends on `checker`; no behaviour change.
+
 ### Fixed
 
 - Strip 8-bit terminal control strings and CSI sequences without swallowing text after 8-bit ST (#418).
