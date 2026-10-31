@@ -35,6 +35,30 @@ describe('startDiagnostics', () => {
     assert.ok(parsed.slice(0, -1).every(p => p.final === false));
   });
 
+  it('fires exactly on the requested period, reports wall-clock uptime, and stops the timer', () => {
+    const lines: string[] = [];
+    mock.timers.enable({ apis: ['setInterval', 'Date'], now: 1_700_000_000_000 });
+    try {
+      const stop = startDiagnostics('watch', () => ({ flushCount: 0 }), '2', l => lines.push(l));
+      mock.timers.tick(1999);
+      assert.deepEqual(lines, [], 'a 2s period must not report before 2000ms');
+      mock.timers.tick(1);
+      assert.equal(lines.length, 1, 'first periodic line lands at exactly 2000ms');
+      assert.equal(JSON.parse(lines[0]).uptime_s, 2);
+      mock.timers.tick(2000);
+      assert.equal(lines.length, 2);
+      assert.equal(JSON.parse(lines[1]).uptime_s, 4);
+      stop();
+      assert.equal(lines.length, 3);
+      assert.equal(JSON.parse(lines[2]).uptime_s, 4);
+      assert.equal(JSON.parse(lines[2]).final, true);
+      mock.timers.tick(60_000);
+      assert.equal(lines.length, 3, 'stop() must clear the interval so nothing fires afterwards');
+    } finally {
+      mock.timers.reset();
+    }
+  });
+
   it('falls back to the default period for a bad value and survives a throwing writer', async () => {
     const lines: string[] = [];
     const stop = startDiagnostics('watch', () => ({ x: 1 }), 'nope', l => { lines.push(l); throw new Error('stderr gone'); });
