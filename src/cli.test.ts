@@ -136,6 +136,21 @@ describe('check', () => {
     assert.match(out, /Rebuttal:/);
   });
 
+  it('renders a full-phrase match in the red high tier with its real percentage', () => {
+    const res = run(['check', 'no work found']);
+    assert.strictEqual(res.status, 0);
+    assert.ok(res.stdout.includes('\x1b[31m100%\x1b[0m'), res.stdout);
+    assert.ok(!res.stdout.includes('\x1b[33m100%'), 'high tier must not render yellow');
+  });
+
+  it('renders a three-keyword match (75%) in the red tier, above the 70% boundary', () => {
+    // 'idle' + 'no tasks' + 'nothing remaining' are three keywords of the
+    // builtin 'no work found' excuse → 3 * 0.15 + 0.3 = 0.75.
+    const res = run(['check', 'idle here, no tasks, nothing remaining']);
+    assert.strictEqual(res.status, 0);
+    assert.ok(res.stdout.includes('\x1b[31m75%\x1b[0m'), res.stdout);
+  });
+
   it('renders a single-keyword match in the dim tier', () => {
     const res = run(['check', 'the queue is empty']);
     assert.strictEqual(res.status, 0);
@@ -342,6 +357,13 @@ describe('check', () => {
     assert.match(stripAnsi(res.stdout), /Complexity Dodge/);
   });
 
+  it('treats whitespace-only piped stdin as no input', () => {
+    const res = run(['check'], '  \n\t\n');
+    assert.strictEqual(res.status, 1);
+    assert.match(stripAnsi(res.stderr), /No input/);
+    assert.doesNotMatch(stripAnsi(res.stdout), /Clean/);
+  });
+
   it('keeps positional text that starts with a single dash', () => {
     const res = run(['check', '- all done, nothing left']);
     assert.strictEqual(res.status, 0);
@@ -530,6 +552,8 @@ describe('prompt', () => {
       const bad = run(['prompt', `--format=${v}`]);
       assert.strictEqual(bad.status, 1);
       assert.match(stripAnsi(bad.stderr), /Unknown --format/);
+      // The = hint is only for a bare flag parsed as "true".
+      assert.doesNotMatch(stripAnsi(bad.stderr), /with '='/);
     }
   });
 
@@ -658,6 +682,8 @@ describe('add', () => {
     assert.match(err, /Unknown category "nonsense"/);
     assert.match(err, /false-completion/);
     assert.match(err, /lane-confusion/);
+    // The --category=<name> note is only for a bare flag parsed as "true".
+    assert.doesNotMatch(err, /Note: write --category=<name>/);
     assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'sightings.json')));
   });
 
@@ -1439,6 +1465,67 @@ describe('watch (live subscribe)', () => {
     assert.strictEqual(code, 1);
     assert.match(h.stderr(), /EISDIR|illegal operation on a directory/i);
   });
+
+  it('prints detections without a delivery footer in the default log mode', async () => {
+    const session = 'watch-logmode';
+    const { runDir, logFile } = makeRunDir('watch-logmode-run-dir', session, []);
+    const dir = path.join(homeDir, '.rationguard');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'custom-excuses.json'),
+      JSON.stringify([
+        { pattern: 'zorble log mode', rebuttal: 'log mode rebuttal', category: 'deferral', keywords: ['zorble log mode'] },
+      ]) + '\n',
+    );
+
+    const h = spawnWatch([session, `--run-dir=${runDir}`]);
+    const lines = jsonlLines([
+      plukEvent(session, 'raw_output', { line: 'zorble log mode' }),
+      plukEvent(session, 'state_change', { from: 'working', to: 'idle' }),
+    ]);
+    for (let i = 0; i < 40 && !h.stdout().includes('Rebuttal:'); i++) {
+      fs.appendFileSync(logFile, lines);
+      await sleep(250);
+    }
+
+    h.child.kill('SIGINT');
+    const code = await waitForExit(h.child);
+    assert.strictEqual(code, 0);
+
+    const out = stripAnsi(h.stdout());
+    assert.match(out, /watching watch-logmode \(mode=subscribe, rebuttal=log\)/);
+    assert.match(out, /Deferral — "zorble log mode"/);
+    assert.match(out, /Rebuttal: log mode rebuttal/);
+    // Sent/suppressed/detection-only footers belong to --rebuttal=send only.
+    assert.doesNotMatch(out, /→/);
+    // Watcher trace lines are opt-in via --verbose.
+    assert.doesNotMatch(stripAnsi(h.stderr()), /\[rationguard\]/);
+  });
+
+  it('accepts a bare --diagnostics with --log-format=json and --verbose, tracing watcher startup', async () => {
+    const session = 'watch-bare-diag';
+    const { runDir } = makeRunDir('watch-bare-diag-run-dir', session, []);
+    const h = spawnWatch([session, `--run-dir=${runDir}`, '--diagnostics', '--log-format=json', '--verbose']);
+
+    const exited = waitForExit(h.child);
+    for (let i = 0; i < 40 && !h.stderr().includes('starting watcher'); i++) {
+      await Promise.race([exited, sleep(250)]);
+    }
+    h.child.kill('SIGINT');
+    const code = await exited;
+    assert.strictEqual(code, 0, `stdout: ${h.stdout()} stderr: ${h.stderr()}`);
+
+    const err = stripAnsi(h.stderr());
+    assert.doesNotMatch(err, /must be a number of seconds|Unknown --log-format/);
+    assert.match(err, /\[rationguard\] starting watcher: session=watch-bare-diag mode=subscribe cli=claude rebuttal=log/);
+    assert.match(stripAnsi(h.stdout()), /watching watch-bare-diag/);
+    // A bare flag still arms diagnostics (60s default), so SIGINT writes the final summary.
+    const finals = h.stderr().split('\n')
+      .filter(l => l.startsWith('{'))
+      .map(l => JSON.parse(l) as Record<string, unknown>)
+      .filter(p => p['rationguard_diagnostics'] === 1 && p['final'] === true);
+    assert.strictEqual(finals.length, 1, `expected exactly one final diagnostics line: ${h.stderr()}`);
+  });
 });
 
 describe('terminal escape sanitization', () => {
@@ -1628,6 +1715,52 @@ describe('attach (stubbed pluk toolchain)', () => {
     const log = fs.readFileSync(stubLog, 'utf-8');
     assert.match(log, new RegExp(`tmux pipe-pane -t =${session}: .*pluk'? watch '${session}' --cli='claude'`));
     assert.match(log, new RegExp(`rationguard watch ${session} --run-dir=${runDir} --cli=claude --rebuttal=log`));
+    // Without --dangerous/--verbose/--no-raw the defaults must hold: no
+    // skip-permissions flag, no watcher trace, raw output still piped.
+    assert.doesNotMatch(log, /--dangerously-skip-permissions/);
+    assert.doesNotMatch(log, /--verbose/);
+    assert.match(log, /--include-raw/);
+    assert.doesNotMatch(stripAnsi(res.stdout), /\[pluk\]/);
+  });
+
+  it('forwards --cli, --no-raw and --verbose to pluk and the watcher child', () => {
+    const session = 'attach-flags';
+    const attachDir = path.join(sandbox, 'attach-flag-stubs');
+    const binDir = path.join(attachDir, 'bin');
+    const runDir = path.join(attachDir, 'run');
+    fs.mkdirSync(binDir, { recursive: true });
+    fs.mkdirSync(runDir, { recursive: true });
+    const stubLog = path.join(attachDir, 'stub.log');
+
+    const stubs: Record<string, string> = {
+      tmux: '#!/bin/sh\necho "tmux $*" >> "$STUB_LOG"\ncase "$1" in has-session) exit 1;; esac\nexit 0\n',
+      pluk: '#!/bin/sh\nexit 0\n',
+      pgrep: '#!/bin/sh\nexit 1\n',
+      rationguard: '#!/bin/sh\necho "rationguard $*" >> "$STUB_LOG"\nexit 0\n',
+    };
+    for (const [name, body] of Object.entries(stubs)) {
+      const p = path.join(binDir, name);
+      fs.writeFileSync(p, body);
+      fs.chmodSync(p, 0o755);
+    }
+
+    const res = run(
+      ['attach', session, '--no-open', '--no-raw', '--verbose', '--cli=codex', `--dir=${projectDir}`, `--run-dir=${runDir}`],
+      undefined,
+      { PATH: `${binDir}:${process.env['PATH'] ?? ''}`, STUB_LOG: stubLog, PLUK_RATIONGUARD_BIN: 'rationguard' },
+    );
+
+    assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
+    const out = stripAnsi(res.stdout);
+    assert.match(out, /Starting codex: 'codex'/);
+    assert.match(out, /\[pluk\] session=attach-flags cli=codex/);
+
+    const log = fs.readFileSync(stubLog, 'utf-8');
+    assert.match(log, new RegExp(`tmux pipe-pane -t =${session}: .*pluk'? watch '${session}' --cli='codex'`));
+    assert.doesNotMatch(log, /--include-raw/);
+    // codex's dangerous flag is --full-auto; it must not appear without --dangerous.
+    assert.doesNotMatch(log, /--full-auto/);
+    assert.match(log, new RegExp(`rationguard watch ${session} --run-dir=${runDir} --cli=codex --rebuttal=log --verbose`));
   });
 
   describe('rationguard command (#284)', () => {
@@ -1677,6 +1810,14 @@ describe('attach (stubbed pluk toolchain)', () => {
       assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
       assert.doesNotMatch(res.stderr, /not found on PATH/);
       assert.match(fs.readFileSync(stubLog, 'utf-8'), /self watch rgbin-blank-flag /);
+    });
+
+    it('treats a whitespace-only --rationguard-bin= as unset', () => {
+      const { runDir, stubLog, env } = setup('rgbin-space-flag');
+      const res = runSelf('rgbin-space-flag', runDir, stubLog, env, ['--rationguard-bin=   ']);
+      assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
+      assert.doesNotMatch(res.stderr, /not found on PATH/);
+      assert.match(fs.readFileSync(stubLog, 'utf-8'), /self watch rgbin-space-flag /);
     });
 
     it('treats a blank PLUK_RATIONGUARD_BIN as unset', () => {
@@ -1769,6 +1910,28 @@ describe('watch runtime error forwarding', () => {
     assert.strictEqual(res.status, 1, `stdout: ${res.stdout} stderr: ${res.stderr}`);
     assert.ok(!stripAnsi(res.stderr).includes('\x1b[31m'));
     assert.ok(!res.stderr.includes('bad \x1b[31m'));
+  });
+
+  it('keeps the error exit code when a signal stops the watcher', () => {
+    const cliUrl = new URL('./cli.js', import.meta.url).href;
+    const watcherUrl = new URL('./watcher.js', import.meta.url).href;
+    // The error sets exitCode=1 before SIGINT arrives; the shutdown handler
+    // must exit with that code, not reset it to 0. The watchdog keeps the
+    // loop alive so the signal is dispatched instead of the loop draining.
+    const res = runEval(`
+      process.argv = [process.argv[0], 'cli.js', 'watch', 'err-sig-sess'];
+      const { Watcher } = await import(${JSON.stringify(watcherUrl)});
+      Watcher.prototype.start = function () {
+        this.emit('error', new Error('simulated tail failure'));
+        setTimeout(() => process.kill(process.pid, 'SIGINT'), 50);
+        setTimeout(() => process.exit(7), 5000);
+        return new Promise(() => {});
+      };
+      await import(${JSON.stringify(cliUrl)});
+    `);
+    assert.strictEqual(res.status, 1, `stdout: ${res.stdout} stderr: ${res.stderr}`);
+    assert.match(stripAnsi(res.stderr), /Error:.*simulated tail failure/);
+    assert.match(stripAnsi(res.stdout), /Stopped watching\./);
   });
 });
 
