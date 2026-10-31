@@ -529,6 +529,36 @@ describe('rebuttal sending', () => {
     assert.strictEqual(detections.length, 1);
     assert.ok(detections[0].sentRebuttals);
     assert.strictEqual(detections[0].sentRebuttals.length, 1);
+    assert.strictEqual(watcher.stats().rebuttalSent, 1);
+    assert.strictEqual(watcher.stats().rebuttalSuppressed, 1);
+
+    // The deduplicated excuse still enters its cooldown: once the quiet
+    // period is over it must not be the one to re-send the same text.
+    w.lastRebuttalSentAt = 0;
+    fs.rmSync(argsFile, { force: true });
+    w.handleEvent(rawOutput('test-session', 'zorble two'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    watcher.stop();
+    assert.strictEqual(detections.length, 2);
+    assert.strictEqual(detections[1].sentRebuttals, undefined);
+    assert.strictEqual(fs.existsSync(argsFile), false, 'the deduplicated excuse must be on cooldown');
+  });
+
+  it('collapses runs of plain whitespace in a rebuttal to one space', () => {
+    process.env['PATH'] = `${binDir}:${savedPath}`;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = fakePlukSend;
+    writeUserExcuses([
+      { pattern: 'zorble excuse beta', rebuttal: 'alpha  beta   gamma', category: 'deferral', keywords: ['zorble'] },
+    ]);
+    const { watcher, detections } = makeWatcher({ rebuttal: 'send' });
+    const w = internals(watcher);
+    w.handleEvent(rawOutput('test-session', 'zorble excuse beta'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    watcher.stop();
+
+    assert.strictEqual(detections.length, 1);
+    const args = fs.readFileSync(argsFile, 'utf-8').split('\n');
+    assert.strictEqual(args[1], '--text=alpha beta gamma');
   });
 
   it('honors the per-excuse cooldown across flushes', () => {
@@ -768,8 +798,7 @@ describe('rebuttal delivery fallback', () => {
     const args = fs.readFileSync(tmuxArgsFile, 'utf-8').trim().split('\n');
     assert.deepStrictEqual(args.slice(0, 5), ['send-keys', '-l', '-t', '=test-session:', '--']);
     assert.ok(args[5].startsWith('Verify by checking'));
-    assert.strictEqual(args[args.length - 1], 'Enter');
-    assert.strictEqual(args[args.length - 2], '=test-session:');
+    assert.deepStrictEqual(args.slice(6), ['send-keys', '-t', '=test-session:', 'Enter']);
   });
 
   it('verbose mode logs the pluk-send failure and the tmux fallback', () => {
@@ -852,6 +881,7 @@ describe('rebuttal delivery logging without --verbose', () => {
     assert.strictEqual(lines.length, 1);
     assert.ok(lines[0].includes('pluk-send failed'));
     assert.ok(!logs.some(l => l.includes('trying pluk-send')), 'details stay verbose-only');
+    assert.ok(!logs.some(l => l.includes('rebuttal_delivery')), 'the JSON delivery line is json-format only');
   });
 
   it('sanitizes and truncates the pluk-send error in verbose output', () => {
@@ -969,6 +999,122 @@ describe('timed flush', () => {
     assert.strictEqual(w.flushTimer, null);
     mock.timers.tick(FLUSH_MS);
     assert.strictEqual(detections.length, 2);
+    watcher.stop();
+  });
+
+  it('a buffer-full flush disarms the pending timer so it cannot flush the next batch early', () => {
+    mock.timers.enable({ apis: ['setTimeout'] });
+    const { watcher } = makeWatcher();
+    const w = internals(watcher);
+    for (let i = 0; i < 20; i++) {
+      w.handleEvent(rawOutput('test-session', `line ${i}`));
+    }
+    assert.strictEqual(watcher.stats().flushCount, 1);
+    assert.strictEqual(w.flushTimer, null);
+
+    // A new batch 500ms later arms its own 2s timer. The timer armed by the
+    // first batch was cleared when the buffer filled; were it still live it
+    // would fire at t=2000ms and flush this batch 500ms early.
+    mock.timers.tick(500);
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    mock.timers.tick(FLUSH_MS - 500);
+    assert.strictEqual(watcher.stats().flushCount, 1, 'stale timer from the full flush must not fire');
+    assert.strictEqual(w.buffer.length, 1);
+    mock.timers.tick(500);
+    assert.strictEqual(watcher.stats().flushCount, 2);
+    assert.strictEqual(w.buffer.length, 0);
+    watcher.stop();
+  });
+});
+
+describe('flush gating and rebuttal timing boundaries', () => {
+  // Boundary checks compare Date.now() against stored stamps; freeze the
+  // clock so "exactly N ms later" is exact rather than racing the wall clock.
+  const NOW = 1_700_000_000_000;
+  const QUIET_MS = 60_000;
+  const COOLDOWN_MS = 30_000;
+
+  afterEach(() => {
+    mock.timers.reset();
+  });
+
+  it('only a state_change to idle flushes the buffer', () => {
+    const { watcher, detections } = makeWatcher();
+    const w = internals(watcher);
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    w.handleEvent(stateChange('test-session', 'idle', 'working'));
+    assert.strictEqual(w.buffer.length, 1, 'a non-idle transition must leave the buffer alone');
+    assert.strictEqual(detections.length, 0);
+    assert.strictEqual(watcher.stats().flushCount, 0);
+    watcher.stop();
+    assert.strictEqual(detections.length, 1);
+  });
+
+  it('emits the detection even when no onDetection callback is configured', () => {
+    const watcher = createWatcher({ session: 'test-session', mode: 'subscribe', quiet: true });
+    const emitted: WatcherDetection[] = [];
+    watcher.on('detection', d => emitted.push(d));
+    const w = internals(watcher);
+    assert.doesNotThrow(() => {
+      w.handleEvent(rawOutput('test-session', 'no work found'));
+      w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    });
+    watcher.stop();
+    assert.strictEqual(emitted.length, 1);
+  });
+
+  it('counts every suppressed match while the quiet period is active', () => {
+    mock.timers.enable({ apis: ['Date'], now: NOW });
+    const { watcher, detections } = makeWatcher();
+    const w = internals(watcher);
+    w.lastRebuttalSentAt = NOW - QUIET_MS + 1;
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    assert.strictEqual(detections.length, 0);
+    assert.strictEqual(watcher.stats().matchCount, 0);
+    assert.ok(watcher.stats().rebuttalSuppressed > 0, 'suppressed matches are counted up, not down');
+    watcher.stop();
+  });
+
+  it('ends the quiet period exactly 60s after the last rebuttal was sent', () => {
+    mock.timers.enable({ apis: ['Date'], now: NOW });
+    const { watcher, detections } = makeWatcher();
+    const w = internals(watcher);
+    w.lastRebuttalSentAt = NOW - QUIET_MS;
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    assert.strictEqual(detections.length, 1, 'quiet period is over at exactly 60s');
+    assert.strictEqual(watcher.stats().rebuttalSuppressed, 0);
+    watcher.stop();
+  });
+
+  it('retries a failed rebuttal for the same excuse exactly 30s later, not before', () => {
+    // No pluk-send and no tmux: every attempt fails, so the quiet period
+    // never starts and only the per-excuse cooldown governs the retry.
+    const emptyBin = path.join(sandbox, 'empty-bin');
+    fs.mkdirSync(emptyBin, { recursive: true });
+    process.env['PATH'] = emptyBin;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = path.join(sandbox, 'no-such-pluk-send');
+    mock.timers.enable({ apis: ['Date'], now: NOW });
+    const { watcher } = makeWatcher({ rebuttal: 'send' });
+    const w = internals(watcher);
+
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    assert.strictEqual(watcher.stats().rebuttalFailed, 1);
+    assert.strictEqual(watcher.stats().rebuttalSuppressed, 0);
+
+    mock.timers.tick(COOLDOWN_MS - 1);
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    assert.strictEqual(watcher.stats().rebuttalFailed, 1, 'still inside the cooldown');
+    assert.strictEqual(watcher.stats().rebuttalSuppressed, 1);
+
+    mock.timers.tick(1);
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    assert.strictEqual(watcher.stats().rebuttalFailed, 2, 'cooldown is over at exactly 30s');
+    assert.strictEqual(watcher.stats().rebuttalSuppressed, 1);
     watcher.stop();
   });
 });
