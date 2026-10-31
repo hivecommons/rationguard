@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { CATEGORY_LABELS } from './types.js';
 import type { Excuse, ExcuseCategory, MatchResult } from './types.js';
-import { isStopWord } from './checker.js';
+import { isStopWord } from './stopwords.js';
 
 const SIGHTINGS_FILE = 'sightings.json';
 const AUTO_ADD_THRESHOLD = 3;
