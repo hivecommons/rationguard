@@ -37,7 +37,7 @@ jobs:
           - shard: learner
             files: src/learner.ts
           - shard: rest
-            files: src/watcher.ts,src/checker.ts,src/defaults.ts,src/sanitize.ts,src/diagnostics.ts,src/types.ts,src/excuses.ts,src/index.ts
+            files: src/watcher.ts,src/checker.ts,src/defaults.ts,src/sanitize.ts,src/diagnostics.ts,src/types.ts,src/excuses.ts,src/index.ts,src/stopwords.ts
     env:
       INCREMENTAL_FILE: reports/stryker-incremental/${{ matrix.shard }}.json
     steps:
