@@ -66,5 +66,8 @@
   },
   "dependencies": {
     "@hivecommons/pluk": "^0.11.0"
+  },
+  "overrides": {
+    "minimatch": "^11.0.1"
   }
 }
