@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Changed
 
 - Extract flag parsing and the `require*` validators from `cli` into their own `flags` module; no behaviour change.
+- Reunite the `requireWatchPatterns` doc comment that the `flags` extraction split across `cli` and `flags`; comment-only (#436).
 - Move the stop-word list into its own module so `learner` no longer depends on `checker`; no behaviour change.
 
 ### Fixed
