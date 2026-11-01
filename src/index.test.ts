@@ -23,6 +23,18 @@ describe('public API surface (index.js)', () => {
     assert.strictEqual(typeof api.CATEGORY_LABELS, 'object');
   });
 
+  // CATEGORY_LABELS is printed verbatim by `rationguard check` and `list`;
+  // every category must map to its human-readable label, not an empty string.
+  it('CATEGORY_LABELS maps every category to its display label', () => {
+    assert.deepStrictEqual(api.CATEGORY_LABELS, {
+      'false-completion': 'False Completion',
+      'complexity-dodge': 'Complexity Dodge',
+      'deferral': 'Deferral',
+      'lane-confusion': 'Lane Confusion',
+      'partial-credit': 'Partial Credit',
+    });
+  });
+
   it('exports no unexpected names (additions must be deliberate)', () => {
     const expected = [
       'CATEGORY_LABELS',
