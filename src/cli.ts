@@ -477,6 +477,7 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
       }
 
       const sentPatterns = new Set(detection.sentRebuttals ?? []);
+      const failedPatterns = new Set(detection.failedRebuttals ?? []);
 
       for (const match of detection.matches) {
         if (!match.excuse) continue;
@@ -493,6 +494,8 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
             console.log(`  ${ANSI_DIM}→ Detection only (project-local excuse, never auto-sent)${ANSI_RESET}`);
           } else if (match.confidence < REBUTTAL_SEND_CONFIDENCE_THRESHOLD) {
             console.log(`  ${ANSI_DIM}→ Detection only (confidence below ${Math.round(REBUTTAL_SEND_CONFIDENCE_THRESHOLD * 100)}%)${ANSI_RESET}`);
+          } else if (failedPatterns.has(match.excuse.pattern)) {
+            console.log(`  ${ANSI_RED}→ Rebuttal delivery failed (pluk-send and tmux send-keys)${ANSI_RESET}`);
           } else {
             console.log(`  ${ANSI_DIM}→ Rebuttal suppressed (cooldown/dedup)${ANSI_RESET}`);
           }

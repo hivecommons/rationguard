@@ -21,6 +21,7 @@ export interface WatcherDetection {
   matches: MatchResult[];
   timestamp: string;
   sentRebuttals?: string[];
+  failedRebuttals?: string[];
 }
 
 export interface WatcherOptions {
@@ -347,6 +348,7 @@ export class Watcher extends EventEmitter {
       if (this.opts.rebuttal === 'send') {
         const now = Date.now();
         const sent: string[] = [];
+        const failed: string[] = [];
         const sentTexts = new Set<string>();
         for (const match of result.matches) {
           if (!match.excuse) continue;
@@ -383,7 +385,11 @@ export class Watcher extends EventEmitter {
             sentTexts.add(match.excuse.rebuttal);
           } else {
             this.stats_.rebuttalFailed++;
+            failed.push(key);
           }
+        }
+        if (failed.length > 0) {
+          detection.failedRebuttals = failed;
         }
         if (sent.length > 0) {
           this.lastRebuttalSentAt = Date.now();
