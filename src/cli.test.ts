@@ -1666,7 +1666,8 @@ describe('attach (stubbed pluk toolchain)', () => {
     );
 
     assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
-    const out = stripAnsi(res.stdout);
+    // pluk >= 0.11.0 writes attach progress and status lines to stderr.
+    const out = stripAnsi(res.stderr);
     assert.match(out, /Creating tmux session: attach-sess/);
     assert.match(out, /Starting claude: 'claude' '--dangerously-skip-permissions'/);
     assert.match(out, /Attaching pluk pipe-pane: claude/);
@@ -1708,7 +1709,7 @@ describe('attach (stubbed pluk toolchain)', () => {
     );
 
     assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
-    const out = stripAnsi(res.stdout);
+    const out = stripAnsi(res.stderr);
     assert.match(out, /Creating tmux session: attach-defaults/);
     assert.match(out, /Starting claude: 'claude'/);
 
@@ -1720,7 +1721,10 @@ describe('attach (stubbed pluk toolchain)', () => {
     assert.doesNotMatch(log, /--dangerously-skip-permissions/);
     assert.doesNotMatch(log, /--verbose/);
     assert.match(log, /--include-raw/);
-    assert.doesNotMatch(stripAnsi(res.stdout), /\[pluk\]/);
+    // Without --verbose pluk must not emit its [pluk] trace lines on stderr,
+    // even though its ordinary progress lines do land there.
+    assert.match(out, /Starting rationguard watcher in this terminal/);
+    assert.doesNotMatch(out, /\[pluk\]/);
   });
 
   it('forwards --cli, --no-raw and --verbose to pluk and the watcher child', () => {
@@ -1751,7 +1755,7 @@ describe('attach (stubbed pluk toolchain)', () => {
     );
 
     assert.strictEqual(res.status, 0, `stderr: ${res.stderr}`);
-    const out = stripAnsi(res.stdout);
+    const out = stripAnsi(res.stderr);
     assert.match(out, /Starting codex: 'codex'/);
     assert.match(out, /\[pluk\] session=attach-flags cli=codex/);
 
