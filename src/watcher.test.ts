@@ -884,6 +884,16 @@ describe('rebuttal delivery logging without --verbose', () => {
     assert.ok(!logs.some(l => l.includes('rebuttal_delivery')), 'the JSON delivery line is json-format only');
   });
 
+  it('suppresses the fallback notice when quiet is set', () => {
+    const logs = runWithLogs({ quiet: true }, tmuxBinDir);
+    assert.ok(!logs.some(l => l.includes('falling back to tmux send-keys')));
+  });
+
+  it('keeps the fallback notice when both quiet and verbose are set', () => {
+    const logs = runWithLogs({ quiet: true, verbose: true }, tmuxBinDir);
+    assert.strictEqual(logs.filter(l => l.includes('falling back to tmux send-keys')).length, 1);
+  });
+
   it('sanitizes and truncates the pluk-send error in verbose output', () => {
     const failBinDir = path.join(sandbox, 'pluk-fail-bin');
     fs.mkdirSync(failBinDir, { recursive: true });
