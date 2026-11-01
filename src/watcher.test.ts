@@ -875,8 +875,8 @@ describe('rebuttal delivery logging without --verbose', () => {
     return logs;
   }
 
-  it('logs the pluk-send to tmux fallback unconditionally as one line', () => {
-    const logs = runWithLogs({}, tmuxBinDir);
+  it('logs the pluk-send to tmux fallback as one line when quiet is not set', () => {
+    const logs = runWithLogs({ quiet: false }, tmuxBinDir);
     const lines = logs.filter(l => l.includes('falling back to tmux send-keys'));
     assert.strictEqual(lines.length, 1);
     assert.ok(lines[0].includes('pluk-send failed'));
