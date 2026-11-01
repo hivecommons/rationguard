@@ -95,7 +95,7 @@ describe('help', () => {
     assert.strictEqual(out.match(/--run-dir=/g)?.length, 3);
   });
 
-  it('--cli help line lists all bundled pluk patterns', () => {
+  it('--cli help line lists all bundled pluk patterns', async () => {
     const { listAvailableCLIs, bundledPatternsDir } = await import('@hivecommons/pluk');
     const availableCLIs = listAvailableCLIs(bundledPatternsDir());
     const out = stripAnsi(run(['help']).stdout);
