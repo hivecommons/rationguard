@@ -10,6 +10,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- Honour `WatcherOptions.quiet` for the watcher's "falling back to tmux send-keys" stderr notice; `verbose` still wins when both are set (#432).
 - Strip 8-bit terminal control strings and CSI sequences without swallowing text after 8-bit ST (#418).
 
 - `stripTerminalEscapes` now removes ECMA-35 nF ESC sequences with intermediate bytes (ESC # 8, ESC % G, ESC SP F); previously only the ESC byte was removed and the payload leaked into the output (#416)

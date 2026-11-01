@@ -875,13 +875,23 @@ describe('rebuttal delivery logging without --verbose', () => {
     return logs;
   }
 
-  it('logs the pluk-send to tmux fallback unconditionally as one line', () => {
-    const logs = runWithLogs({}, tmuxBinDir);
+  it('logs the pluk-send to tmux fallback as one line when quiet is not set', () => {
+    const logs = runWithLogs({ quiet: false }, tmuxBinDir);
     const lines = logs.filter(l => l.includes('falling back to tmux send-keys'));
     assert.strictEqual(lines.length, 1);
     assert.ok(lines[0].includes('pluk-send failed'));
     assert.ok(!logs.some(l => l.includes('trying pluk-send')), 'details stay verbose-only');
     assert.ok(!logs.some(l => l.includes('rebuttal_delivery')), 'the JSON delivery line is json-format only');
+  });
+
+  it('suppresses the fallback notice when quiet is set', () => {
+    const logs = runWithLogs({ quiet: true }, tmuxBinDir);
+    assert.ok(!logs.some(l => l.includes('falling back to tmux send-keys')));
+  });
+
+  it('keeps the fallback notice when both quiet and verbose are set', () => {
+    const logs = runWithLogs({ quiet: true, verbose: true }, tmuxBinDir);
+    assert.strictEqual(logs.filter(l => l.includes('falling back to tmux send-keys')).length, 1);
   });
 
   it('sanitizes and truncates the pluk-send error in verbose output', () => {
