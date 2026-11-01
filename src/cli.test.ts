@@ -1396,6 +1396,57 @@ describe('watch (live subscribe)', () => {
     assert.match(out, /Stopped watching\./);
   });
 
+  it('reports a failed rebuttal delivery in the send-mode footer instead of "suppressed"', async () => {
+    const session = 'watch-send-failed';
+    const { runDir, logFile } = makeRunDir('watch-send-failed-run-dir', session, []);
+
+    // An empty PATH and a nonexistent pluk-send make both delivery paths
+    // (pluk-send and the tmux send-keys fallback) fail.
+    const emptyBin = path.join(sandbox, 'watch-send-failed-bin');
+    fs.mkdirSync(emptyBin, { recursive: true });
+
+    const dir = path.join(homeDir, '.rationguard');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'custom-excuses.json'),
+      JSON.stringify([
+        { pattern: 'zorble watch failed', rebuttal: 'failed watch rebuttal', category: 'deferral', keywords: ['zorble watch failed'] },
+      ]) + '\n',
+    );
+
+    const h = spawnWatch(
+      [session, `--run-dir=${runDir}`, '--rebuttal=send'],
+      { PATH: emptyBin, RATIONGUARD_PLUK_SEND_BIN: path.join(sandbox, 'no-such-pluk-send') },
+    );
+
+    const lines = jsonlLines([
+      plukEvent(session, 'raw_output', { line: 'zorble watch failed' }),
+      plukEvent(session, 'state_change', { from: 'working', to: 'idle' }),
+    ]);
+    for (let i = 0; i < 40 && !h.stdout().includes('Rebuttal:'); i++) {
+      fs.appendFileSync(logFile, lines);
+      await sleep(250);
+    }
+
+    h.child.kill('SIGINT');
+    const code = await waitForExit(h.child);
+    assert.strictEqual(code, 0);
+
+    const out = stripAnsi(h.stdout());
+    assert.match(out, /Deferral — "zorble watch failed"/);
+    assert.match(out, /Rebuttal: failed watch rebuttal/);
+    assert.doesNotMatch(out, /→ Sent rebuttal to/);
+    assert.match(out, /Stopped watching\./);
+
+    // The harness may re-append the excuse before the watcher is killed, and
+    // that second detection is legitimately cooldown-suppressed. Only the
+    // first detection's footer reflects the failed delivery.
+    const footers = out.split('\n').filter(l => l.trimStart().startsWith('→ '));
+    assert.ok(footers.length >= 1, `no send-status footer in: ${out}`);
+    assert.match(footers[0], /→ Rebuttal delivery failed \(pluk-send and tmux send-keys\)/);
+    assert.doesNotMatch(footers[0], /Rebuttal suppressed \(cooldown\/dedup\)/);
+  });
+
   it('names the project-local and low-confidence skip reasons in send-mode footers', async () => {
     const session = 'watch-send-reasons';
     const { runDir, logFile } = makeRunDir('watch-send-reasons-run-dir', session, []);
