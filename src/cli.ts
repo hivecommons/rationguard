@@ -315,7 +315,6 @@ function warnSubscribeIgnoredFlags(flags: Record<string, string>): void {
   }
 }
 
-// Only --mode=watch hands --cli/--patterns-dir to pluk, which would otherwise
 function shellQuote(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }

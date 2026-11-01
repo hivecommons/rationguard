@@ -101,6 +101,7 @@ export function requireOneOf(flag: string, raw: string | undefined, valid: strin
   process.exit(1);
 }
 
+// Only --mode=watch hands --cli/--patterns-dir to pluk, which would otherwise
 // run silently with an all-null pattern set (unknown --cli) or fall back to the
 // bundled patterns (missing --patterns-dir).
 export function requireWatchPatterns(cli: string, patternsDir: string | undefined): void {
