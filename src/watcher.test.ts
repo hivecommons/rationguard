@@ -406,6 +406,7 @@ describe('rebuttal sending', () => {
     assert.strictEqual(detections.length, 1);
     assert.ok(detections[0].sentRebuttals);
     assert.ok(detections[0].sentRebuttals.includes('no work found'));
+    assert.strictEqual(detections[0].failedRebuttals, undefined);
 
     const args = fs.readFileSync(argsFile, 'utf-8').split('\n');
     assert.strictEqual(args[0], '--session=test-session');
@@ -1126,6 +1127,23 @@ describe('flush gating and rebuttal timing boundaries', () => {
     assert.strictEqual(watcher.stats().rebuttalFailed, 2, 'cooldown is over at exactly 30s');
     assert.strictEqual(watcher.stats().rebuttalSuppressed, 1);
     watcher.stop();
+  });
+
+  it('records a failed delivery on detection.failedRebuttals, not sentRebuttals', () => {
+    const emptyBin = path.join(sandbox, 'empty-bin');
+    fs.mkdirSync(emptyBin, { recursive: true });
+    process.env['PATH'] = emptyBin;
+    process.env['RATIONGUARD_PLUK_SEND_BIN'] = path.join(sandbox, 'no-such-pluk-send');
+    const { watcher, detections } = makeWatcher({ rebuttal: 'send' });
+    const w = internals(watcher);
+
+    w.handleEvent(rawOutput('test-session', 'no work found'));
+    w.handleEvent(stateChange('test-session', 'working', 'idle'));
+    watcher.stop();
+
+    assert.strictEqual(detections.length, 1);
+    assert.deepStrictEqual(detections[0].failedRebuttals, ['no work found']);
+    assert.strictEqual(detections[0].sentRebuttals, undefined);
   });
 });
 
