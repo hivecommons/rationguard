@@ -53,6 +53,8 @@ body:
         - gemini
         - goose
         - codex
+        - aider
+        - omp
         - custom `--command`
         - not applicable
     validations:
