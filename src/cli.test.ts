@@ -2038,10 +2038,11 @@ describe('check --fail-on-match', () => {
   it('keeps KNOWN_FLAGS in sync with HELP and the flags read in cli.ts', (t) => {
     const src = fs.readFileSync(path.resolve(path.dirname(CLI), '..', 'src', 'cli.ts'), 'utf-8');
     if (sourceIsInstrumented(src)) return t.skip(SKIP_UNDER_MUTATION);
+    const flagsSrc = fs.readFileSync(path.resolve(path.dirname(CLI), '..', 'src', 'flags.ts'), 'utf-8');
     const known = new Set(
-      [...(src.match(/const KNOWN_FLAGS = new Set\(\[([^\]]*)\]/)?.[1] ?? '').matchAll(/'([^']+)'/g)].map((m) => m[1]),
+      [...(flagsSrc.match(/const KNOWN_FLAGS = new Set\(\[([^\]]*)\]/)?.[1] ?? '').matchAll(/'([^']+)'/g)].map((m) => m[1]),
     );
-    assert.ok(known.size > 0, 'KNOWN_FLAGS not found in src/cli.ts');
+    assert.ok(known.size > 0, 'KNOWN_FLAGS not found in src/flags.ts');
     const helpText = src.match(/const HELP = `([\s\S]*?)\n`;/)?.[1] ?? '';
     const documented = [...helpText.matchAll(/(?<![\w-])--([a-z][a-z0-9-]*)/g)].map((m) => m[1]);
     assert.ok(documented.length > 0, 'HELP not found in src/cli.ts');
