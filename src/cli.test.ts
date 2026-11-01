@@ -95,6 +95,19 @@ describe('help', () => {
     assert.strictEqual(out.match(/--run-dir=/g)?.length, 3);
   });
 
+  it('--cli help line lists all bundled pluk patterns', async () => {
+    const { listAvailableCLIs, bundledPatternsDir } = await import('@hivecommons/pluk');
+    const availableCLIs = listAvailableCLIs(bundledPatternsDir());
+    const out = stripAnsi(run(['help']).stdout);
+    // Both attach and watch document --cli; pin each line so neither drifts alone.
+    const cliHelpLines = [...out.matchAll(/CLI type \(([^)]+)\)/g)];
+    assert.strictEqual(cliHelpLines.length, 2, 'expected --cli help lines for attach and watch');
+    for (const line of cliHelpLines) {
+      const documentedCLIs = new Set(line[1].split(', '));
+      assert.deepStrictEqual(documentedCLIs, new Set(availableCLIs), `help lists ${[...documentedCLIs].join(', ')} but pluk patterns exist for ${availableCLIs.join(', ')}`);
+    }
+  });
+
   // #216 fixed attach --cli-args/--run-dir being parsed but never documented.
   // Derive both sets mechanically so the next flag added to one side without
   // the other fails here instead of shipping silently.

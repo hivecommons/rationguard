@@ -13,6 +13,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `--help` now lists every CLI the bundled pluk ships patterns for (`aider`, `omp` were missing) (#441).
 - `watch --rebuttal=send` now reports a failed delivery as "Rebuttal delivery failed (pluk-send and tmux send-keys)" instead of "Rebuttal suppressed (cooldown/dedup)"; adds optional `WatcherDetection.failedRebuttals` (#439).
 - Honour `WatcherOptions.quiet` for the watcher's "falling back to tmux send-keys" stderr notice; `verbose` still wins when both are set (#432).
 - Strip 8-bit terminal control strings and CSI sequences without swallowing text after 8-bit ST (#418).
