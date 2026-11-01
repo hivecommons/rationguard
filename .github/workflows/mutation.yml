@@ -33,7 +33,7 @@ jobs:
       matrix:
         include:
           - shard: cli
-            files: src/cli.ts
+            files: src/cli.ts,src/flags.ts
           - shard: learner
             files: src/learner.ts
           - shard: rest
