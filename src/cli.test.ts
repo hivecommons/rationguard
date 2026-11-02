@@ -1143,6 +1143,7 @@ describe('watch (live subscribe)', () => {
     const parsed = JSON.parse(jsonLine) as { session: string; matches: Array<{ pattern: string; rebuttal: string }> };
     assert.strictEqual(parsed.session, session);
     assert.ok(parsed.matches.some(m => m.pattern === 'no work found'));
+    for (const m of parsed.matches) assert.ok(!('delivery' in m), 'delivery must be absent without --rebuttal=send');
 
     h.child.kill('SIGINT');
     const code = await waitForExit(h.child);
@@ -1458,6 +1459,64 @@ describe('watch (live subscribe)', () => {
     assert.ok(footers.length >= 1, `no send-status footer in: ${out}`);
     assert.match(footers[0], /→ Rebuttal delivery failed \(pluk-send and tmux send-keys\)/);
     assert.doesNotMatch(footers[0], /Rebuttal suppressed \(cooldown\/dedup\)/);
+  });
+
+  it('reports rebuttal delivery per match in --json send mode', async () => {
+    for (const ok of [true, false]) {
+      const session = ok ? 'watch-json-sent' : 'watch-json-failed';
+      const { runDir, logFile } = makeRunDir(`${session}-run-dir`, session, []);
+      const binDir = path.join(sandbox, `${session}-bin`);
+      fs.mkdirSync(binDir, { recursive: true });
+      const sendBin = path.join(binDir, 'pluk-send');
+      if (ok) {
+        fs.writeFileSync(sendBin, '#!/bin/sh\nexit 0\n');
+        fs.chmodSync(sendBin, 0o755);
+      }
+
+      const pattern = ok ? 'zorble json sent' : 'zorble json failed';
+      const dir = path.join(homeDir, '.rationguard');
+      fs.mkdirSync(dir, { recursive: true });
+      fs.writeFileSync(
+        path.join(dir, 'custom-excuses.json'),
+        JSON.stringify([
+          { pattern, rebuttal: 'json delivery rebuttal', category: 'deferral', keywords: [pattern] },
+        ]) + '\n',
+      );
+
+      const h = spawnWatch(
+        [session, `--run-dir=${runDir}`, '--rebuttal=send', '--json'],
+        { PATH: ok ? `${binDir}:${process.env['PATH'] ?? ''}` : binDir, RATIONGUARD_PLUK_SEND_BIN: sendBin },
+      );
+
+      const lines = jsonlLines([
+        plukEvent(session, 'raw_output', { line: pattern }),
+        plukEvent(session, 'state_change', { from: 'working', to: 'idle' }),
+      ]);
+      for (let i = 0; i < 40 && !h.stdout().includes('"matches"'); i++) {
+        fs.appendFileSync(logFile, lines);
+        await sleep(250);
+      }
+
+      h.child.kill('SIGINT');
+      assert.strictEqual(await waitForExit(h.child), 0);
+
+      const jsonLine = h.stdout().split('\n').find(l => l.startsWith('{'));
+      assert.ok(jsonLine, `no JSON detection in: ${h.stdout()} ${h.stderr()}`);
+      const parsed = JSON.parse(jsonLine) as {
+        matches: Array<{ pattern: string; delivery?: string }>;
+        sentRebuttals?: string[];
+        failedRebuttals?: string[];
+      };
+      const match = parsed.matches.find(m => m.pattern === pattern);
+      assert.ok(match, `pattern missing in: ${jsonLine}`);
+      if (ok) {
+        assert.strictEqual(match.delivery, 'sent');
+        assert.ok(parsed.sentRebuttals?.includes(pattern));
+      } else {
+        assert.strictEqual(match.delivery, 'failed');
+        assert.ok(parsed.failedRebuttals?.includes(pattern));
+      }
+    }
   });
 
   it('names the project-local and low-confidence skip reasons in send-mode footers', async () => {
