@@ -16,6 +16,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `watch --json --rebuttal=send` now reports the rebuttal delivery outcome: each match carries `delivery` (`sent`, `failed`, `suppressed`, `project-local`, `low-confidence`) and the line carries `sentRebuttals` / `failedRebuttals` when present (#452).
 - `watch` now runs its shutdown sequence when the watcher reports an error, so `--diagnostics` emits its `final: true` summary and the `Stopped watching.` footer is printed (#448).
 - `--help` now lists every CLI the bundled pluk ships patterns for (`aider`, `omp` were missing) (#441).
 - `watch --rebuttal=send` now reports a failed delivery as "Rebuttal delivery failed (pluk-send and tmux send-keys)" instead of "Rebuttal suppressed (cooldown/dedup)"; adds optional `WatcherDetection.failedRebuttals` (#439).

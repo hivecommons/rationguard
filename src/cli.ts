@@ -461,7 +461,19 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
     verbose,
     logFormat,
     onDetection(detection: WatcherDetection) {
+      const sentPatterns = new Set(detection.sentRebuttals ?? []);
+      const failedPatterns = new Set(detection.failedRebuttals ?? []);
+
       if (jsonOutput) {
+        // Same decision order as the text footer below.
+        const deliveryOf = (m: WatcherDetection['matches'][number]): string => {
+          const pattern = m.excuse?.pattern ?? '';
+          if (sentPatterns.has(pattern)) return 'sent';
+          if (m.excuse?.source === 'project') return 'project-local';
+          if (m.confidence < REBUTTAL_SEND_CONFIDENCE_THRESHOLD) return 'low-confidence';
+          if (failedPatterns.has(pattern)) return 'failed';
+          return 'suppressed';
+        };
         console.log(stringifyForTerminal({
           timestamp: detection.timestamp,
           session,
@@ -471,13 +483,13 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
             confidence: m.confidence,
             matchedText: m.matchedText,
             rebuttal: m.excuse?.rebuttal,
+            ...(rebuttalMode === 'send' ? { delivery: deliveryOf(m) } : {}),
           })),
+          ...(detection.sentRebuttals ? { sentRebuttals: detection.sentRebuttals } : {}),
+          ...(detection.failedRebuttals ? { failedRebuttals: detection.failedRebuttals } : {}),
         }));
         return;
       }
-
-      const sentPatterns = new Set(detection.sentRebuttals ?? []);
-      const failedPatterns = new Set(detection.failedRebuttals ?? []);
 
       for (const match of detection.matches) {
         if (!match.excuse) continue;

@@ -204,7 +204,9 @@ rationguard watch my-agent
 # Auto-rebut: send rebuttals back to the agent
 rationguard watch my-agent --rebuttal=send
 
-# JSON output for dashboards
+# JSON output for dashboards (with --rebuttal=send each match carries `delivery`:
+# sent | failed | suppressed | project-local | low-confidence, and the line carries
+# `sentRebuttals` / `failedRebuttals` when present)
 rationguard watch my-agent --json
 
 # Classify stdin through pluk's pattern matcher instead of tailing the JSONL log
