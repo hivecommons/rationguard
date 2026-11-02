@@ -11,6 +11,7 @@ All notable changes to this project are documented in this file.
 - Reunite the `requireWatchPatterns` doc comment that the `flags` extraction split across `cli` and `flags`; comment-only (#436).
 - Move the stop-word list into its own module so `learner` no longer depends on `checker`; no behaviour change.
 - Move the inter-process store lock out of `learner` into its own `storelock` module (re-exported from `learner`); no behaviour change.
+- Document `.sightings.lock` behaviour and leftover lock files in the learned-excuses-store runbook.
 
 ### Fixed
 

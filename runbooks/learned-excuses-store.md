@@ -82,6 +82,25 @@ empty state, which makes the loss permanent unless a copy was kept.
    and restart the watchers. Sightings skipped in the meantime are not
    recoverable.
 
+## Store lock residue
+
+Writers serialize through `~/.rationguard/.sightings.lock` (created
+exclusively, one lock for both store files). It is best-effort: a lock still
+held after about 2 seconds, or one that cannot be created (read-only or
+unwritable directory), is skipped and the write runs unlocked, so concurrent
+writers can then drop each other's update without any message. A lock older
+than 10 seconds is treated as abandoned by a crashed holder and reclaimed
+automatically by the next writer.
+
+- A `.sightings.lock` that persists while no rationguard process runs is
+  harmless: the next writer reclaims it after 10 seconds. Delete it by hand
+  only after stopping every watcher.
+- Leftover `.sightings.lock.reclaim.<pid>` or `.sightings.lock.release.<pid>`
+  files mean a process died mid-reclaim or mid-release; they are safe to
+  remove once no watcher is running.
+- If sighting counts are consistently lower than expected under many
+  parallel `check` hooks, suspect lock contention and stagger the hooks.
+
 ## Clean up residue from the empty-key merge bug
 
 Before #327 (commit `ecb2016`, 2026-10-22) the dedup key stripped every
