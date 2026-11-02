@@ -8,7 +8,7 @@ import type { ExcuseCategory, Excuse } from './types.js';
 import { Watcher, isValidSessionName } from './watcher.js';
 import type { WatcherDetection } from './watcher.js';
 import { discoverSessions, attach, type SessionInfo } from '@hivecommons/pluk';
-import { sanitizeForTerminal, stringifyForTerminal, stripTerminalEscapes } from './sanitize.js';
+import { displayWidth, padEndDisplay, sanitizeForTerminal, stringifyForTerminal, stripTerminalEscapes } from './sanitize.js';
 import { startDiagnostics } from './diagnostics.js';
 import fs from 'node:fs';
 import { parseFlags, requirePathFlag, requireBooleanFlag, requireValueFlag, requireDiagnosticsSeconds, requireOneOf, requireWatchPatterns } from './flags.js';
@@ -403,8 +403,8 @@ function cmdSessions(flags: Record<string, string>): void {
   const COL_STATE = 10;
   const COL_TMUX = 6;
   const COL_AGO = 14;
-  const colSession = Math.max(COL_SESSION, ...sessions.map((s) => sanitizeForTerminal(s.session).length + 1));
-  const colCli = Math.max(COL_CLI, ...sessions.map((s) => sanitizeForTerminal(s.cli).length + 1));
+  const colSession = Math.max(COL_SESSION, ...sessions.map((s) => displayWidth(sanitizeForTerminal(s.session)) + 1));
+  const colCli = Math.max(COL_CLI, ...sessions.map((s) => displayWidth(sanitizeForTerminal(s.cli)) + 1));
 
   console.log(
     `\n${ANSI_BOLD}${'SESSION'.padEnd(colSession)}${'CLI'.padEnd(colCli)}${'STATE'.padEnd(COL_STATE)}${'TMUX'.padEnd(COL_TMUX)}${'LAST ACTIVITY'.padEnd(COL_AGO)}EVENTS${ANSI_RESET}`,
@@ -414,7 +414,7 @@ function cmdSessions(flags: Record<string, string>): void {
     const tmuxIcon = s.tmuxAlive ? `${ANSI_GREEN}●${ANSI_RESET}` : `${ANSI_DIM}○${ANSI_RESET}`;
     const stateColor = s.state === 'working' ? ANSI_GREEN : s.state === 'idle' ? ANSI_CYAN : ANSI_DIM;
     console.log(
-      `${sanitizeForTerminal(s.session).padEnd(colSession)}${sanitizeForTerminal(s.cli).padEnd(colCli)}${stateColor}${sanitizeForTerminal(s.state).padEnd(COL_STATE)}${ANSI_RESET}${tmuxIcon}${''.padEnd(COL_TMUX - 1)}${sanitizeForTerminal(s.lastActivityAgo).padEnd(COL_AGO)}${s.eventCount}`,
+      `${padEndDisplay(sanitizeForTerminal(s.session), colSession)}${padEndDisplay(sanitizeForTerminal(s.cli), colCli)}${stateColor}${padEndDisplay(sanitizeForTerminal(s.state), COL_STATE)}${ANSI_RESET}${tmuxIcon}${''.padEnd(COL_TMUX - 1)}${padEndDisplay(sanitizeForTerminal(s.lastActivityAgo), COL_AGO)}${s.eventCount}`,
     );
   }
 

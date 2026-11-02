@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { sanitizeForTerminal, stringifyForTerminal, stripTerminalEscapes } from './sanitize.js';
+import { displayWidth, padEndDisplay, sanitizeForTerminal, stringifyForTerminal, stripTerminalEscapes } from './sanitize.js';
 
 describe('sanitizeForTerminal', () => {
   it('strips ESC-based ANSI/CSI sequences', () => {
@@ -172,5 +172,52 @@ describe('ECMA-48 conformance corpus', () => {
   it('does not swallow text between different terminators', () => {
     const input = '\x1b]0;title\x9c I cannot run the tests \x1b]2;x\x07 tail';
     assert.strictEqual(stripTerminalEscapes(input, ''), ' I cannot run the tests  tail');
+  });
+});
+
+describe('displayWidth', () => {
+  it('counts one cell per ASCII character', () => {
+    assert.strictEqual(displayWidth(''), 0);
+    assert.strictEqual(displayWidth('my-agent'), 8);
+  });
+
+  it('counts two cells for CJK, Hangul, kana and fullwidth characters', () => {
+    assert.strictEqual(displayWidth('会话'), 4);
+    assert.strictEqual(displayWidth('한국'), 4);
+    assert.strictEqual(displayWidth('クロード'), 8);
+    assert.strictEqual(displayWidth('ＡＢ'), 4);
+    assert.strictEqual(displayWidth('\u{20000}'), 2, 'astral CJK extension B is one wide cluster, not two code units');
+  });
+
+  it('counts two cells per emoji cluster, including ZWJ sequences, flags and VS16', () => {
+    assert.strictEqual(displayWidth('🚀'), 2);
+    assert.strictEqual(displayWidth('👩‍💻'), 2);
+    assert.strictEqual(displayWidth('🇯🇵'), 2);
+    assert.strictEqual(displayWidth('❤️'), 2);
+    assert.strictEqual(displayWidth('1️⃣'), 2);
+  });
+
+  it('keeps text-presentation symbols at one cell', () => {
+    assert.strictEqual(displayWidth('❤'), 1);
+    assert.strictEqual(displayWidth('●○'), 2);
+  });
+
+  it('adds no width for combining marks or format characters', () => {
+    assert.strictEqual(displayWidth('e\u0301'), 1);
+    assert.strictEqual(displayWidth('a\u200Bb'), 2);
+    assert.strictEqual(displayWidth('\u0301'), 0);
+  });
+});
+
+describe('padEndDisplay', () => {
+  it('pads to the requested number of terminal cells', () => {
+    assert.strictEqual(padEndDisplay('ab', 5), 'ab   ');
+    assert.strictEqual(padEndDisplay('会话', 6), '会话  ');
+    assert.strictEqual(padEndDisplay('🚀', 3), '🚀 ');
+  });
+
+  it('leaves text at or beyond the width unchanged', () => {
+    assert.strictEqual(padEndDisplay('会话', 4), '会话');
+    assert.strictEqual(padEndDisplay('会话会话', 3), '会话会话');
   });
 });
