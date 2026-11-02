@@ -35,7 +35,7 @@ jobs:
           - shard: cli
             files: src/cli.ts,src/flags.ts
           - shard: learner
-            files: src/learner.ts
+            files: src/learner.ts,src/storelock.ts
           - shard: rest
             files: src/watcher.ts,src/checker.ts,src/defaults.ts,src/sanitize.ts,src/diagnostics.ts,src/types.ts,src/excuses.ts,src/index.ts,src/stopwords.ts
     env:
