@@ -417,6 +417,27 @@ describe('check', () => {
     assert.strictEqual(m.excuse.source, 'project');
   });
 
+  it('tags project-local excuses in check/list text output but not user excuses (#456)', () => {
+    const entry = (pattern: string) => JSON.stringify([
+      { pattern, rebuttal: 'r', category: 'deferral', keywords: [pattern] },
+    ]) + '\n';
+    fs.mkdirSync(path.join(projectDir, '.rationguard'), { recursive: true });
+    fs.writeFileSync(path.join(projectDir, '.rationguard', 'custom-excuses.json'), entry('zorble projtag'));
+    fs.mkdirSync(path.join(homeDir, '.rationguard'), { recursive: true });
+    fs.writeFileSync(path.join(homeDir, '.rationguard', 'custom-excuses.json'), entry('zorble usertag'));
+
+    const proj = stripAnsi(run(['check', 'zorble projtag']).stdout);
+    assert.match(proj, /Pattern:  "zorble projtag" \[project-local — untrusted\]/);
+    const user = stripAnsi(run(['check', 'zorble usertag']).stdout);
+    assert.match(user, /Pattern:  "zorble usertag"/);
+    assert.ok(!user.includes('[project-local'));
+
+    const list = stripAnsi(run(['list']).stdout).split('\n');
+    assert.ok(list.some(l => l.includes('zorble projtag') && l.endsWith('[project-local]')));
+    const userLine = list.find(l => l.includes('zorble usertag'));
+    assert.ok(userLine && !userLine.includes('[project-local'));
+  });
+
   it('strips terminal escape sequences from project-local excuse text before printing', () => {
     const dir = path.join(projectDir, '.rationguard');
     fs.mkdirSync(dir, { recursive: true });

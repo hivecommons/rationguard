@@ -31,6 +31,12 @@ function colorConfidence(confidence: number): string {
   return `${ANSI_DIM}${(confidence * 100).toFixed(0)}%${ANSI_RESET}`;
 }
 
+// Project-local excuses come from the working directory (untrusted); surface
+// that provenance wherever an excuse is rendered as text.
+function provenanceTag(excuse: Excuse, label = 'project-local — untrusted'): string {
+  return excuse.source === 'project' ? ` ${ANSI_DIM}[${label}]${ANSI_RESET}` : '';
+}
+
 const HELP = `${ANSI_BOLD}rationguard${ANSI_RESET} — Detect and rebut rationalization patterns in AI agent output
 
 ${ANSI_BOLD}QUICK START${ANSI_RESET}
@@ -197,7 +203,7 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
     if (!match.excuse) continue;
     const category = CATEGORY_LABELS[match.excuse.category];
     console.log(`  ${colorConfidence(match.confidence)} ${ANSI_BOLD}${category}${ANSI_RESET}`);
-    console.log(`     Pattern:  "${sanitizeForTerminal(match.excuse.pattern)}"`);
+    console.log(`     Pattern:  "${sanitizeForTerminal(match.excuse.pattern)}"${provenanceTag(match.excuse)}`);
     console.log(`     Matched:  "${sanitizeForTerminal(match.matchedText)}"`);
     console.log(`     Rebuttal: ${sanitizeForTerminal(match.excuse.rebuttal)}`);
     console.log();
@@ -297,7 +303,7 @@ function cmdList(flags: Record<string, string>): void {
   for (const [category, excuses] of grouped) {
     console.log(`\n${ANSI_BOLD}${category}${ANSI_RESET}`);
     for (const excuse of excuses) {
-      console.log(`  ${ANSI_CYAN}•${ANSI_RESET} ${sanitizeForTerminal(excuse.pattern)}`);
+      console.log(`  ${ANSI_CYAN}•${ANSI_RESET} ${sanitizeForTerminal(excuse.pattern)}${provenanceTag(excuse, 'project-local')}`);
       console.log(`    ${ANSI_DIM}→ ${sanitizeForTerminal(excuse.rebuttal)}${ANSI_RESET}`);
     }
   }
@@ -494,7 +500,7 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
       for (const match of detection.matches) {
         if (!match.excuse) continue;
         const category = CATEGORY_LABELS[match.excuse.category];
-        console.log(`${ANSI_RED}⚠${ANSI_RESET} ${colorConfidence(match.confidence)} ${ANSI_BOLD}${category}${ANSI_RESET} — "${sanitizeForTerminal(match.matchedText)}"`);
+        console.log(`${ANSI_RED}⚠${ANSI_RESET} ${colorConfidence(match.confidence)} ${ANSI_BOLD}${category}${ANSI_RESET} — "${sanitizeForTerminal(match.matchedText)}"${provenanceTag(match.excuse)}`);
         console.log(`  ${ANSI_DIM}Rebuttal:${ANSI_RESET} ${sanitizeForTerminal(match.excuse.rebuttal)}`);
 
         if (rebuttalMode === 'send') {
