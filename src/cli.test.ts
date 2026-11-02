@@ -1519,6 +1519,107 @@ describe('watch (live subscribe)', () => {
     }
   });
 
+  it('reports project-local and low-confidence delivery in --json send mode', async () => {
+    const session = 'watch-json-skips';
+    const { runDir, logFile } = makeRunDir('watch-json-skips-run-dir', session, []);
+    const binDir = path.join(sandbox, 'watch-json-skips-bin');
+    fs.mkdirSync(binDir, { recursive: true });
+    const fakePlukSend = path.join(binDir, 'pluk-send');
+    const argsFile = path.join(sandbox, 'watch-json-skips-args');
+    fs.writeFileSync(fakePlukSend, `#!/bin/sh\necho "$@" >> '${argsFile}'\nexit 0\n`);
+    fs.chmodSync(fakePlukSend, 0o755);
+
+    const projectStore = path.join(projectDir, '.rationguard');
+    fs.mkdirSync(projectStore, { recursive: true });
+    fs.writeFileSync(
+      path.join(projectStore, 'custom-excuses.json'),
+      JSON.stringify([
+        { pattern: 'quux json project excuse', rebuttal: 'project rebuttal', category: 'deferral', keywords: ['quux json project'] },
+      ]) + '\n',
+    );
+    const userStore = path.join(homeDir, '.rationguard');
+    fs.mkdirSync(userStore, { recursive: true });
+    fs.writeFileSync(
+      path.join(userStore, 'custom-excuses.json'),
+      JSON.stringify([
+        { pattern: 'zorble json exact phrase', rebuttal: 'low confidence rebuttal', category: 'deferral', keywords: ['zorble', 'frobnitz'] },
+      ]) + '\n',
+    );
+
+    const h = spawnWatch(
+      [session, `--run-dir=${runDir}`, '--rebuttal=send', '--json'],
+      { PATH: `${binDir}:${process.env['PATH'] ?? ''}`, RATIONGUARD_PLUK_SEND_BIN: fakePlukSend },
+    );
+
+    const lines = jsonlLines([
+      plukEvent(session, 'raw_output', { line: 'quux json project excuse, then the zorble sat there' }),
+      plukEvent(session, 'state_change', { from: 'working', to: 'idle' }),
+    ]);
+    for (let i = 0; i < 40 && !h.stdout().includes('"matches"'); i++) {
+      fs.appendFileSync(logFile, lines);
+      await sleep(250);
+    }
+
+    h.child.kill('SIGINT');
+    assert.strictEqual(await waitForExit(h.child), 0);
+
+    const jsonLine = h.stdout().split('\n').find(l => l.startsWith('{'));
+    assert.ok(jsonLine, `no JSON detection in: ${h.stdout()} ${h.stderr()}`);
+    const parsed = JSON.parse(jsonLine) as {
+      matches: Array<{ pattern: string; delivery?: string }>;
+    };
+    const deliveryOf = (pattern: string) => parsed.matches.find(m => m.pattern === pattern)?.delivery;
+    assert.strictEqual(deliveryOf('quux json project excuse'), 'project-local');
+    assert.strictEqual(deliveryOf('zorble json exact phrase'), 'low-confidence');
+    assert.strictEqual(fs.existsSync(argsFile), false, 'neither rebuttal may be sent');
+  });
+
+  it('reports cooldown-suppressed delivery in --json send mode', async () => {
+    const session = 'watch-json-suppressed';
+    const { runDir, logFile } = makeRunDir('watch-json-suppressed-run-dir', session, []);
+    const binDir = path.join(sandbox, 'watch-json-suppressed-bin');
+    fs.mkdirSync(binDir, { recursive: true });
+    const sendBin = path.join(binDir, 'pluk-send');
+    fs.writeFileSync(sendBin, '#!/bin/sh\nexit 0\n');
+    fs.chmodSync(sendBin, 0o755);
+
+    const pattern = 'zorble json suppressed';
+    const dir = path.join(homeDir, '.rationguard');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'custom-excuses.json'),
+      JSON.stringify([
+        { pattern, rebuttal: 'json suppressed rebuttal', category: 'deferral', keywords: [pattern] },
+      ]) + '\n',
+    );
+
+    const h = spawnWatch(
+      [session, `--run-dir=${runDir}`, '--rebuttal=send', '--json'],
+      { PATH: `${binDir}:${process.env['PATH'] ?? ''}`, RATIONGUARD_PLUK_SEND_BIN: sendBin },
+    );
+
+    const lines = jsonlLines([
+      plukEvent(session, 'raw_output', { line: pattern }),
+      plukEvent(session, 'state_change', { from: 'working', to: 'idle' }),
+    ]);
+    // The first detection is sent; re-appending the excuse yields a
+    // cooldown-suppressed second detection.
+    for (let i = 0; i < 40 && !h.stdout().includes('"delivery":"suppressed"'); i++) {
+      fs.appendFileSync(logFile, lines);
+      await sleep(250);
+    }
+
+    h.child.kill('SIGINT');
+    assert.strictEqual(await waitForExit(h.child), 0);
+
+    const deliveries = h.stdout().split('\n').filter(l => l.startsWith('{')).map(l => {
+      const parsed = JSON.parse(l) as { matches: Array<{ pattern: string; delivery?: string }> };
+      return parsed.matches.find(x => x.pattern === pattern)?.delivery;
+    });
+    assert.strictEqual(deliveries[0], 'sent');
+    assert.ok(deliveries.includes('suppressed'), `no suppressed delivery in: ${h.stdout()} ${h.stderr()}`);
+  });
+
   it('names the project-local and low-confidence skip reasons in send-mode footers', async () => {
     const session = 'watch-send-reasons';
     const { runDir, logFile } = makeRunDir('watch-send-reasons-run-dir', session, []);
