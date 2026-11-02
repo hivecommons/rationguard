@@ -1980,6 +1980,27 @@ describe('watch runtime error forwarding', () => {
     assert.ok(!res.stderr.includes('bad \x1b[31m'));
   });
 
+  it('runs the shutdown sequence (final diagnostics, footer) when the watcher errors', () => {
+    const cliUrl = new URL('./cli.js', import.meta.url).href;
+    const watcherUrl = new URL('./watcher.js', import.meta.url).href;
+    const res = runEval(`
+      process.argv = [process.argv[0], 'cli.js', 'watch', 'err-diag-sess', '--diagnostics=60'];
+      const { Watcher } = await import(${JSON.stringify(watcherUrl)});
+      Watcher.prototype.start = async function () {
+        this.emit('error', new Error('Timeout waiting for run-dir'));
+      };
+      await import(${JSON.stringify(cliUrl)});
+    `);
+    assert.strictEqual(res.status, 1, `stdout: ${res.stdout} stderr: ${res.stderr}`);
+    assert.match(stripAnsi(res.stderr), /Error:.*Timeout waiting for run-dir/);
+    const finals = res.stderr.split('\n')
+      .filter(l => l.startsWith('{'))
+      .map(l => JSON.parse(l) as Record<string, unknown>)
+      .filter(p => p['rationguard_diagnostics'] === 1 && p['final'] === true);
+    assert.strictEqual(finals.length, 1, `stderr: ${res.stderr}`);
+    assert.match(stripAnsi(res.stdout + res.stderr), /Stopped watching\./);
+  });
+
   it('keeps the error exit code when a signal stops the watcher', () => {
     const cliUrl = new URL('./cli.js', import.meta.url).href;
     const watcherUrl = new URL('./watcher.js', import.meta.url).href;
