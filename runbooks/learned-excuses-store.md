@@ -58,8 +58,8 @@ empty state, which makes the loss permanent unless a copy was kept.
    A read-only HOME (e.g. a sandboxed hook or container), an `EACCES` from
    wrong ownership, or a plain file named `.rationguard` all make `check` and
    `watch` skip recording without any message. (A corrupt store that cannot
-   be moved aside is the exception: that case prints a `could not be moved
-   aside` line on stderr.)
+   be moved aside is the exception: that case emits a `store_preserve_failed`
+   event on stderr.)
 
 ## Recover
 
@@ -71,8 +71,11 @@ empty state, which makes the loss permanent unless a copy was kept.
    `{"event":"store_preserved","filePath":...,"corruptPath":...}`, naming both
    paths; filter for it in logs with `grep store_preserved`.
    Repair or merge from that copy. If the store directory is not writable the
-   rename fails and stderr instead reports `... could not be moved aside to
-   <path>: <error>`; copy the original file elsewhere before the next write
+   rename fails and stderr instead emits
+   `{"event":"store_preserve_failed","filePath":...,"corruptPath":...,"reason":...}`
+   (`grep store_preserve_failed` in logs; when stderr is a TTY the same
+   failure prints as a prose `... could not be moved aside to <path>: <error>`
+   line); copy the original file elsewhere before the next write
    replaces it, then fix permissions (step 5).
 3. If no copy exists, re-add the important excuses with `rationguard add`.
    Sighting counts cannot be reconstructed.
