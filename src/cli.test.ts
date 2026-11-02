@@ -106,6 +106,11 @@ describe('help', () => {
     assert.strictEqual(out.match(/--run-dir=/g)?.length, 3);
   });
 
+  it('documents the ls alias on the sessions line', () => {
+    const out = stripAnsi(run(['help']).stdout);
+    assert.match(out, /rationguard sessions \(alias: ls\)/);
+  });
+
   it('--cli help line lists all bundled pluk patterns', async () => {
     const { listAvailableCLIs, bundledPatternsDir } = await import('@hivecommons/pluk');
     const availableCLIs = listAvailableCLIs(bundledPatternsDir());
