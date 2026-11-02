@@ -1574,7 +1574,7 @@ describe('watch (live subscribe)', () => {
     assert.strictEqual(fs.existsSync(argsFile), false, 'neither rebuttal may be sent');
   });
 
-  it('reports cooldown-suppressed delivery in --json send mode', async () => {
+  it('reports dedup-suppressed delivery in --json send mode', async () => {
     const session = 'watch-json-suppressed';
     const { runDir, logFile } = makeRunDir('watch-json-suppressed-run-dir', session, []);
     const binDir = path.join(sandbox, 'watch-json-suppressed-bin');
@@ -1583,13 +1583,17 @@ describe('watch (live subscribe)', () => {
     fs.writeFileSync(sendBin, '#!/bin/sh\nexit 0\n');
     fs.chmodSync(sendBin, 0o755);
 
-    const pattern = 'zorble json suppressed';
+    // Two user excuses sharing one rebuttal in a single flush: the first is
+    // sent, the second is deduplicated. (A second *flush* after a sent
+    // rebuttal would be swallowed whole by the post-rebuttal quiet period and
+    // never reach --json output, so the suppression must happen in-flush.)
     const dir = path.join(homeDir, '.rationguard');
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(
       path.join(dir, 'custom-excuses.json'),
       JSON.stringify([
-        { pattern, rebuttal: 'json suppressed rebuttal', category: 'deferral', keywords: [pattern] },
+        { pattern: 'zorble json suppressed one', rebuttal: 'shared json rebuttal', category: 'deferral', keywords: ['zorble json suppressed one'] },
+        { pattern: 'zorble json suppressed two', rebuttal: 'shared json rebuttal', category: 'deferral', keywords: ['zorble json suppressed two'] },
       ]) + '\n',
     );
 
@@ -1599,12 +1603,10 @@ describe('watch (live subscribe)', () => {
     );
 
     const lines = jsonlLines([
-      plukEvent(session, 'raw_output', { line: pattern }),
+      plukEvent(session, 'raw_output', { line: 'zorble json suppressed one and zorble json suppressed two' }),
       plukEvent(session, 'state_change', { from: 'working', to: 'idle' }),
     ]);
-    // The first detection is sent; re-appending the excuse yields a
-    // cooldown-suppressed second detection.
-    for (let i = 0; i < 40 && !h.stdout().includes('"delivery":"suppressed"'); i++) {
+    for (let i = 0; i < 40 && !h.stdout().includes('"matches"'); i++) {
       fs.appendFileSync(logFile, lines);
       await sleep(250);
     }
@@ -1612,12 +1614,16 @@ describe('watch (live subscribe)', () => {
     h.child.kill('SIGINT');
     assert.strictEqual(await waitForExit(h.child), 0);
 
-    const deliveries = h.stdout().split('\n').filter(l => l.startsWith('{')).map(l => {
-      const parsed = JSON.parse(l) as { matches: Array<{ pattern: string; delivery?: string }> };
-      return parsed.matches.find(x => x.pattern === pattern)?.delivery;
-    });
-    assert.strictEqual(deliveries[0], 'sent');
-    assert.ok(deliveries.includes('suppressed'), `no suppressed delivery in: ${h.stdout()} ${h.stderr()}`);
+    const jsonLine = h.stdout().split('\n').find(l => l.startsWith('{'));
+    assert.ok(jsonLine, `no JSON detection in: ${h.stdout()} ${h.stderr()}`);
+    const parsed = JSON.parse(jsonLine) as {
+      matches: Array<{ pattern: string; delivery?: string }>;
+      sentRebuttals?: string[];
+    };
+    const deliveryOf = (pattern: string) => parsed.matches.find(m => m.pattern === pattern)?.delivery;
+    assert.strictEqual(deliveryOf('zorble json suppressed one'), 'sent');
+    assert.strictEqual(deliveryOf('zorble json suppressed two'), 'suppressed');
+    assert.deepStrictEqual(parsed.sentRebuttals, ['zorble json suppressed one']);
   });
 
   it('names the project-local and low-confidence skip reasons in send-mode footers', async () => {
