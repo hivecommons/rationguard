@@ -16,6 +16,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `rationguard sessions` sizes and pads columns by terminal cells instead of UTF-16 code units, so CJK, fullwidth and emoji session/CLI names no longer misalign the table; adds `displayWidth` and `padEndDisplay` to `sanitize` (#462).
 - `rationguard sessions` aligns the TMUX/LAST ACTIVITY/EVENTS columns with their headings and widens SESSION/CLI for long names (#460).
 - `check`, `list` and `watch` text output now tags project-local (untrusted) excuses with a dim `[project-local]` marker, so they no longer render identically to trusted ones (#456).
 - `watch --json --rebuttal=send` now reports the rebuttal delivery outcome: each match carries `delivery` (`sent`, `failed`, `suppressed`, `project-local`, `low-confidence`) and the line carries `sentRebuttals` / `failedRebuttals` when present (#452).

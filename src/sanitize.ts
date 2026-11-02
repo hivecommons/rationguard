@@ -104,3 +104,37 @@ export function stringifyForTerminal(value: unknown, indent?: number): string {
     c => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`,
   );
 }
+
+const graphemes = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+// A cluster occupies two cells when it is presented as emoji (an
+// Emoji_Presentation code point, a VS16 request, or a regional-indicator flag)
+// or starts with an East Asian Wide/Fullwidth code point (CJK, Hangul, kana,
+// fullwidth forms).
+const WIDE_EMOJI = /\p{Emoji_Presentation}|\uFE0F|\p{Regional_Indicator}/u;
+const WIDE_EAST_ASIAN =
+  /^[\u1100-\u115F\u2E80-\u303E\u3041-\u33FF\u3400-\u4DBF\u4E00-\u9FFF\uA000-\uA4CF\uA960-\uA97F\uAC00-\uD7A3\uF900-\uFAFF\uFE10-\uFE19\uFE30-\uFE6F\uFF00-\uFF60\uFFE0-\uFFE6\u{16FE0}-\u{16FE4}\u{17000}-\u{18AFF}\u{1B000}-\u{1B2FF}\u{20000}-\u{2FFFD}\u{30000}-\u{3FFFD}]/u;
+// Clusters made only of combining marks or format characters (ZWJ, ZWSP,
+// directional marks) take no cell of their own.
+const ZERO_WIDTH = /^[\p{Mn}\p{Me}\p{Cf}]+$/u;
+
+/**
+ * Number of terminal cells `text` occupies, counted per grapheme cluster:
+ * 2 for wide (CJK/fullwidth) and emoji clusters, 0 for clusters made only of
+ * combining marks or format characters, 1 otherwise. `String#length` counts
+ * UTF-16 code units instead, which over-counts astral and combined characters
+ * and under-counts wide ones. Expects text already passed through
+ * `sanitizeForTerminal`.
+ */
+export function displayWidth(text: string): number {
+  let width = 0;
+  for (const { segment } of graphemes.segment(text)) {
+    if (WIDE_EMOJI.test(segment) || WIDE_EAST_ASIAN.test(segment)) width += 2;
+    else if (!ZERO_WIDTH.test(segment)) width += 1;
+  }
+  return width;
+}
+
+/** `String#padEnd` by terminal cells (see `displayWidth`) instead of UTF-16 code units. */
+export function padEndDisplay(text: string, width: number): string {
+  return text + ' '.repeat(Math.max(0, width - displayWidth(text)));
+}

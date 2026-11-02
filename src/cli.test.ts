@@ -1090,6 +1090,42 @@ describe('sessions with discovered sessions', () => {
     }
   });
 
+  it('sizes and pads columns by terminal cells for CJK and emoji names', () => {
+    const runDir = path.join(sandbox, 'sessions-wide-run-dir');
+    const logsDir = path.join(runDir, 'logs');
+    fs.mkdirSync(logsDir, { recursive: true });
+    // 25 cells but 17 UTF-16 code units; 14 cells but 7 code units.
+    const wideSession = '会话会话会话会话-🚀-agent';
+    const wideCli = 'クロードコード';
+    fs.writeFileSync(
+      path.join(logsDir, 'short.jsonl'),
+      jsonlLines([plukEvent('short', 'state_change', { from: 'unknown', to: 'working', cli: 'claude' })]),
+    );
+    fs.writeFileSync(
+      path.join(logsDir, `${wideSession}.jsonl`),
+      jsonlLines([plukEvent(wideSession, 'state_change', { from: 'unknown', to: 'idle', cli: wideCli })]),
+    );
+    const res = run(['sessions', `--run-dir=${runDir}`]);
+    assert.strictEqual(res.status, 0);
+    // Swap the wide names for ASCII of the same cell count so string indexes equal screen columns.
+    const lines = stripAnsi(res.stdout)
+      .replace(wideSession, 'S'.repeat(25))
+      .replace(wideCli, 'C'.repeat(14))
+      .split('\n');
+    const header = lines.find(l => l.startsWith('SESSION'));
+    assert.ok(header, 'header line present');
+    const cols = { cli: header.indexOf('CLI'), state: header.indexOf('STATE'), tmux: header.indexOf('TMUX') };
+    assert.strictEqual(cols.cli, 26, 'SESSION column is one cell wider than the widest name');
+    assert.strictEqual(cols.state - cols.cli, 15, 'CLI column is one cell wider than the widest cli');
+    for (const [name, cli, state] of [['short', 'claude', 'working'], ['S'.repeat(25), 'C'.repeat(14), 'idle']]) {
+      const row = lines.find(l => l.startsWith(name));
+      assert.ok(row, `row for ${name} present`);
+      assert.ok(row.slice(cols.cli).startsWith(`${cli} `), `${cli} starts under CLI`);
+      assert.ok(row.slice(cols.state).startsWith(`${state} `), `${state} starts under STATE`);
+      assert.match(row.slice(cols.tmux), /^[●○]\s/);
+    }
+  });
+
   it('renders idle/unknown state colors and the live-tmux dot per session', () => {
     const runDir = path.join(sandbox, 'sessions-mixed-run-dir');
     const logsDir = path.join(runDir, 'logs');
