@@ -1043,9 +1043,51 @@ describe('sessions with discovered sessions', () => {
     const res = run(['sessions', `--run-dir=${runDir}`]);
     assert.strictEqual(res.status, 0);
     const out = stripAnsi(res.stdout);
-    assert.match(out, /SESSION\s+CLI\s+STATE\s+TMUX\s+LAST ACTIVITY\s*EVENTS/);
+    assert.match(out, /SESSION\s+CLI\s+STATE\s+TMUX\s+LAST ACTIVITY\s+EVENTS/);
     assert.match(out, /my-agent\s+claude\s+working/);
     assert.match(out, /rationguard watch <session> to start monitoring/);
+  });
+
+  it('aligns every column under its heading, including long session and cli names', () => {
+    const runDir = path.join(sandbox, 'sessions-align-run-dir');
+    const logsDir = path.join(runDir, 'logs');
+    fs.mkdirSync(logsDir, { recursive: true });
+    const longName = 'a-very-long-session-name-here';
+    fs.writeFileSync(
+      path.join(logsDir, 'short.jsonl'),
+      jsonlLines([
+        plukEvent('short', 'state_change', { from: 'unknown', to: 'working', cli: 'claude' }),
+        plukEvent('short', 'raw_output', { line: 'hello' }),
+      ]),
+    );
+    fs.writeFileSync(
+      path.join(logsDir, `${longName}.jsonl`),
+      jsonlLines([plukEvent(longName, 'state_change', { from: 'unknown', to: 'idle', cli: 'copilot-cli' })]),
+    );
+    const res = run(['sessions', `--run-dir=${runDir}`]);
+    assert.strictEqual(res.status, 0);
+    const lines = stripAnsi(res.stdout).split('\n');
+    const header = lines.find(l => l.startsWith('SESSION'));
+    assert.ok(header, 'header line present');
+    const cols = {
+      cli: header.indexOf('CLI'),
+      state: header.indexOf('STATE'),
+      tmux: header.indexOf('TMUX'),
+      ago: header.indexOf('LAST ACTIVITY'),
+      events: header.indexOf('EVENTS'),
+    };
+    assert.ok(cols.events > cols.ago + 'LAST ACTIVITY'.length - 1, 'gap between LAST ACTIVITY and EVENTS');
+    for (const name of ['short', longName]) {
+      const row = lines.find(l => l.startsWith(name));
+      assert.ok(row, `row for ${name} present`);
+      assert.match(row.slice(cols.cli), /^(claude|copilot-cli)\s/);
+      assert.match(row.slice(cols.state), /^(working|idle)\s/);
+      assert.match(row.slice(cols.tmux), /^[●○]\s/);
+      assert.match(row.slice(cols.ago), /^\S/);
+      assert.ok(/\s/.test(row[cols.ago - 1] ?? ' '), 'LAST ACTIVITY column starts after a gap');
+      assert.match(row.slice(cols.events), /^\d+$/);
+      assert.ok(/\s/.test(row[cols.events - 1] ?? ' '), 'EVENTS column starts after a gap');
+    }
   });
 
   it('renders idle/unknown state colors and the live-tmux dot per session', () => {

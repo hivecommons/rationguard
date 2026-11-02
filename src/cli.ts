@@ -402,17 +402,19 @@ function cmdSessions(flags: Record<string, string>): void {
   const COL_CLI = 10;
   const COL_STATE = 10;
   const COL_TMUX = 6;
-  const COL_AGO = 12;
+  const COL_AGO = 14;
+  const colSession = Math.max(COL_SESSION, ...sessions.map((s) => sanitizeForTerminal(s.session).length + 1));
+  const colCli = Math.max(COL_CLI, ...sessions.map((s) => sanitizeForTerminal(s.cli).length + 1));
 
   console.log(
-    `\n${ANSI_BOLD}${'SESSION'.padEnd(COL_SESSION)}${'CLI'.padEnd(COL_CLI)}${'STATE'.padEnd(COL_STATE)}${'TMUX'.padEnd(COL_TMUX)}${'LAST ACTIVITY'.padEnd(COL_AGO)}EVENTS${ANSI_RESET}`,
+    `\n${ANSI_BOLD}${'SESSION'.padEnd(colSession)}${'CLI'.padEnd(colCli)}${'STATE'.padEnd(COL_STATE)}${'TMUX'.padEnd(COL_TMUX)}${'LAST ACTIVITY'.padEnd(COL_AGO)}EVENTS${ANSI_RESET}`,
   );
 
   for (const s of sessions) {
     const tmuxIcon = s.tmuxAlive ? `${ANSI_GREEN}●${ANSI_RESET}` : `${ANSI_DIM}○${ANSI_RESET}`;
     const stateColor = s.state === 'working' ? ANSI_GREEN : s.state === 'idle' ? ANSI_CYAN : ANSI_DIM;
     console.log(
-      `${sanitizeForTerminal(s.session).padEnd(COL_SESSION)}${sanitizeForTerminal(s.cli).padEnd(COL_CLI)}${stateColor}${sanitizeForTerminal(s.state).padEnd(COL_STATE)}${ANSI_RESET}${tmuxIcon}${''.padEnd(COL_TMUX - 2)}${sanitizeForTerminal(s.lastActivityAgo).padEnd(COL_AGO)}${s.eventCount}`,
+      `${sanitizeForTerminal(s.session).padEnd(colSession)}${sanitizeForTerminal(s.cli).padEnd(colCli)}${stateColor}${sanitizeForTerminal(s.state).padEnd(COL_STATE)}${ANSI_RESET}${tmuxIcon}${''.padEnd(COL_TMUX - 1)}${sanitizeForTerminal(s.lastActivityAgo).padEnd(COL_AGO)}${s.eventCount}`,
     );
   }
 

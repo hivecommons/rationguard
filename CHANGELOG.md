@@ -16,6 +16,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `rationguard sessions` aligns the TMUX/LAST ACTIVITY/EVENTS columns with their headings and widens SESSION/CLI for long names (#460).
 - `check`, `list` and `watch` text output now tags project-local (untrusted) excuses with a dim `[project-local]` marker, so they no longer render identically to trusted ones (#456).
 - `watch --json --rebuttal=send` now reports the rebuttal delivery outcome: each match carries `delivery` (`sent`, `failed`, `suppressed`, `project-local`, `low-confidence`) and the line carries `sentRebuttals` / `failedRebuttals` when present (#452).
 - `watch` now runs its shutdown sequence when the watcher reports an error, so `--diagnostics` emits its `final: true` summary and the `Stopped watching.` footer is printed (#448).
