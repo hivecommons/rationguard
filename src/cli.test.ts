@@ -944,6 +944,14 @@ describe('sessions', () => {
     assert.deepStrictEqual(JSON.parse(res.stdout), []);
   });
 
+  it('ls alias works with --json', () => {
+    const emptyRunDir = path.join(sandbox, 'empty-run-dir-ls');
+    fs.mkdirSync(emptyRunDir, { recursive: true });
+    const res = run(['ls', `--run-dir=${emptyRunDir}`, '--json']);
+    assert.strictEqual(res.status, 0);
+    assert.deepStrictEqual(JSON.parse(res.stdout), []);
+  });
+
   it('falls back to PLUK_RUN_DIR when --run-dir is not given', () => {
     const emptyRunDir = path.join(sandbox, 'env-run-dir');
     fs.mkdirSync(emptyRunDir, { recursive: true });

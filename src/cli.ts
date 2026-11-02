@@ -61,7 +61,7 @@ ${ANSI_BOLD}USAGE${ANSI_RESET}
   echo "..." | ${ANSI_CYAN}rationguard check${ANSI_RESET}     Check piped input
     --fail-on-match                    Exit 2 when any pattern matches (for hooks/CI gates; 1 = usage error)
 
-  ${ANSI_CYAN}rationguard sessions${ANSI_RESET}               List active pluk-monitored agent sessions
+  ${ANSI_CYAN}rationguard sessions${ANSI_RESET} (alias: ${ANSI_CYAN}ls${ANSI_RESET})   List active pluk-monitored agent sessions
     --run-dir=/var/run/pluk            Pluk run directory
     --json                             Output as JSON
 

@@ -440,7 +440,7 @@ const fullBlock = generatePromptBlock({ excuses: getAllExcuses() });
 |---------|-------------|
 | `rationguard attach <session> --dangerous` | Start agent + pluk + rationguard + terminal (skip permissions) |
 | `rationguard <command> --help` (or `-h`) | Show usage from any position, without running the command |
-| `rationguard sessions` | List active pluk-monitored agent sessions |
+| `rationguard sessions` (alias: `ls`) | List active pluk-monitored agent sessions |
 | `rationguard watch <session>` | Real-time detection via pluk |
 | `rationguard watch <session> --rebuttal=send` | Detect and auto-rebut (30s cooldown + 60s quiet period) |
 | `rationguard check <text>` | Check for excuse patterns |
