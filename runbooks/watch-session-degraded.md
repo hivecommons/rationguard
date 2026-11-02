@@ -34,7 +34,11 @@ Read the counters in each `rationguard_diagnostics` line:
 Delivery fallbacks are also visible without `--verbose`: a failed `pluk-send`
 that falls back to tmux is always logged to stderr, and
 `--log-format=json` makes each one a bounded JSON line (`event`, `session`,
-`delivery`, `timestamp`) that log tooling can count.
+`delivery`, `timestamp`) that log tooling can count. The event is
+`rebuttal_delivery` and `delivery` is `pluk`, `tmux` or `failed`: a rising
+`tmux` count means `pluk-send` is failing but the fallback still delivers,
+while any `failed` means a rebuttal was lost (`grep rebuttal_delivery` in
+logs, then see "Delivery failing").
 
 ## Diagnose
 
