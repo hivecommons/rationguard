@@ -15,6 +15,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `watch` now runs its shutdown sequence when the watcher reports an error, so `--diagnostics` emits its `final: true` summary and the `Stopped watching.` footer is printed (#448).
 - `--help` now lists every CLI the bundled pluk ships patterns for (`aider`, `omp` were missing) (#441).
 - `watch --rebuttal=send` now reports a failed delivery as "Rebuttal delivery failed (pluk-send and tmux send-keys)" instead of "Rebuttal suppressed (cooldown/dedup)"; adds optional `WatcherDetection.failedRebuttals` (#439).
 - Honour `WatcherOptions.quiet` for the watcher's "falling back to tmux send-keys" stderr notice; `verbose` still wins when both are set (#432).

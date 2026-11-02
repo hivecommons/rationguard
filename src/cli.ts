@@ -507,11 +507,6 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
 
   const stopDiagnostics = startDiagnostics('watch', () => ({ ...watcher.stats() }), flags['diagnostics']);
 
-  watcher.on('error', (err: Error) => {
-    process.exitCode = 1;
-    console.error(`${ANSI_RED}Error:${ANSI_RESET} ${sanitizeForTerminal(err.message)}`);
-  });
-
   let shuttingDown = false;
   const shutdown = (): void => {
     if (shuttingDown) return;
@@ -521,6 +516,11 @@ async function cmdWatch(positional: string[], flags: Record<string, string>): Pr
     status(`\n${ANSI_DIM}Stopped watching.${ANSI_RESET}`);
     process.exit(process.exitCode ?? 0);
   };
+  watcher.on('error', (err: Error) => {
+    process.exitCode = 1;
+    console.error(`${ANSI_RED}Error:${ANSI_RESET} ${sanitizeForTerminal(err.message)}`);
+    shutdown();
+  });
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP'] as const) {
     process.on(sig, shutdown);
   }
