@@ -54,3 +54,22 @@ export function startDiagnostics(
     report(true);
   };
 }
+
+/**
+ * Single structured emitter: one JSON line on stderr with a fixed `event`
+ * name, an ISO `timestamp`, and a closed set of caller-supplied fields (enum
+ * values or filesystem paths, never rebuttal text). When stderr is a TTY and
+ * the caller supplies a `human` line, that line is printed instead.
+ */
+export function logEvent(
+  event: string,
+  fields: Record<string, string | number | boolean> = {},
+  human?: string,
+  write: (line: string) => void = line => console.error(line),
+): void {
+  if (human !== undefined && process.stderr.isTTY) {
+    write(human);
+    return;
+  }
+  write(JSON.stringify({ event, ...fields, timestamp: new Date().toISOString() }));
+}

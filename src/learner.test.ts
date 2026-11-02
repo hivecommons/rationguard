@@ -760,7 +760,9 @@ describe('corrupt store preservation', () => {
     assert.strictEqual(fs.readFileSync(path.join(base(), siblings[0]!), 'utf-8'), '{not json');
     assert.strictEqual(JSON.parse(fs.readFileSync(path.join(base(), 'sightings.json'), 'utf-8')).sightings.length, 1);
     assert.strictEqual(stderrLines.length, 1);
-    assert.deepStrictEqual(JSON.parse(stderrLines[0]!), {
+    const { timestamp, ...event } = JSON.parse(stderrLines[0]!);
+    assert.ok(!Number.isNaN(Date.parse(timestamp)));
+    assert.deepStrictEqual(event, {
       event: 'store_preserved',
       filePath: path.join(base(), 'sightings.json'),
       corruptPath: path.join(base(), siblings[0]!),
@@ -824,9 +826,12 @@ describe('corrupt store preservation', () => {
       (fs as { renameSync: typeof fs.renameSync }).renameSync = realRename;
     }
     assert.strictEqual(stderrLines.length, 1);
-    assert.ok(stderrLines[0]!.includes('could not be moved aside'));
-    assert.ok(stderrLines[0]!.includes(path.join(base(), 'sightings.json')));
-    assert.ok(stderrLines[0]!.includes('EACCES'));
+    const failed = JSON.parse(stderrLines[0]!);
+    assert.deepStrictEqual(Object.keys(failed).sort(), ['corruptPath', 'event', 'filePath', 'reason', 'timestamp']);
+    assert.strictEqual(failed.event, 'store_preserve_failed');
+    assert.strictEqual(failed.filePath, path.join(base(), 'sightings.json'));
+    assert.ok(failed.reason.includes('EACCES'));
+    assert.ok(!Number.isNaN(Date.parse(failed.timestamp)));
     assert.strictEqual(fs.readFileSync(path.join(base(), 'sightings.json'), 'utf-8'), 'garbage');
   });
 });

@@ -2,7 +2,7 @@
 // @hivecommons/pluk's startDiagnostics, hivecommons/pluk#102).
 import { describe, it, mock } from 'node:test';
 import assert from 'node:assert';
-import { startDiagnostics, isValidDiagnosticsSeconds } from './diagnostics.js';
+import { startDiagnostics, isValidDiagnosticsSeconds, logEvent } from './diagnostics.js';
 
 const settle = (ms = 60): Promise<void> => new Promise(r => setTimeout(r, ms));
 
@@ -124,5 +124,30 @@ describe('startDiagnostics', () => {
     assert.equal(isValidDiagnosticsSeconds(1), true);
     assert.equal(isValidDiagnosticsSeconds(2147483.647), true);
     assert.equal(isValidDiagnosticsSeconds(2147483.648), false);
+  });
+});
+
+describe('logEvent', () => {
+  it('writes one JSON line with event, fields and an ISO timestamp', () => {
+    const lines: string[] = [];
+    logEvent('rebuttal_delivery', { session: 's', delivery: 'tmux' }, undefined, l => lines.push(l));
+    assert.strictEqual(lines.length, 1);
+    const parsed = JSON.parse(lines[0]!);
+    assert.deepStrictEqual(Object.keys(parsed).sort(), ['delivery', 'event', 'session', 'timestamp']);
+    assert.strictEqual(parsed.event, 'rebuttal_delivery');
+    assert.ok(!Number.isNaN(Date.parse(parsed.timestamp)));
+  });
+
+  it('prints the human line instead when stderr is a TTY', () => {
+    const lines: string[] = [];
+    const desc = Object.getOwnPropertyDescriptor(process.stderr, 'isTTY');
+    Object.defineProperty(process.stderr, 'isTTY', { value: true, configurable: true });
+    try {
+      logEvent('x', {}, 'human line', l => lines.push(l));
+    } finally {
+      if (desc) Object.defineProperty(process.stderr, 'isTTY', desc);
+      else delete (process.stderr as { isTTY?: boolean }).isTTY;
+    }
+    assert.deepStrictEqual(lines, ['human line']);
   });
 });
