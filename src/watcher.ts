@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { check } from './checker.js';
 import { recordSightingIfEligible, REBUTTAL_SEND_CONFIDENCE_THRESHOLD } from './learner.js';
+import { logEvent } from './diagnostics.js';
 import { getAllExcuses } from './excuses.js';
 import { sanitizeForTerminal, stripTerminalEscapes } from './sanitize.js';
 import type { Excuse, CheckResult, MatchResult } from './types.js';
@@ -94,7 +95,7 @@ function sanitizeRebuttal(rebuttal: string): string {
 
 /** One bounded JSON line per delivery event: enum/validated fields only, never rebuttal or session content. */
 function logDeliveryJson(session: string, delivery: 'pluk' | 'tmux' | 'failed'): void {
-  console.error(JSON.stringify({ event: 'rebuttal_delivery', session, delivery, timestamp: new Date().toISOString() }));
+  logEvent('rebuttal_delivery', { session, delivery });
 }
 
 function sendRebuttal(session: string, rebuttalRaw: string, verbose = false, json = false, quiet = false): boolean {

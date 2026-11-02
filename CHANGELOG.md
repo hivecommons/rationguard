@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- Emit watcher rebuttal-delivery events and learner store-recovery diagnostics through one `logEvent` helper in `diagnostics`: one-line JSON with `event` and `timestamp`. The store-move failure on stderr is now a `store_preserve_failed` JSON event (the prose line is kept on a TTY); `store_preserved` gains `timestamp` (#450).
 - Bump `@hivecommons/pluk` from 0.10.0 to 0.11.0; `rationguard attach` progress and status lines now go to stderr instead of stdout, matching pluk's own `attach` (#438).
 - Extract flag parsing and the `require*` validators from `cli` into their own `flags` module; no behaviour change.
 - Reunite the `requireWatchPatterns` doc comment that the `flags` extraction split across `cli` and `flags`; comment-only (#436).

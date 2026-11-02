@@ -4,6 +4,7 @@ import path from 'node:path';
 import { CATEGORY_LABELS } from './types.js';
 import type { Excuse, ExcuseCategory, MatchResult } from './types.js';
 import { isStopWord } from './stopwords.js';
+import { logEvent } from './diagnostics.js';
 import { withStoreLock } from './storelock.js';
 export { withStoreLock, reclaimStaleLock, releaseOwnLock } from './storelock.js';
 export type { StoreLockOptions } from './storelock.js';
@@ -103,16 +104,16 @@ function preserveCorruptFile(filePath: string): void {
     fs.renameSync(filePath, corruptPath);
     // Recovery can run before or after check's JSON match events. Keep this
     // diagnostic line-oriented JSON too, including when paths contain newlines.
-    process.stderr.write(JSON.stringify({
-      event: 'store_preserved',
-      filePath,
-      corruptPath,
-    }) + '\n');
+    logEvent('store_preserved', { filePath, corruptPath });
   } catch (err) {
     // Best effort; fall through to an empty store, but say so: the next write
     // will replace the unreadable file.
     const reason = err instanceof Error ? err.message : String(err);
-    process.stderr.write(`rationguard: ${filePath} was not valid JSON and could not be moved aside to ${corruptPath}: ${reason}\n`);
+    logEvent(
+      'store_preserve_failed',
+      { filePath, corruptPath, reason },
+      `rationguard: ${filePath} was not valid JSON and could not be moved aside to ${corruptPath}: ${reason}`,
+    );
   }
 }
 
