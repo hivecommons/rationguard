@@ -207,6 +207,24 @@ describe('displayWidth', () => {
     assert.strictEqual(displayWidth('a\u200Bb'), 2);
     assert.strictEqual(displayWidth('\u0301'), 0);
   });
+
+  it('counts a cluster of several marks or format characters as zero cells', () => {
+    assert.strictEqual(displayWidth('\u0301\u0308'), 0, 'stacked combining marks are one zero-width cluster');
+    assert.strictEqual(displayWidth('\u200D\u200D'), 0, 'adjacent ZWJs are one zero-width cluster');
+  });
+
+  it('counts a format-prefixed cluster by its base character, not as zero width', () => {
+    // U+0600 ARABIC NUMBER SIGN is a Prepend format character: it joins the
+    // following digit into one cluster that still occupies the digit's cell.
+    assert.strictEqual(displayWidth('\u0600' + '1'), 1);
+  });
+
+  it('is wide only when the cluster starts with a wide code point', () => {
+    // U+3099 is a combining mark inside the East Asian Wide range; attached to
+    // an ASCII base it widens nothing.
+    assert.strictEqual(displayWidth('a\u3099'), 1);
+    assert.strictEqual(displayWidth('\u304B\u3099'), 2, 'wide base keeps the cluster wide');
+  });
 });
 
 describe('padEndDisplay', () => {
