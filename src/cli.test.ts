@@ -299,6 +299,27 @@ describe('check', () => {
     assert.strictEqual(excuses.filter(e => e.pattern === 'zorble home dup').length, 1);
   });
 
+  it('lists a custom excuse once when HOME is a symlink to cwd', () => {
+    const homeLink = path.join(sandbox, 'home-link');
+    fs.symlinkSync(homeDir, homeLink, 'dir');
+    const dir = path.join(homeDir, '.rationguard');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, 'custom-excuses.json'),
+      JSON.stringify([
+        { pattern: 'zorble symlink dup', rebuttal: 'r', category: 'deferral', keywords: ['zorble symlink dup'] },
+      ]) + '\n',
+    );
+    const res = spawnSync(process.execPath, [CLI, 'list', '--json'], {
+      cwd: homeDir,
+      env: { ...process.env, HOME: homeLink },
+      encoding: 'utf-8',
+      timeout: 15_000,
+    });
+    const excuses = JSON.parse(res.stdout) as Array<{ pattern: string }>;
+    assert.strictEqual(excuses.filter(e => e.pattern === 'zorble symlink dup').length, 1);
+  });
+
   it('does not record a sighting for medium-confidence keyword matches', () => {
     // 'the queue is empty' hits exactly one keyword of the builtin
     // 'no work found' excuse → confidence 0.45: reported (dim tier),

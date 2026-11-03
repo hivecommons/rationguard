@@ -1,4 +1,5 @@
 import { DEFAULT_EXCUSES } from './defaults.js';
+import fs from 'node:fs';
 import path from 'node:path';
 import { getTrustedBase, loadCustomExcuses } from './learner.js';
 import type { Excuse } from './types.js';
@@ -13,12 +14,21 @@ import type { Excuse } from './types.js';
  * an agent session, and matches on them must never feed recordSighting
  * (which auto-promotes into the trusted HOME store — see cli.ts/watcher.ts).
  */
+
+function canonical(p: string): string {
+  try {
+    return fs.realpathSync.native(p);
+  } catch {
+    return path.resolve(p);
+  }
+}
+
 export function getAllExcuses(): Excuse[] {
   const custom = loadCustomExcuses().map((e): Excuse => ({ ...e, source: 'user' }));
   // When cwd is $HOME the project store is the trusted store; loading it again
   // would duplicate every excuse under an untrusted source tag.
   const trusted = getTrustedBase();
-  const sameStore = trusted !== null && path.resolve(trusted) === path.resolve('.', '.rationguard');
+  const sameStore = trusted !== null && canonical(trusted) === canonical(path.resolve('.', '.rationguard'));
   const projectCustom = (sameStore ? [] : loadCustomExcuses('.')).map((e): Excuse => ({ ...e, source: 'project' }));
   return [...DEFAULT_EXCUSES, ...custom, ...projectCustom];
 }
