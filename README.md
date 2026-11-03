@@ -498,6 +498,7 @@ rationguard is part of [Hive Commons](https://hivecommons.dev), a family of tool
 - Found a bug or have an idea? Open an [issue](https://github.com/hivecommons/rationguard/issues/new/choose).
 - Reporting a security vulnerability? Follow [SECURITY.md](SECURITY.md) to report it privately, not through public issues.
 - Questions? Join the [Hive Commons Discord](https://hivecommons.dev/discord).
+- Want to see the hive at work? [Watch the hive live on Twitch](https://www.twitch.tv/hivecommons).
 - Please follow the [Hive Commons Code of Conduct](https://github.com/hivecommons/.github/blob/main/CODE_OF_CONDUCT.md).
 
 ---
