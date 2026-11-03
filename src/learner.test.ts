@@ -1001,9 +1001,45 @@ describe('recordSightingIfEligible', () => {
     assert.deepStrictEqual(listSightings(), []);
   });
 
-  it('does not throw when the trusted store is not writable', () => {
+  it('does not throw, and emits sighting_record_failed, when the trusted store is not writable', () => {
     fs.writeFileSync(path.join(dir, '.rationguard'), 'not a directory');
-    assert.doesNotThrow(() => recordSightingIfEligible(makeMatch({ confidence: 1 })));
+    const originalStderr = process.stderr.write;
+    const lines: string[] = [];
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      lines.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+    try {
+      assert.doesNotThrow(() => recordSightingIfEligible(makeMatch({ confidence: 1 })));
+    } finally {
+      process.stderr.write = originalStderr;
+    }
+    assert.strictEqual(lines.length, 1);
+    const { timestamp, ...event } = JSON.parse(lines[0]!);
+    assert.ok(!Number.isNaN(Date.parse(timestamp)));
+    assert.deepStrictEqual(event, { event: 'sighting_record_failed', reason: 'ENOTDIR' });
+  });
+
+  it('reports reason "error" when the failure has no errno code', () => {
+    const originalStderr = process.stderr.write;
+    const lines: string[] = [];
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      lines.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+    const realMkdir = fs.mkdirSync;
+    (fs as { mkdirSync: typeof fs.mkdirSync }).mkdirSync = (() => {
+      throw new Error(`boom ${dir}`);
+    }) as typeof fs.mkdirSync;
+    try {
+      assert.doesNotThrow(() => recordSightingIfEligible(makeMatch({ confidence: 1 })));
+    } finally {
+      (fs as { mkdirSync: typeof fs.mkdirSync }).mkdirSync = realMkdir;
+      process.stderr.write = originalStderr;
+    }
+    assert.strictEqual(lines.length, 1);
+    assert.strictEqual(JSON.parse(lines[0]!).reason, 'error');
+    assert.ok(!lines[0]!.includes(dir));
   });
 
   it('records a user excuse at exactly the threshold under its category', () => {

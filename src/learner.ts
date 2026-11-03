@@ -461,8 +461,11 @@ export function recordSightingIfEligible(match: MatchResult): void {
   if (match.confidence < AUTO_LEARN_CONFIDENCE_THRESHOLD) return;
   try {
     recordSighting(match.matchedText, match.excuse.category, undefined, undefined, { promote: false });
-  } catch {
+  } catch (err) {
     // Learning is best-effort: an unwritable store (read-only HOME, sandboxed
     // hook) must never take down detection, output, or rebuttal delivery.
+    // Surface it as a bounded event (errno code only, never text or paths).
+    const code = (err as NodeJS.ErrnoException | null)?.code;
+    logEvent('sighting_record_failed', { reason: typeof code === 'string' ? code : 'error' });
   }
 }
