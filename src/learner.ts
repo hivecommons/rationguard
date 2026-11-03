@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { CATEGORY_LABELS } from './types.js';
-import type { Excuse, ExcuseCategory, MatchResult } from './types.js';
+import type { Excuse, ExcuseCategory, MatchResult, RecordSightingIfEligibleOptions } from './types.js';
 import { isStopWord } from './stopwords.js';
 import { logEvent } from './diagnostics.js';
 import { withStoreLock } from './storelock.js';
@@ -454,8 +454,12 @@ export function listSightings(projectDir?: string): Sighting[] {
  * degraded duplicate of a known excuse to the trusted store, and that
  * duplicate would be `source: 'user'` and therefore auto-send eligible.
  * Only an explicit `rationguard add` may promote.
+ *
+ * Failures never throw and are silent by default: `check` runs inside Stop
+ * hooks that treat stderr as the rebuttal. Callers that want a signal pass
+ * `onEvent` and receive one bounded `sighting_record_failed` event.
  */
-export function recordSightingIfEligible(match: MatchResult): void {
+export function recordSightingIfEligible(match: MatchResult, options?: RecordSightingIfEligibleOptions): void {
   if (!match.excuse) return;
   if (match.excuse.source === 'project') return;
   if (match.confidence < AUTO_LEARN_CONFIDENCE_THRESHOLD) return;
@@ -466,6 +470,6 @@ export function recordSightingIfEligible(match: MatchResult): void {
     // hook) must never take down detection, output, or rebuttal delivery.
     // Surface it as a bounded event (errno code only, never text or paths).
     const code = (err as NodeJS.ErrnoException | null)?.code;
-    logEvent('sighting_record_failed', { reason: typeof code === 'string' ? code : 'error' });
+    options?.onEvent?.({ event: 'sighting_record_failed', reason: typeof code === 'string' ? code : 'error' });
   }
 }

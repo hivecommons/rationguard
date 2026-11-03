@@ -16,7 +16,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
-- `recordSightingIfEligible` no longer swallows auto-learning failures silently: it emits a `sighting_record_failed` event (via `logEvent`) with `reason` set to the errno code (e.g. `EACCES`, `EROFS`, `ENOSPC`) or `error`; it still never throws (#471).
+- `recordSightingIfEligible` no longer swallows auto-learning failures silently: callers can pass `onEvent` to receive one bounded `sighting_record_failed` event with `reason` set to the errno code (e.g. `EACCES`, `EROFS`, `ENOSPC`) or `error`. `rationguard check` emits it under `--log-format=json` (stderr stays silent otherwise, since Stop hooks read it as the rebuttal) and `rationguard watch` logs it; the function still never throws (#471).
 - Document and test the `ls` alias for `sessions`: the alias was a public command since #3 but undiscoverable and unguarded by tests. Now documented in help text and README, and covered by a CLI test (#465).
 - `rationguard sessions` sizes and pads columns by terminal cells instead of UTF-16 code units, so CJK, fullwidth and emoji session/CLI names no longer misalign the table; adds `displayWidth` and `padEndDisplay` to `sanitize` (#462).
 - `rationguard sessions` aligns the TMUX/LAST ACTIVITY/EVENTS columns with their headings and widens SESSION/CLI for long names (#460).

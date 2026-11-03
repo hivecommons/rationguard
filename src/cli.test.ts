@@ -244,6 +244,19 @@ describe('check', () => {
       assert.strictEqual(res.stderr, '');
     });
 
+    it('check --log-format=json reports sighting_record_failed on stderr', () => {
+      const res = run(['check', '--log-format=json', 'no work found']);
+      assert.strictEqual(res.status, 0);
+      const events = res.stderr.trim().split('\n').map(line => JSON.parse(line) as { event: string; reason?: string });
+      assert.ok(events.some(e => e.event === 'match'));
+      const failed = events.filter(e => e.event === 'sighting_record_failed');
+      assert.ok(failed.length >= 1);
+      for (const e of failed) {
+        assert.strictEqual(e.reason, 'ENOTDIR');
+        assert.ok(!JSON.stringify(e).includes(homeDir));
+      }
+    });
+
     it('check --fail-on-match detects a phrase split by SGR codes', () => {
       const res = run(['check', '--fail-on-match', "I'll handle that la\u001b[1mter\u001b[0m"]);
       assert.strictEqual(res.status, 2);
