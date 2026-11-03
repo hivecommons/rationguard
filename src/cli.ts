@@ -176,14 +176,14 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
   const failOnMatch = flags['fail-on-match'] === 'true';
   const allExcuses = getAllExcuses();
   // Strip escapes before matching so inline SGR codes cannot split phrases.
-  const result = check(stripTerminalEscapes(input, ''), { excuses: allExcuses }, {
-    onEvent: jsonLog ? (event) => console.error(JSON.stringify(event)) : undefined,
-  });
+  const onEvent = jsonLog ? (event: object) => console.error(JSON.stringify(event)) : undefined;
+  const result = check(stripTerminalEscapes(input, ''), { excuses: allExcuses }, { onEvent });
 
   // Eligibility (confidence threshold, project-source exclusion) is decided
   // once in learner.ts and shared with watcher.ts — see recordSightingIfEligible.
+  // Learning failures only surface under --log-format=json: hooks read stderr.
   for (const match of result.matches) {
-    recordSightingIfEligible(match);
+    recordSightingIfEligible(match, { onEvent });
   }
 
   if (flags['json'] === 'true') {

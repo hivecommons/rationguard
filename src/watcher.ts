@@ -343,7 +343,9 @@ export class Watcher extends EventEmitter {
         // Eligibility (confidence threshold, project-source exclusion) is
         // decided once in learner.ts and shared with cli.ts — see
         // recordSightingIfEligible.
-        recordSightingIfEligible(match);
+        recordSightingIfEligible(match, {
+          onEvent: ev => logEvent(ev.event, { reason: ev.reason }),
+        });
       }
 
       if (this.opts.rebuttal === 'send') {

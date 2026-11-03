@@ -47,6 +47,20 @@ export interface CheckOptions {
   onEvent?: (event: RationguardEvent) => void;
 }
 
+/**
+ * Bounded telemetry event emitted when best-effort auto-learning cannot write
+ * the sightings store. `reason` is an errno code (`EACCES`, `EROFS`, `ENOSPC`,
+ * ...) or the literal `error`; it never carries matched text or paths.
+ */
+export interface SightingRecordFailedEvent {
+  event: 'sighting_record_failed';
+  reason: string;
+}
+
+export interface RecordSightingIfEligibleOptions {
+  onEvent?: (event: SightingRecordFailedEvent) => void;
+}
+
 export interface RationguardConfig {
   excuses: Excuse[];
 }

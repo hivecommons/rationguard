@@ -7,7 +7,7 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { recordSighting, recordSightingIfEligible, loadCustomExcuses, listSightings, withStoreLock, reclaimStaleLock, releaseOwnLock, AUTO_LEARN_CONFIDENCE_THRESHOLD } from './learner.js';
 import { check } from './checker.js';
-import type { Excuse, MatchResult } from './types.js';
+import type { Excuse, MatchResult, SightingRecordFailedEvent } from './types.js';
 
 let dir: string;
 
@@ -1001,9 +1001,54 @@ describe('recordSightingIfEligible', () => {
     assert.deepStrictEqual(listSightings(), []);
   });
 
-  it('does not throw when the trusted store is not writable', () => {
+  it('does not throw and stays silent on stderr by default when the trusted store is not writable', () => {
     fs.writeFileSync(path.join(dir, '.rationguard'), 'not a directory');
-    assert.doesNotThrow(() => recordSightingIfEligible(makeMatch({ confidence: 1 })));
+    const originalStderr = process.stderr.write;
+    const lines: string[] = [];
+    process.stderr.write = ((chunk: string | Uint8Array) => {
+      lines.push(String(chunk));
+      return true;
+    }) as typeof process.stderr.write;
+    try {
+      assert.doesNotThrow(() => recordSightingIfEligible(makeMatch({ confidence: 1 })));
+    } finally {
+      process.stderr.write = originalStderr;
+    }
+    assert.deepStrictEqual(lines, []);
+  });
+
+  it('reports sighting_record_failed through onEvent when the trusted store is not writable', () => {
+    fs.writeFileSync(path.join(dir, '.rationguard'), 'not a directory');
+    const events: SightingRecordFailedEvent[] = [];
+    assert.doesNotThrow(() =>
+      recordSightingIfEligible(makeMatch({ confidence: 1 }), { onEvent: ev => events.push(ev) }),
+    );
+    assert.deepStrictEqual(events, [{ event: 'sighting_record_failed', reason: 'ENOTDIR' }]);
+  });
+
+  it('reports reason "error" when the failure has no errno code', () => {
+    const events: SightingRecordFailedEvent[] = [];
+    const realMkdir = fs.mkdirSync;
+    (fs as { mkdirSync: typeof fs.mkdirSync }).mkdirSync = (() => {
+      throw new Error(`boom ${dir}`);
+    }) as typeof fs.mkdirSync;
+    try {
+      assert.doesNotThrow(() =>
+        recordSightingIfEligible(makeMatch({ confidence: 1 }), { onEvent: ev => events.push(ev) }),
+      );
+    } finally {
+      (fs as { mkdirSync: typeof fs.mkdirSync }).mkdirSync = realMkdir;
+    }
+    assert.strictEqual(events.length, 1);
+    assert.strictEqual(events[0]!.reason, 'error');
+    assert.ok(!JSON.stringify(events[0]).includes(dir));
+  });
+
+  it('does not emit an event when recording succeeds', () => {
+    const events: SightingRecordFailedEvent[] = [];
+    recordSightingIfEligible(makeMatch({ confidence: 1 }), { onEvent: ev => events.push(ev) });
+    assert.deepStrictEqual(events, []);
+    assert.strictEqual(listSightings().length, 1);
   });
 
   it('records a user excuse at exactly the threshold under its category', () => {
