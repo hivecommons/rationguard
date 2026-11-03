@@ -4,6 +4,15 @@ import path from 'node:path';
 import { getTrustedBase, loadCustomExcuses } from './learner.js';
 import type { Excuse } from './types.js';
 
+/** Realpath when the directory exists, so a symlinked HOME or cwd compares equal; plain resolve otherwise. */
+function canonical(p: string): string {
+  try {
+    return fs.realpathSync.native(p);
+  } catch {
+    return path.resolve(p);
+  }
+}
+
 /**
  * Assembles the full excuse set: builtins, the user's trusted HOME store,
  * and the (potentially untrusted) project-local store — each tagged with
@@ -14,15 +23,6 @@ import type { Excuse } from './types.js';
  * an agent session, and matches on them must never feed recordSighting
  * (which auto-promotes into the trusted HOME store — see cli.ts/watcher.ts).
  */
-
-function canonical(p: string): string {
-  try {
-    return fs.realpathSync.native(p);
-  } catch {
-    return path.resolve(p);
-  }
-}
-
 export function getAllExcuses(): Excuse[] {
   const custom = loadCustomExcuses().map((e): Excuse => ({ ...e, source: 'user' }));
   // When cwd is $HOME the project store is the trusted store; loading it again
