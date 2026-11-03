@@ -117,6 +117,19 @@ describe('stripTerminalEscapes', () => {
     assert.strictEqual(stripTerminalEscapes('a\x01\x02\x9b\x9dz'), 'a z');
   });
 
+  it('removes bidi override, embedding and isolate controls', () => {
+    for (const cp of [0x202a, 0x202b, 0x202c, 0x202d, 0x202e, 0x2066, 0x2067, 0x2068, 0x2069]) {
+      assert.strictEqual(sanitizeForTerminal(`a${String.fromCodePoint(cp)}b`), 'a b', `U+${cp.toString(16)}`);
+    }
+    assert.strictEqual(stripTerminalEscapes('x\u2067y\u2069z', ''), 'xyz');
+    assert.strictEqual(stripTerminalEscapes('a\u202E\u2066b'), 'a b', 'a run collapses to one replacement');
+  });
+
+  it('leaves ZWJ in place so emoji sequences keep their width', () => {
+    assert.strictEqual(sanitizeForTerminal('👨‍👩‍👧'), '👨‍👩‍👧');
+    assert.strictEqual(displayWidth('👨‍👩‍👧'), 2);
+  });
+
   it('defaults the replacement to a single space', () => {
     assert.strictEqual(stripTerminalEscapes('a\x01b'), 'a b');
     assert.strictEqual(stripTerminalEscapes('a\x01b', ''), 'ab');
