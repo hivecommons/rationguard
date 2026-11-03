@@ -16,6 +16,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- Canonicalise the trusted HOME store and project store paths before the same-store check so a symlinked `$HOME` or cwd no longer loads the user's excuses a second time as untrusted project excuses (#475).
 - `recordSightingIfEligible` no longer swallows auto-learning failures silently: callers can pass `onEvent` to receive one bounded `sighting_record_failed` event with `reason` set to the errno code (e.g. `EACCES`, `EROFS`, `ENOSPC`) or `error`. `rationguard check` emits it under `--log-format=json` (stderr stays silent otherwise, since Stop hooks read it as the rebuttal) and `rationguard watch` logs it; the function still never throws (#471).
 - Document the `sighting_record_failed` event and its `reason` values in the learned-excuses-store runbook.
 - Document and test the `ls` alias for `sessions`: the alias was a public command since #3 but undiscoverable and unguarded by tests. Now documented in help text and README, and covered by a CLI test (#465).

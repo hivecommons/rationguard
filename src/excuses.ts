@@ -1,7 +1,17 @@
 import { DEFAULT_EXCUSES } from './defaults.js';
+import fs from 'node:fs';
 import path from 'node:path';
 import { getTrustedBase, loadCustomExcuses } from './learner.js';
 import type { Excuse } from './types.js';
+
+/** Realpath when the directory exists, so a symlinked HOME or cwd compares equal; plain resolve otherwise. */
+function canonical(p: string): string {
+  try {
+    return fs.realpathSync.native(p);
+  } catch {
+    return path.resolve(p);
+  }
+}
 
 /**
  * Assembles the full excuse set: builtins, the user's trusted HOME store,
@@ -18,7 +28,7 @@ export function getAllExcuses(): Excuse[] {
   // When cwd is $HOME the project store is the trusted store; loading it again
   // would duplicate every excuse under an untrusted source tag.
   const trusted = getTrustedBase();
-  const sameStore = trusted !== null && path.resolve(trusted) === path.resolve('.', '.rationguard');
+  const sameStore = trusted !== null && canonical(trusted) === canonical(path.resolve('.', '.rationguard'));
   const projectCustom = (sameStore ? [] : loadCustomExcuses('.')).map((e): Excuse => ({ ...e, source: 'project' }));
   return [...DEFAULT_EXCUSES, ...custom, ...projectCustom];
 }
