@@ -57,9 +57,12 @@ empty state, which makes the loss permanent unless a copy was kept.
 
    A read-only HOME (e.g. a sandboxed hook or container), an `EACCES` from
    wrong ownership, or a plain file named `.rationguard` all make `check` and
-   `watch` skip recording without any message. (A corrupt store that cannot
-   be moved aside is the exception: that case emits a `store_preserve_failed`
-   event on stderr.)
+   `watch` skip recording. `watch` logs a `sighting_record_failed` event
+   (`grep sighting_record_failed`) and `rationguard check --log-format=json`
+   prints the same event on stderr; its `reason` is the errno code (`EACCES`,
+   `EROFS`, `ENOSPC`) or `error`. Plain `check` stays silent because Stop hooks
+   read stderr as the rebuttal. (A corrupt store that cannot be moved aside
+   emits a `store_preserve_failed` event on stderr.)
 
 ## Recover
 
