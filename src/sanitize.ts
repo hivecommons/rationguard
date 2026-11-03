@@ -38,7 +38,9 @@ function replaceControlStrings(text: string, intro: RegExp, replacement: string)
  * ESC # 8, ESC % G, ESC SP F), any other two-byte ESC sequence (e.g.
  * ESC c full reset), and the raw C0/DEL/C1 control-character ranges (with
  * `\t` and `\n` left untouched by the caller, since this helper only removes
- * escape junk, not plain whitespace).
+ * escape junk, not plain whitespace). Unicode bidi override/embedding/isolate
+ * controls are removed too: they visually reorder the rest of the line,
+ * including the provenance tag (Trojan Source class, CVE-2021-42574).
  *
  * `replacement` defaults to a single space so multi-escape payloads can't be
  * reassembled by later whitespace collapsing; pass `''` if the caller wants
@@ -60,7 +62,9 @@ export function stripTerminalEscapes(text: string, replacement = ' '): string {
     .replace(/\x1b[0-~]/g, replacement)
     // Remaining raw C0 control chars (except \t and \n), DEL, and C1 range —
     // covers any stray/incomplete escape bytes not matched above.
-    .replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]+/g, replacement);
+    .replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]+/g, replacement)
+    // Bidi embedding/override (U+202A–U+202E) and isolate (U+2066–U+2069) controls.
+    .replace(/[\u202A-\u202E\u2066-\u2069]+/g, replacement);
 }
 
 /**
