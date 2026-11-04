@@ -2,7 +2,8 @@
 # CI on mutation score (stryker thresholds.break is null) and is not a required
 # check. The tree is split into three shards so every nightly shard finishes
 # inside its budget and writes an incremental file on main that pull-request
-# runs restore (#347, #400). Pull requests mutate only the changed src files of
+# runs restore (#347, #400) — the nightly passes --force so that seed is
+# remeasured every night (#431). Pull requests mutate only the changed src files of
 # each shard under a 20-minute budget; shards with no changed file are skipped.
 # Ratchet is a separate, later decision.
 name: Mutation (advisory)
@@ -91,7 +92,11 @@ jobs:
         continue-on-error: true
         env:
           FILES: ${{ steps.files.outputs.files }}
-        run: npx stryker run --mutate "$FILES" --incrementalFile "$INCREMENTAL_FILE"
+        # --force: the command test runner cannot see test-file changes, so
+        # without it the nightly reuses last night's results verbatim and a new
+        # test that kills a survivor never changes the report. The nightly is
+        # the seed PR runs restore; it must always be a full measurement (#431).
+        run: npx stryker run --mutate "$FILES" --incrementalFile "$INCREMENTAL_FILE" --force
 
       - name: Summary
         if: always() && steps.files.outputs.files != ''
