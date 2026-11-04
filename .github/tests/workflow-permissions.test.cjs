@@ -59,6 +59,9 @@ const ALLOWLIST = {
   'feedback.yml': {
     workflow: { contents: 'read', 'pull-requests': 'write' },
   },
+  'fossa.yml': {
+    workflow: { contents: 'read' },
+  },
   'greetings.yml': {
     workflow: { contents: 'read', issues: 'write', 'pull-requests': 'write' },
   },
