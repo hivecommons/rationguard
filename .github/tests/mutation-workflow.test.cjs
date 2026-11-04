@@ -19,6 +19,10 @@
 //      commit a report or the incremental file.
 //   6. The shard matrix mutates every non-test src file exactly once, so a
 //      new source file cannot silently drop out of the nightly run (#400).
+//   7. The nightly Stryker step passes --force and the pull-request step does
+//      not: the command test runner cannot see test-file changes, so a nightly
+//      that reuses the restored file reports last night's survivors verbatim,
+//      while a PR run must reuse it to fit its budget (#431).
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync, readdirSync } = require('node:fs');
@@ -167,6 +171,21 @@ test('shard matrix mutates every non-test src/*.ts file exactly once', () => {
   for (const f of listed) assert.ok(sources.includes(f), `shard file ${f} is not a non-test src/*.ts file`);
   assert.equal(new Set(listed).size, listed.length, `a file is listed in two shards: ${listed}`);
   assert.deepEqual([...listed].sort(), sources, 'every non-test src/*.ts file must belong to a shard');
+});
+
+// --- 7. nightly remeasures, pull requests reuse ------------------------------
+
+test('nightly Stryker step passes --force and the pull-request step does not', () => {
+  const isPullRequest = s => /github\.event_name\s*==\s*'pull_request\b/.test(scalar(s, 'if') ?? '');
+  const isNightly = s => /github\.event_name\s*!=\s*'pull_request\b/.test(scalar(s, 'if') ?? '');
+  const nightly = strykerSteps.filter(isNightly);
+  const pullRequest = strykerSteps.filter(isPullRequest);
+  assert.equal(nightly.length, 1, 'exactly one Stryker step must run on the nightly schedule');
+  assert.equal(pullRequest.length, 1, 'exactly one Stryker step must run on pull requests');
+  assert.equal(nightly.length + pullRequest.length, strykerSteps.length, 'every Stryker step must be gated on the event name');
+  const force = /npx stryker run\b[^\n]*\s--force(?:\s|$)/;
+  assert.match(scalar(nightly[0], 'run'), force, 'without --force the nightly reuses the restored incremental file and never remeasures a survivor a new test now kills');
+  assert.doesNotMatch(scalar(pullRequest[0], 'run'), force, 'a forced pull-request run cannot reuse the nightly seed and blows its budget');
 });
 
 // --- fixture self-test -------------------------------------------------------
