@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Changed
 
+- `ROADMAP.md` supported-CLI matrix and the README `--dangerous` table now list all seven `--cli` values and the flags the bundled pluk actually applies (`goose` is `GOOSE_MODE=auto`, `copilot` `--allow-all-tools`, `gemini` `--yolo`, `aider` `--yes-always`, `omp` `--approval-mode yolo`); `npm run test:workflows` pins both to `--help` and the installed `@hivecommons/pluk` (#482).
 - Emit watcher rebuttal-delivery events and learner store-recovery diagnostics through one `logEvent` helper in `diagnostics`: one-line JSON with `event` and `timestamp`. The store-move failure on stderr is now a `store_preserve_failed` JSON event (the prose line is kept on a TTY); `store_preserved` gains `timestamp` (#450).
 - Bump `@hivecommons/pluk` from 0.10.0 to 0.11.0; `rationguard attach` progress and status lines now go to stderr instead of stdout, matching pluk's own `attach` (#438).
 - Extract flag parsing and the `require*` validators from `cli` into their own `flags` module; no behaviour change.

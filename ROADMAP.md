@@ -21,15 +21,17 @@ Proposed, in verifiable terms. Items marked *enforced today* are already CI gate
 
 ## Supported-CLI matrix
 
-The five values accepted by `--cli` are `claude`, `copilot`, `gemini`, `goose` and `codex`. Support levels are derived from what the repository tests or documents today:
+The seven values accepted by `--cli` are `claude`, `copilot`, `gemini`, `goose`, `codex`, `aider` and `omp` — every CLI the bundled [pluk](https://www.npmjs.com/package/@hivecommons/pluk) ships terminal patterns for. `--dangerous` is passed through to pluk, so the flag it maps to follows the bundled pluk version. Support levels are derived from what the repository tests or documents today:
 
 | CLI | Level | Evidence |
 |-----|-------|----------|
 | `claude` | First-class | Default for `--cli`; `--dangerous` maps to `--dangerously-skip-permissions`; the README documents a Claude Code `Stop` hook for post-response detection |
 | `codex` | Best-effort | `--dangerous` maps to `--full-auto`; the README documents a Codex `Stop` hook for post-response detection; no CLI-specific test or fixture |
-| `goose` | Best-effort | `--dangerous` maps to `--non-interactive`; one `src/cli.test.ts` case uses `goose` only as a label in a pluk event fixture |
-| `copilot` | Best-effort | Accepted by `--cli`; `--dangerous` is a no-op (pass the CLI's own option via `--cli-args`); only test asserts `--cli=copilot` is accepted without an "--cli is ignored" warning in the default subscribe mode |
-| `gemini` | Best-effort | Accepted by `--cli`; `--dangerous` is a no-op; the README documents a Gemini CLI `AfterAgent` hook for post-response detection; no CLI-specific test or fixture |
+| `goose` | Best-effort | `--dangerous` sets `GOOSE_MODE=auto` in the session environment; one `src/cli.test.ts` case uses `goose` only as a label in a pluk event fixture |
+| `copilot` | Best-effort | `--dangerous` maps to `--allow-all-tools`; only test asserts `--cli=copilot` is accepted without an "--cli is ignored" warning in the default subscribe mode |
+| `gemini` | Best-effort | `--dangerous` maps to `--yolo`; the README documents a Gemini CLI `AfterAgent` hook for post-response detection; no CLI-specific test or fixture |
+| `aider` | Best-effort | `--dangerous` maps to `--yes-always`; accepted by `--cli` and listed in `--help` (#441); no CLI-specific test, fixture or hook documentation |
+| `omp` | Best-effort | `--dangerous` maps to `--approval-mode yolo`; accepted by `--cli` and listed in `--help` (#441); no CLI-specific test, fixture or hook documentation |
 
 Levels meaning:
 
