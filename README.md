@@ -125,10 +125,14 @@ Maps to the correct permission-skip flag per CLI:
 | CLI | Flag applied |
 |-----|-------------|
 | `claude` | `--dangerously-skip-permissions` |
+| `copilot` | `--allow-all-tools` |
 | `codex` | `--full-auto` |
-| `goose` | `--non-interactive` |
+| `omp` | `--approval-mode yolo` |
+| `gemini` | `--yolo` |
+| `aider` | `--yes-always` |
+| `goose` | `GOOSE_MODE=auto` (environment variable set for the session, not a flag) |
 
-For other CLIs (`copilot`, `gemini`, or any `--command` wrapper) `--dangerous` is a no-op: no flag is added, so pass the CLI's own auto-approve option via `--cli-args`. If the tmux session already exists, `attach` does not restart the CLI; it prints a warning with the command to restart it with the flag.
+The mapping is pluk's (`rationguard attach` passes `--dangerous` through), so it follows the bundled `@hivecommons/pluk` version. For other CLIs (any `--command` wrapper) `--dangerous` is a no-op: no flag is added, so pass the CLI's own auto-approve option via `--cli-args`. If the tmux session already exists, `attach` does not restart the CLI; it prints a warning with the command to restart it with the flag.
 
 ### Already have sessions running?
 

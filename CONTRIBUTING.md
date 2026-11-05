@@ -58,10 +58,13 @@ README headings against `README.md`. Every `rationguard <command> --flag`
 shown in code in `README.md`, `CONTRIBUTING.md`, `SECURITY.md` and
 `runbooks/*.md` is likewise checked against the subcommands `main()`
 dispatches and the flags `src/cli.ts` reads, and the help text must list the
-same flags. Run it whenever you touch anything under
+same flags. The supported-CLI matrix in `ROADMAP.md` and the `--dangerous`
+table in `README.md` are checked against the `--cli` values in the help text
+and the flag mapping in the installed `@hivecommons/pluk`. Run it whenever you touch anything under
 `.github/`, the `files` field in `package.json`, the subcommands, flags or
 `--cli` values in `src/cli.ts`, `ExcuseCategory` in `src/types.ts`, a README
-heading, or a CLI invocation in the docs or runbooks:
+heading, the `--dangerous` table or supported-CLI matrix, the `@hivecommons/pluk`
+version, or a CLI invocation in the docs or runbooks:
 
 ```bash
 npm run test:workflows
