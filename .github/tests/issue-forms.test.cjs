@@ -251,10 +251,12 @@ test('config.yml: contact links are complete and point at files that exist', () 
 });
 
 test('config.yml: community contact links match the hive README', () => {
-  // Same Discord and Twitch targets as hivecommons/hive README's Community line.
+  // Same Discord, Twitch and community meeting targets as hivecommons/hive README's Community line.
   const yaml = readFileSync(join(TEMPLATES, 'config.yml'), 'utf8');
   const urls = [...yaml.matchAll(/^    url:[ \t]*(\S+)$/gm)].map(m => m[1]);
   assert.ok(urls.includes('https://hivecommons.dev/discord'), 'issue chooser must link the Hive Commons Discord');
   assert.ok(urls.includes('https://www.twitch.tv/hivecommons'), 'issue chooser must link the Twitch live stream');
   assert.match(README, /\(https:\/\/www\.twitch\.tv\/hivecommons\)/, 'README Contributing & Community must link the Twitch live stream');
+  assert.ok(urls.includes('https://docs.hivecommons.dev/docs/community/meetings'), 'issue chooser must link the community meeting');
+  assert.match(README, /\(https:\/\/docs\.hivecommons\.dev\/docs\/community\/meetings\)/, 'README Contributing & Community must link the community meeting');
 });
