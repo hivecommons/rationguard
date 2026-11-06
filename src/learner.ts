@@ -117,11 +117,25 @@ function preserveCorruptFile(filePath: string): void {
   }
 }
 
+// A missing file (or missing parent directory) is the normal first-run state; any other read failure
+// (EACCES, EISDIR, EIO) would otherwise look like an empty store.
+function reportReadFailure(filePath: string, err: unknown): void {
+  const code = (err as NodeJS.ErrnoException | null)?.code;
+  if (code === 'ENOENT' || code === 'ENOTDIR') return;
+  const reason = typeof code === 'string' ? code : 'error';
+  logEvent(
+    'store_read_failed',
+    { filePath, reason },
+    `rationguard: could not read ${filePath} (${reason}); treating it as empty`,
+  );
+}
+
 function loadStore(storePath: string): SightingsStore {
   let raw: string;
   try {
     raw = fs.readFileSync(storePath, 'utf-8');
-  } catch {
+  } catch (err) {
+    reportReadFailure(storePath, err);
     return { sightings: [] };
   }
   try {
@@ -374,7 +388,8 @@ export function loadCustomExcuses(projectDir?: string): Excuse[] {
   let raw: string;
   try {
     raw = fs.readFileSync(filePath, 'utf-8');
-  } catch {
+  } catch (err) {
+    reportReadFailure(filePath, err);
     return [];
   }
   try {

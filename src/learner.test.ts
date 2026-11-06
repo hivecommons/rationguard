@@ -813,6 +813,26 @@ describe('corrupt store preservation', () => {
     assert.strictEqual(stderrLines.length, 0);
   });
 
+  it('reports an unreadable store instead of silently treating it as empty', () => {
+    fs.mkdirSync(base(), { recursive: true });
+    fs.writeFileSync(path.join(base(), 'sightings.json'), '{"sightings":[]}');
+    const realRead = fs.readFileSync;
+    (fs as { readFileSync: typeof fs.readFileSync }).readFileSync = ((...args: Parameters<typeof fs.readFileSync>) => {
+      if (String(args[0]).endsWith('sightings.json')) throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
+      return realRead(...args);
+    }) as typeof fs.readFileSync;
+    try {
+      assert.deepStrictEqual(listSightings(dir), []);
+    } finally {
+      (fs as { readFileSync: typeof fs.readFileSync }).readFileSync = realRead;
+    }
+    assert.strictEqual(stderrLines.length, 1);
+    const failed = JSON.parse(stderrLines[0]!);
+    assert.deepStrictEqual(Object.keys(failed).sort(), ['event', 'filePath', 'reason', 'timestamp']);
+    assert.strictEqual(failed.event, 'store_read_failed');
+    assert.strictEqual(failed.reason, 'EACCES');
+  });
+
   it('still returns an empty store when the move-aside rename fails', () => {
     fs.mkdirSync(base(), { recursive: true });
     fs.writeFileSync(path.join(base(), 'sightings.json'), 'garbage');
