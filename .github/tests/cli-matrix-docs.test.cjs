@@ -135,3 +135,11 @@ test('ROADMAP matrix --dangerous evidence matches the installed @hivecommons/plu
     assert.equal(claim[1], mapped, `ROADMAP.md: \`${row.cli}\` evidence says \`${claim[1]}\` but the installed pluk applies \`${mapped}\``);
   }
 });
+
+test('ROADMAP Non-goals CLI count matches the --cli values from HELP', () => {
+  const types = cliTypes();
+  const text = section(ROADMAP, /^## Non-goals$/m, 'ROADMAP.md');
+  const line = text.match(/Supporting CLIs beyond the (\w+) above/);
+  assert.ok(line, 'ROADMAP.md: Non-goals must keep the "Supporting CLIs beyond the <n> above" line');
+  assert.equal(line[1], NUMBER_WORDS[types.length], `ROADMAP.md Non-goals: "beyond the ${line[1]} above" but HELP lists ${types.length} --cli values`);
+});

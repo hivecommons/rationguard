@@ -65,5 +65,5 @@ Project-local excuses (`./.rationguard/custom-excuses.json`) are untrusted: they
 - Replacing an AI CLI's own permission or sandbox model; `--dangerous` only forwards a CLI's existing flag.
 - Judging code quality or correctness of an agent's work; rationguard detects rationalizing language only.
 - Acting as a security boundary against a malicious agent or repository.
-- Supporting CLIs beyond the five above through built-in code; other CLIs can use `--command` wrappers.
+- Supporting CLIs beyond the seven above through built-in code; other CLIs can use `--command` wrappers.
 - Machine-learned or remote-service detection; patterns stay local, inspectable keyword and pattern rules.
