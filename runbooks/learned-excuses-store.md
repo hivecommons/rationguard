@@ -100,8 +100,9 @@ Writers serialize through `~/.rationguard/.sightings.lock` (created
 exclusively, one lock for both store files). It is best-effort: a lock still
 held after about 2 seconds, or one that cannot be created (read-only or
 unwritable directory), is skipped and the write runs unlocked, so concurrent
-writers can then drop each other's update without any message. A lock older
-than 10 seconds is treated as abandoned by a crashed holder and reclaimed
+writers can then drop each other's update. A lock still held after the wait
+budget emits a `store_lock_timeout` event on stderr (`grep store_lock_timeout`).
+A lock older than 10 seconds is treated as abandoned by a crashed holder and reclaimed
 automatically by the next writer.
 
 - A `.sightings.lock` that persists while no rationguard process runs is

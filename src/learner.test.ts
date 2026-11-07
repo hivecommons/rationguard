@@ -424,6 +424,25 @@ describe('store lock', () => {
     assert.strictEqual(fs.readFileSync(lockPath(), 'utf-8'), 'other');
   });
 
+  it('emits one bounded store_lock_timeout event when it gives up on a held lock', () => {
+    fs.mkdirSync(storeDir(), { recursive: true });
+    fs.writeFileSync(lockPath(), 'other');
+    const lines: string[] = [];
+    const realError = console.error;
+    console.error = (line: string) => { lines.push(line); };
+    try {
+      withStoreLock(storeDir(), () => 'ran', { maxWaitMs: 30 });
+      fs.rmSync(lockPath());
+      withStoreLock(storeDir(), () => 'ran', { maxWaitMs: 30 });
+    } finally {
+      console.error = realError;
+    }
+    assert.strictEqual(lines.length, 1);
+    const { timestamp, ...event } = JSON.parse(lines[0]!);
+    assert.ok(!Number.isNaN(Date.parse(timestamp)));
+    assert.deepStrictEqual(event, { event: 'store_lock_timeout', waitedMs: 30 });
+  });
+
   it('reclaims a stale lock left by a crashed process', () => {
     fs.mkdirSync(storeDir(), { recursive: true });
     fs.writeFileSync(lockPath(), '999999');

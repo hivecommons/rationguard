@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { logEvent } from './diagnostics.js';
 
 const LOCK_FILE = '.sightings.lock';
 const LOCK_MAX_WAIT_MS = 2000;
@@ -170,6 +171,8 @@ export function withStoreLock<T>(dir: string, fn: () => T, opts: StoreLockOption
   const lockPath = path.join(dir, LOCK_FILE);
   const depth = lockDepths.get(lockPath) ?? 0;
   const { state, token } = depth > 0 ? { state: 'nested' as LockState, token: undefined } : acquireLock(dir, lockPath, opts);
+  // Contention that outlasted maxWaitMs is the case where concurrent writers can drop each other's update.
+  if (state === 'held') logEvent('store_lock_timeout', { waitedMs: opts.maxWaitMs ?? LOCK_MAX_WAIT_MS });
   lockDepths.set(lockPath, depth + 1);
   try {
     return fn();
