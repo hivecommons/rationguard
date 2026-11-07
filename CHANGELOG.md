@@ -17,6 +17,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `--log-format` now counts as an implicit-`check` flag on piped stdin, so `printf '...' | rationguard --log-format=json` runs `check` instead of printing help and exiting 0; the TTY help path is covered by a test again (#498, #499).
 - Bare `rationguard` with a non-TTY stdin (CI, cron, `spawn`) prints help and exits 0 again; piped stdin only becomes implicit `check` input when `--fail-on-match` or `--json` is given (#496).
 - A store lock still held after the wait budget now emits a `store_lock_timeout` JSON event on stderr (with `waitedMs`) before the write runs unlocked, instead of silently risking a dropped update.
 - Implicit `check` fallback: piped stdin with no subcommand (e.g. `printf '...' | rationguard --fail-on-match`) now runs `check` instead of printing help and exiting 0 (#492).
