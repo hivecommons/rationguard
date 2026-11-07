@@ -18,6 +18,7 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - A store lock still held after the wait budget now emits a `store_lock_timeout` JSON event on stderr (with `waitedMs`) before the write runs unlocked, instead of silently risking a dropped update.
+- Implicit `check` fallback: piped stdin with no subcommand (e.g. `printf '...' | rationguard --fail-on-match`) now runs `check` instead of printing help and exiting 0 (#492).
 - An unreadable sightings or custom-excuses file (for example `EACCES`) now emits a `store_read_failed` JSON event on stderr instead of silently behaving as an empty store; a missing file stays silent.
 - `sanitizeForTerminal` / `stripTerminalEscapes` now strip Unicode bidi override, embedding and isolate controls (U+202A–U+202E, U+2066–U+2069), so project-local excuse text can no longer visually reorder a line and its `[project-local]` provenance tag; `stringifyForTerminal` and other format characters such as ZWJ are unchanged (#477).
 - Canonicalise the trusted HOME store and project store paths before the same-store check so a symlinked `$HOME` or cwd no longer loads the user's excuses a second time as untrusted project excuses (#475).
