@@ -614,8 +614,9 @@ async function main(): Promise<void> {
       break;
     case '':
       // Implicit check fallback: if we have input (positional text, file flag,
-      // or piped stdin), treat as check; otherwise show help
-      if (positional.length > 0 || flags['file'] !== undefined || !process.stdin.isTTY) {
+      // or piped stdin alongside a check flag), treat as check; otherwise show help
+      const checkFlagGiven = flags['fail-on-match'] !== undefined || flags['json'] !== undefined;
+      if (positional.length > 0 || flags['file'] !== undefined || (!process.stdin.isTTY && checkFlagGiven)) {
         await cmdCheck(positional, flags);
       } else {
         console.log(HELP);

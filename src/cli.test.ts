@@ -84,14 +84,8 @@ describe('help', () => {
   });
 
   it('prints usage with no arguments', () => {
-    // Dynamic import after setting process.argv and process.stdin.isTTY so main() sees a TTY stdin.
-    const cliUrl = new URL('./cli.js', import.meta.url).href;
-    const res = runEval(`
-      process.argv = [process.argv[0], 'cli.js'];
-      process.stdin.isTTY = true;
-      await import(${JSON.stringify(cliUrl)});
-    `);
-    assert.strictEqual(res.status, 0, `stdout: ${res.stdout} stderr: ${res.stderr}`);
+    const res = run([]);
+    assert.strictEqual(res.status, 0);
     assert.match(stripAnsi(res.stdout), /USAGE/);
   });
 
@@ -2421,6 +2415,12 @@ describe('check --fail-on-match', () => {
   it('exits 0 on a match without the flag', () => {
     const res = run(['check', "I'll do it later"]);
     assert.strictEqual(res.status, 0);
+  });
+
+  it('prints help for bare invocation with a closed non-TTY stdin (#496)', () => {
+    const res = run([], '');
+    assert.strictEqual(res.status, 0);
+    assert.match(stripAnsi(res.stdout), /USAGE/);
   });
 
   it('checks piped stdin when check flags are passed without a subcommand (#492)', () => {
