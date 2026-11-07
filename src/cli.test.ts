@@ -2454,6 +2454,13 @@ describe('check --fail-on-match', () => {
     assert.match(stripAnsi(res.stdout), /Clean — no rationalization patterns detected/);
   });
 
+  it('checks piped stdin when only --json is passed without a subcommand', () => {
+    const res = run(['--json'], 'all done, nothing left to do');
+    assert.strictEqual(res.status, 0);
+    assert.doesNotMatch(stripAnsi(res.stdout), /USAGE/);
+    assert.strictEqual(JSON.parse(res.stdout).clean, false);
+  });
+
   it('checks piped stdin when check flags are passed without a subcommand (#492)', () => {
     const match = run(['--fail-on-match'], 'all done, nothing left to do');
     assert.strictEqual(match.status, 2);
