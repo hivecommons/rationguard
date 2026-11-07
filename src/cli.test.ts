@@ -84,8 +84,14 @@ describe('help', () => {
   });
 
   it('prints usage with no arguments', () => {
-    const res = run([]);
-    assert.strictEqual(res.status, 0);
+    // Dynamic import after setting process.argv and process.stdin.isTTY so main() sees a TTY stdin.
+    const cliUrl = new URL('./cli.js', import.meta.url).href;
+    const res = runEval(`
+      process.argv = [process.argv[0], 'cli.js'];
+      process.stdin.isTTY = true;
+      await import(${JSON.stringify(cliUrl)});
+    `);
+    assert.strictEqual(res.status, 0, `stdout: ${res.stdout} stderr: ${res.stderr}`);
     assert.match(stripAnsi(res.stdout), /USAGE/);
   });
 
@@ -2417,6 +2423,25 @@ describe('check --fail-on-match', () => {
     assert.strictEqual(res.status, 0);
   });
 
+  it('checks piped stdin when check flags are passed without a subcommand (#492)', () => {
+    const match = run(['--fail-on-match'], 'all done, nothing left to do');
+    assert.strictEqual(match.status, 2);
+    assert.match(stripAnsi(match.stdout), /Found \d+ rationalization pattern/);
+
+    const clean = run(['--fail-on-match'], 'hello world');
+    assert.strictEqual(clean.status, 0);
+    assert.match(stripAnsi(clean.stdout), /Clean — no rationalization patterns detected/);
+
+    const json = run(['--json', '--fail-on-match'], 'all done, nothing left to do');
+    assert.strictEqual(json.status, 2);
+    assert.strictEqual(JSON.parse(json.stdout).clean, false);
+
+    const empty = run(['--fail-on-match']);
+    assert.strictEqual(empty.status, 1);
+    assert.match(stripAnsi(empty.stderr), /No input/);
+    assert.doesNotMatch(stripAnsi(empty.stdout), /USAGE/);
+  });
+
   it('rejects invalid boolean flag values and accepts true/false', () => {
     const bad = run(['check', '--fail-on-match=tru', 'no work found']);
     assert.strictEqual(bad.status, 1);
@@ -2443,6 +2468,9 @@ describe('check --fail-on-match', () => {
     const ok = run(['--help=true']);
     assert.strictEqual(ok.status, 0);
     assert.match(ok.stdout, /rationguard/);
+    const offWithInput = run(['--help=false', 'no work found']);
+    assert.strictEqual(offWithInput.status, 0);
+    assert.match(stripAnsi(offWithInput.stdout), /Found \d+ rationalization pattern/);
   });
 
   it('keeps KNOWN_FLAGS in sync with HELP and the flags read in cli.ts', (t) => {
