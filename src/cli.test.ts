@@ -2268,6 +2268,30 @@ describe('check with a TTY stdin', () => {
   });
 });
 
+describe('bare invocation with a TTY stdin', () => {
+  it('prints usage and exits 0 even when a check flag is given', () => {
+    const cliUrl = new URL('./cli.js', import.meta.url).href;
+    const res = runEval(`
+      process.argv = [process.argv[0], 'cli.js', '--fail-on-match'];
+      process.stdin.isTTY = true;
+      await import(${JSON.stringify(cliUrl)});
+    `);
+    assert.strictEqual(res.status, 0, `stdout: ${res.stdout} stderr: ${res.stderr}`);
+    assert.match(stripAnsi(res.stdout), /USAGE/);
+  });
+
+  it('prints usage and exits 0 with no arguments', () => {
+    const cliUrl = new URL('./cli.js', import.meta.url).href;
+    const res = runEval(`
+      process.argv = [process.argv[0], 'cli.js'];
+      process.stdin.isTTY = true;
+      await import(${JSON.stringify(cliUrl)});
+    `);
+    assert.strictEqual(res.status, 0, `stdout: ${res.stdout} stderr: ${res.stderr}`);
+    assert.match(stripAnsi(res.stdout), /USAGE/);
+  });
+});
+
 describe('watch runtime error forwarding', () => {
   it('prints watcher "error" events to stderr and exits non-zero once the loop drains', () => {
     const cliUrl = new URL('./cli.js', import.meta.url).href;
@@ -2421,6 +2445,13 @@ describe('check --fail-on-match', () => {
     const res = run([], '');
     assert.strictEqual(res.status, 0);
     assert.match(stripAnsi(res.stdout), /USAGE/);
+  });
+
+  it('checks piped stdin when only --log-format is passed without a subcommand (#498)', () => {
+    const res = run(['--log-format=json'], 'hello world');
+    assert.strictEqual(res.status, 0);
+    assert.doesNotMatch(stripAnsi(res.stdout), /USAGE/);
+    assert.match(stripAnsi(res.stdout), /Clean — no rationalization patterns detected/);
   });
 
   it('checks piped stdin when check flags are passed without a subcommand (#492)', () => {
