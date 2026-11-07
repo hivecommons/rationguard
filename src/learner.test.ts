@@ -362,7 +362,15 @@ describe('atomic store writes', () => {
   it('removes its temp file when the rename fails', () => {
     const base = path.join(dir, '.rationguard');
     fs.mkdirSync(path.join(base, 'sightings.json'), { recursive: true }); // destination is a directory -> renameSync throws
-    assert.throws(() => recordSighting('rename failure cleanup', undefined, undefined, dir));
+    // The directory also makes the preceding read fail with EISDIR, which is
+    // reported on stderr; the event itself is pinned under 'corrupt store preservation'.
+    const originalStderr = process.stderr.write;
+    process.stderr.write = (() => true) as typeof process.stderr.write;
+    try {
+      assert.throws(() => recordSighting('rename failure cleanup', undefined, undefined, dir));
+    } finally {
+      process.stderr.write = originalStderr;
+    }
     const leftovers = fs.readdirSync(base).filter(e => e.endsWith('.tmp'));
     assert.deepStrictEqual(leftovers, []);
   });
@@ -831,6 +839,66 @@ describe('corrupt store preservation', () => {
     assert.deepStrictEqual(Object.keys(failed).sort(), ['event', 'filePath', 'reason', 'timestamp']);
     assert.strictEqual(failed.event, 'store_read_failed');
     assert.strictEqual(failed.reason, 'EACCES');
+  });
+
+  it('reports an unreadable custom-excuses.json under its own path', () => {
+    fs.mkdirSync(base(), { recursive: true });
+    fs.writeFileSync(path.join(base(), 'custom-excuses.json'), '[]');
+    const realRead = fs.readFileSync;
+    (fs as { readFileSync: typeof fs.readFileSync }).readFileSync = ((...args: Parameters<typeof fs.readFileSync>) => {
+      if (String(args[0]).endsWith('custom-excuses.json')) throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
+      return realRead(...args);
+    }) as typeof fs.readFileSync;
+    try {
+      assert.deepStrictEqual(loadCustomExcuses(dir), []);
+    } finally {
+      (fs as { readFileSync: typeof fs.readFileSync }).readFileSync = realRead;
+    }
+    assert.strictEqual(stderrLines.length, 1);
+    const { timestamp, ...event } = JSON.parse(stderrLines[0]!);
+    assert.ok(!Number.isNaN(Date.parse(timestamp)));
+    assert.deepStrictEqual(event, {
+      event: 'store_read_failed',
+      filePath: path.join(base(), 'custom-excuses.json'),
+      reason: 'EACCES',
+    });
+  });
+
+  it('falls back to reason "error" when the read failure carries no errno code', () => {
+    fs.mkdirSync(base(), { recursive: true });
+    fs.writeFileSync(path.join(base(), 'sightings.json'), '{"sightings":[]}');
+    const realRead = fs.readFileSync;
+    (fs as { readFileSync: typeof fs.readFileSync }).readFileSync = ((...args: Parameters<typeof fs.readFileSync>) => {
+      if (String(args[0]).endsWith('sightings.json')) throw new Error('boom');
+      return realRead(...args);
+    }) as typeof fs.readFileSync;
+    try {
+      assert.deepStrictEqual(listSightings(dir), []);
+    } finally {
+      (fs as { readFileSync: typeof fs.readFileSync }).readFileSync = realRead;
+    }
+    assert.strictEqual(stderrLines.length, 1);
+    const failed = JSON.parse(stderrLines[0]!);
+    assert.strictEqual(failed.event, 'store_read_failed');
+    assert.strictEqual(failed.reason, 'error');
+  });
+
+  it('stays silent when a path component of the store is a plain file (ENOTDIR)', () => {
+    // `.rationguard` itself is a file, so reading `.rationguard/sightings.json`
+    // fails with ENOTDIR rather than ENOENT; both are the no-store-yet state.
+    fs.writeFileSync(base(), 'not a directory');
+    assert.deepStrictEqual(listSightings(dir), []);
+    assert.deepStrictEqual(loadCustomExcuses(dir), []);
+    assert.strictEqual(stderrLines.length, 0);
+  });
+
+  it('reports EISDIR when the store path is a directory and still fails the save', () => {
+    fs.mkdirSync(path.join(base(), 'sightings.json'), { recursive: true });
+    assert.throws(() => recordSighting('store path is a directory', undefined, undefined, dir));
+    const readFailures = stderrLines.map(l => JSON.parse(l)).filter(e => e.event === 'store_read_failed');
+    assert.strictEqual(readFailures.length, 1);
+    assert.strictEqual(readFailures[0].filePath, path.join(base(), 'sightings.json'));
+    assert.strictEqual(readFailures[0].reason, 'EISDIR');
   });
 
   it('still returns an empty store when the move-aside rename fails', () => {
