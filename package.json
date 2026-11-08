@@ -36,6 +36,8 @@
     "gemini",
     "goose",
     "codex",
+    "aider",
+    "omp",
     "tmux"
   ],
   "author": "hivecommons",

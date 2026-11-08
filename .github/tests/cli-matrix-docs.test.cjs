@@ -10,7 +10,9 @@
 // straight through — so the README table is pinned to the installed
 // @hivecommons/pluk rather than to a third hand-maintained copy. A pluk bump
 // that changes a mapping then fails here with the row to update, instead of
-// leaving the README describing a flag that is no longer applied.
+// leaving the README describing a flag that is no longer applied. The README
+// Prerequisites CLI list and the package.json npm keywords are pinned to the
+// same HELP values, so a new --cli value cannot ship invisible to either.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
@@ -20,6 +22,7 @@ const repoRoot = join(__dirname, '../..');
 const CLI_SRC = readFileSync(join(repoRoot, 'src/cli.ts'), 'utf8');
 const README = readFileSync(join(repoRoot, 'README.md'), 'utf8');
 const ROADMAP = readFileSync(join(repoRoot, 'ROADMAP.md'), 'utf8');
+const PACKAGE = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'));
 const PLUK_ATTACH = readFileSync(join(repoRoot, 'node_modules/@hivecommons/pluk/dist/attach.js'), 'utf8');
 
 // Same extraction as issue-forms.test.cjs so both gates fail together if the
@@ -142,4 +145,18 @@ test('ROADMAP Non-goals CLI count matches the --cli values from HELP', () => {
   const line = text.match(/Supporting CLIs beyond the (\w+) above/);
   assert.ok(line, 'ROADMAP.md: Non-goals must keep the "Supporting CLIs beyond the <n> above" line');
   assert.equal(line[1], NUMBER_WORDS[types.length], `ROADMAP.md Non-goals: "beyond the ${line[1]} above" but HELP lists ${types.length} --cli values`);
+});
+
+test('README Prerequisites names exactly the --cli values from HELP', () => {
+  const types = cliTypes();
+  const text = section(README, /^## Prerequisites$/m, 'README.md');
+  const line = text.match(/^- The AI CLI you want to supervise \(([^)]*)\)/m);
+  assert.ok(line, 'README.md: Prerequisites must keep the "- The AI CLI you want to supervise (`a`, `b` or `c`)" bullet');
+  const listed = [...line[1].matchAll(/`([a-z]+)`/g)].map(m => m[1]);
+  assert.deepEqual(listed.slice().sort(), types.slice().sort(), 'README.md: Prerequisites CLI list drifted from the --cli values in HELP');
+});
+
+test('package.json keywords include every --cli value from HELP', () => {
+  const missing = cliTypes().filter(cli => !PACKAGE.keywords.includes(cli));
+  assert.deepEqual(missing, [], `package.json: keywords lack --cli values ${missing.join(', ')}, so npm search for them never finds rationguard`);
 });
