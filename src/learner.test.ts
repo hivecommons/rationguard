@@ -981,6 +981,64 @@ describe('corrupt store preservation', () => {
     assert.deepStrictEqual(droppedSiblings('sightings.json'), []);
   });
 
+  it('forgets a read-only load once the store is replaced with unparsable content', () => {
+    writeMixedStore();
+    assert.deepStrictEqual(listSightings(dir), [validSighting]);
+    fs.writeFileSync(path.join(base(), 'sightings.json'), '{not json');
+    recordSighting('fresh excuse', undefined, undefined, dir);
+    assert.deepStrictEqual(droppedSiblings('sightings.json'), []);
+    const corrupt = fs.readdirSync(base()).filter(f => f.startsWith('sightings.json.corrupt-'));
+    assert.strictEqual(corrupt.length, 1);
+    assert.strictEqual(events('store_preserved').length, 1);
+  });
+
+  it('forgets a read-only load once the store becomes unreadable', () => {
+    writeMixedStore();
+    assert.deepStrictEqual(listSightings(dir), [validSighting]);
+    const realRead = fs.readFileSync;
+    (fs as { readFileSync: typeof fs.readFileSync }).readFileSync = ((...args: Parameters<typeof fs.readFileSync>) => {
+      if (String(args[0]).endsWith('sightings.json')) throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
+      return realRead(...args);
+    }) as typeof fs.readFileSync;
+    try {
+      recordSighting('fresh excuse', undefined, undefined, dir);
+    } finally {
+      (fs as { readFileSync: typeof fs.readFileSync }).readFileSync = realRead;
+    }
+    assert.deepStrictEqual(droppedSiblings('sightings.json'), []);
+    assert.strictEqual(events('store_preserved').length, 0);
+  });
+
+  it('forgets a read-only load of custom-excuses.json once it becomes unparsable', () => {
+    fs.mkdirSync(base(), { recursive: true });
+    fs.writeFileSync(path.join(base(), 'custom-excuses.json'), JSON.stringify([null]));
+    assert.deepStrictEqual(loadCustomExcuses(dir), []);
+    fs.writeFileSync(path.join(base(), 'custom-excuses.json'), '[not json');
+    for (let i = 0; i < 3; i++) recordSighting('promote me', 'deferral', 'act now', dir);
+    assert.deepStrictEqual(droppedSiblings('custom-excuses.json'), []);
+    const corrupt = fs.readdirSync(base()).filter(f => f.startsWith('custom-excuses.json.corrupt-'));
+    assert.strictEqual(corrupt.length, 1);
+  });
+
+  it('never overwrites an existing file at the dropped-copy path', () => {
+    writeMixedStore();
+    const realNow = Date.now;
+    Date.now = () => 1700000000000;
+    const clash = path.join(base(), 'sightings.json.dropped-1700000000000.json');
+    fs.writeFileSync(clash, 'keep me');
+    try {
+      recordSighting('fresh excuse', undefined, undefined, dir);
+    } finally {
+      Date.now = realNow;
+    }
+    assert.strictEqual(fs.readFileSync(clash, 'utf-8'), 'keep me');
+    assert.strictEqual(JSON.parse(fs.readFileSync(path.join(base(), 'sightings.json'), 'utf-8')).sightings.length, 2);
+    const failed = events('store_preserve_failed');
+    assert.strictEqual(failed.length, 1);
+    assert.match(failed[0].reason, /EEXIST/);
+    assert.strictEqual(failed[0].corruptPath, clash);
+  });
+
   it('reports an unreadable store instead of silently treating it as empty', () => {
     fs.mkdirSync(base(), { recursive: true });
     fs.writeFileSync(path.join(base(), 'sightings.json'), '{"sightings":[]}');

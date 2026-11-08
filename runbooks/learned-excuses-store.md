@@ -60,7 +60,9 @@ empty state, which makes the loss permanent unless a copy was kept.
 5. Look for leftover `.<name>.<pid>.<timestamp>.tmp` files in the directory;
    they indicate a process was killed during a write. A
    `<name>.corrupt-<timestamp>.json` file is a store that could not be parsed
-   and was moved aside.
+   and was moved aside. A `<name>.dropped-<timestamp>.json` file is the copy
+   of the store taken before the write that removed entries reported by
+   `store_entries_dropped`.
 6. If detections are reported but sightings stop accumulating, confirm the
    store is a directory the running user can write to:
 
@@ -96,9 +98,14 @@ empty state, which makes the loss permanent unless a copy was kept.
    `{"event":"store_preserve_failed","filePath":...,"corruptPath":...,"reason":...}`
    (`grep store_preserve_failed` in logs; when stderr is a TTY the same
    failure prints as a prose `... could not be moved aside to <path>: <error>`
-   line; a failed `.dropped-` copy is reported the same way and the write still
-   proceeds); copy the original file elsewhere before the next write
-   replaces it, then fix permissions (step 5).
+   line); the unparsable file is left in place, so copy it elsewhere before
+   the next write replaces it, then fix permissions (step 5).
+   A failed `.dropped-` copy emits the same `store_preserve_failed` event
+   (TTY prose: `... had entries dropped and the original could not be copied
+   to <path>: <error>`), but the write proceeds regardless, so by the time
+   the event is visible the original has already been replaced and cannot be
+   copied: restore from backup or re-add the entries (step 3), then fix
+   permissions (step 5) so later copies succeed.
 3. If no copy exists, re-add the important excuses with `rationguard add`.
    Sighting counts cannot be reconstructed.
 4. If `HOME` was the cause, correct the environment of the service and restart.

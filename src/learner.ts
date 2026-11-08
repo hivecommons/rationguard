@@ -97,12 +97,10 @@ function isTrustedStoreFile(filePath: string): boolean {
 const droppedOriginals = new Map<string, string>();
 
 // Entries that fail validation are ignored on read and vanish on the next
-// write, so say so for the trusted store (project-local files stay silent).
-function reportDroppedEntries(filePath: string, raw: string, dropped: number, kept: number): void {
-  if (dropped === 0 || !isTrustedStoreFile(filePath)) {
-    droppedOriginals.delete(filePath);
-    return;
-  }
+// write, so say so for the trusted store (project-local files stay silent)
+// and arm droppedOriginals so writeJsonAtomic keeps the pre-drop original.
+function noteDroppedEntries(filePath: string, raw: string, dropped: number, kept: number): void {
+  if (dropped === 0 || !isTrustedStoreFile(filePath)) return;
   droppedOriginals.set(filePath, raw);
   logEvent(
     'store_entries_dropped',
@@ -122,7 +120,9 @@ function preserveDroppedOriginal(filePath: string): void {
     `${path.basename(filePath)}.dropped-${Date.now()}.json`,
   );
   try {
-    fs.writeFileSync(corruptPath, raw, { mode: 0o600 });
+    // Create-exclusive: the pre-drop copy must never follow or truncate a
+    // path that already exists under the timestamped name.
+    fs.writeFileSync(corruptPath, raw, { mode: 0o600, flag: 'wx' });
     logEvent('store_preserved', { filePath, corruptPath });
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
@@ -178,6 +178,9 @@ function reportReadFailure(filePath: string, err: unknown): void {
 }
 
 function loadStore(storePath: string): SightingsStore {
+  // Every load starts clean: a copy armed by an earlier load must not be
+  // written after a read failure or a corrupt-file move-aside.
+  droppedOriginals.delete(storePath);
   let raw: string;
   try {
     raw = fs.readFileSync(storePath, 'utf-8');
@@ -191,7 +194,7 @@ function loadStore(storePath: string): SightingsStore {
       const sightings = (parsed as Record<string, unknown>)['sightings'];
       if (Array.isArray(sightings)) {
         const valid = sightings.filter(isValidSighting);
-        reportDroppedEntries(storePath, raw, sightings.length - valid.length, valid.length);
+        noteDroppedEntries(storePath, raw, sightings.length - valid.length, valid.length);
         return { sightings: valid };
       }
     }
@@ -224,6 +227,10 @@ function loadStore(storePath: string): SightingsStore {
  *
  * If writeFileSync or renameSync fails, the temp file is removed before
  * rethrow, preventing repeated failed attempts from accumulating orphans.
+ *
+ * Before the temp file is written, preserveDroppedOriginal keeps a
+ * `<name>.dropped-<timestamp>.json` copy of the store if the preceding load
+ * (noteDroppedEntries) found entries this write is about to remove.
  */
 function writeJsonAtomic(filePath: string, data: unknown): void {
   const dir = path.dirname(filePath);
@@ -437,6 +444,7 @@ function isValidExcuse(value: unknown): value is Excuse {
 export function loadCustomExcuses(projectDir?: string): Excuse[] {
   const filePath = getCustomExcusesPath(projectDir);
   if (!filePath) return [];
+  droppedOriginals.delete(filePath);
   let raw: string;
   try {
     raw = fs.readFileSync(filePath, 'utf-8');
@@ -448,7 +456,7 @@ export function loadCustomExcuses(projectDir?: string): Excuse[] {
     const parsed: unknown = JSON.parse(raw);
     if (Array.isArray(parsed)) {
       const valid = parsed.filter(isValidExcuse);
-      reportDroppedEntries(filePath, raw, parsed.length - valid.length, valid.length);
+      noteDroppedEntries(filePath, raw, parsed.length - valid.length, valid.length);
       return valid;
     }
   } catch {
