@@ -840,6 +840,70 @@ describe('corrupt store preservation', () => {
     assert.strictEqual(stderrLines.length, 0);
   });
 
+  const validSighting = {
+    text: 'good',
+    count: 2,
+    firstSeen: '2026-01-01T00:00:00.000Z',
+    lastSeen: '2026-01-02T00:00:00.000Z',
+    suggestedCategory: 'deferral',
+    suggestedRebuttal: 'do it',
+    promoted: false,
+  };
+
+  it('reports invalid sighting entries dropped from the trusted store', () => {
+    fs.mkdirSync(base(), { recursive: true });
+    fs.writeFileSync(
+      path.join(base(), 'sightings.json'),
+      JSON.stringify({ sightings: [validSighting, { ...validSighting, count: '2' }] }),
+    );
+    assert.deepStrictEqual(listSightings(dir), [validSighting]);
+    assert.strictEqual(stderrLines.length, 1);
+    const { timestamp, ...event } = JSON.parse(stderrLines[0]!);
+    assert.ok(!Number.isNaN(Date.parse(timestamp)));
+    assert.deepStrictEqual(event, {
+      event: 'store_entries_dropped',
+      filePath: path.join(base(), 'sightings.json'),
+      dropped: 1,
+      kept: 1,
+    });
+  });
+
+  it('reports invalid custom excuses dropped from the trusted store', () => {
+    fs.mkdirSync(base(), { recursive: true });
+    const valid: Excuse = { pattern: 'later', rebuttal: 'Act now.', category: 'deferral', keywords: ['later'] };
+    fs.writeFileSync(path.join(base(), 'custom-excuses.json'), JSON.stringify([valid, null]));
+    assert.deepStrictEqual(loadCustomExcuses(dir), [valid]);
+    assert.strictEqual(stderrLines.length, 1);
+    const { timestamp, ...event } = JSON.parse(stderrLines[0]!);
+    assert.ok(!Number.isNaN(Date.parse(timestamp)));
+    assert.deepStrictEqual(event, {
+      event: 'store_entries_dropped',
+      filePath: path.join(base(), 'custom-excuses.json'),
+      dropped: 1,
+      kept: 1,
+    });
+  });
+
+  it('stays silent when every entry in the trusted store is valid', () => {
+    fs.mkdirSync(base(), { recursive: true });
+    fs.writeFileSync(path.join(base(), 'sightings.json'), JSON.stringify({ sightings: [validSighting] }));
+    fs.writeFileSync(path.join(base(), 'custom-excuses.json'), '[]');
+    assert.deepStrictEqual(listSightings(dir), [validSighting]);
+    assert.deepStrictEqual(loadCustomExcuses(dir), []);
+    assert.strictEqual(stderrLines.length, 0);
+  });
+
+  it('stays silent about invalid entries in a project-local store', () => {
+    const home = fs.mkdtempSync(path.join(dir, 'home-'));
+    process.env['HOME'] = home;
+    fs.mkdirSync(base(), { recursive: true });
+    fs.writeFileSync(path.join(base(), 'sightings.json'), JSON.stringify({ sightings: [validSighting, null] }));
+    fs.writeFileSync(path.join(base(), 'custom-excuses.json'), JSON.stringify([null]));
+    assert.deepStrictEqual(listSightings(dir), [validSighting]);
+    assert.deepStrictEqual(loadCustomExcuses(dir), []);
+    assert.strictEqual(stderrLines.length, 0);
+  });
+
   it('reports an unreadable store instead of silently treating it as empty', () => {
     fs.mkdirSync(base(), { recursive: true });
     fs.writeFileSync(path.join(base(), 'sightings.json'), '{"sightings":[]}');

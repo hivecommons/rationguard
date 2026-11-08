@@ -86,6 +86,22 @@ function isValidSighting(value: unknown): value is Sighting {
   );
 }
 
+function isTrustedStoreFile(filePath: string): boolean {
+  const trusted = getTrustedBase();
+  return trusted !== null && path.resolve(path.dirname(filePath)) === path.resolve(trusted);
+}
+
+// Entries that fail validation are ignored on read and vanish on the next
+// write, so say so for the trusted store (project-local files stay silent).
+function reportDroppedEntries(filePath: string, dropped: number, kept: number): void {
+  if (dropped === 0 || !isTrustedStoreFile(filePath)) return;
+  logEvent(
+    'store_entries_dropped',
+    { filePath, dropped, kept },
+    `rationguard: ${filePath} had ${dropped} entries with an unexpected shape; they were ignored and will be removed on the next write`,
+  );
+}
+
 /**
  * Moves an unparsable or wrong-shape store file aside, in the same directory
  * so the rename is atomic, so the next write cannot replace it and destroy the
@@ -94,8 +110,7 @@ function isValidSighting(value: unknown): value is Sighting {
  * repo-controlled, so it is left as is (no write side effect in the checkout).
  */
 function preserveCorruptFile(filePath: string): void {
-  const trusted = getTrustedBase();
-  if (trusted === null || path.resolve(path.dirname(filePath)) !== path.resolve(trusted)) return;
+  if (!isTrustedStoreFile(filePath)) return;
   const corruptPath = path.join(
     path.dirname(filePath),
     `${path.basename(filePath)}.corrupt-${Date.now()}.json`,
@@ -142,7 +157,11 @@ function loadStore(storePath: string): SightingsStore {
     const parsed: unknown = JSON.parse(raw);
     if (typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)) {
       const sightings = (parsed as Record<string, unknown>)['sightings'];
-      if (Array.isArray(sightings)) return { sightings: sightings.filter(isValidSighting) };
+      if (Array.isArray(sightings)) {
+        const valid = sightings.filter(isValidSighting);
+        reportDroppedEntries(storePath, sightings.length - valid.length, valid.length);
+        return { sightings: valid };
+      }
     }
   } catch {
     // Unparsable; handled below.
@@ -394,7 +413,11 @@ export function loadCustomExcuses(projectDir?: string): Excuse[] {
   }
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed.filter(isValidExcuse);
+    if (Array.isArray(parsed)) {
+      const valid = parsed.filter(isValidExcuse);
+      reportDroppedEntries(filePath, parsed.length - valid.length, valid.length);
+      return valid;
+    }
   } catch {
     // Unparsable; handled below.
   }
