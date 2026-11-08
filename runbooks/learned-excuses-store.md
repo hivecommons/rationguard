@@ -4,7 +4,8 @@ Use this when `rationguard sightings` or `rationguard list` suddenly shows far
 fewer entries than before, or excuses you added no longer match. The store is
 read leniently: an unreadable, truncated or wrong-shape file is treated as
 empty and the command carries on, so the loss is easy to miss (stderr carries
-a `store_read_failed`, `store_preserved` or `store_preserve_failed` event).
+a `store_read_failed`, `store_preserved`, `store_preserve_failed` or
+`store_entries_dropped` event).
 
 Related runbooks: `watch-session-degraded.md`, `postmortem-template.md`.
 
@@ -22,6 +23,11 @@ empty state, which makes the loss permanent unless a copy was kept.
   `grep store_read_failed` in logs). The file exists but could not be read
   (`EACCES`, `EISDIR`, `EIO`, or `error`) and was treated as empty. A missing
   file stays silent: that is the normal first-run state.
+- Stderr carries a `store_entries_dropped` event
+  (`{"event":"store_entries_dropped","filePath":...,"dropped":1,"kept":4}`;
+  `grep store_entries_dropped` in logs). Some entries had an unexpected shape
+  and were ignored; the next write removes them from the file, so copy it
+  first if they matter.
 - `rationguard list` no longer includes entries you added.
 - The files are `~/.rationguard/sightings.json` and
   `~/.rationguard/custom-excuses.json`. When no absolute home directory can be
