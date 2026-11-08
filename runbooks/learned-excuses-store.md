@@ -26,8 +26,10 @@ empty state, which makes the loss permanent unless a copy was kept.
 - Stderr carries a `store_entries_dropped` event
   (`{"event":"store_entries_dropped","filePath":...,"dropped":1,"kept":4}`;
   `grep store_entries_dropped` in logs). Some entries had an unexpected shape
-  and were ignored; the next write removes them from the file, so copy it
-  first if they matter.
+  and were ignored; the next write removes them from the file, but first
+  copies the original to `<name>.dropped-<timestamp>.json` next to the store
+  (reported as a `store_preserved` event). Read-only commands such as `list`
+  and `sightings` write nothing.
 - `rationguard list` no longer includes entries you added.
 - The files are `~/.rationguard/sightings.json` and
   `~/.rationguard/custom-excuses.json`. When no absolute home directory can be
@@ -58,7 +60,9 @@ empty state, which makes the loss permanent unless a copy was kept.
 5. Look for leftover `.<name>.<pid>.<timestamp>.tmp` files in the directory;
    they indicate a process was killed during a write. A
    `<name>.corrupt-<timestamp>.json` file is a store that could not be parsed
-   and was moved aside.
+   and was moved aside. A `<name>.dropped-<timestamp>.json` file is the copy
+   of the store taken before the write that removed entries reported by
+   `store_entries_dropped`.
 6. If detections are reported but sightings stop accumulating, confirm the
    store is a directory the running user can write to:
 
@@ -85,13 +89,23 @@ empty state, which makes the loss permanent unless a copy was kept.
    detection continues with an empty store. Stderr gets one JSON line,
    `{"event":"store_preserved","filePath":...,"corruptPath":...}`, naming both
    paths; filter for it in logs with `grep store_preserved`.
-   Repair or merge from that copy. If the store directory is not writable the
+   Repair or merge from that copy. Entries dropped for an unexpected shape
+   (`store_entries_dropped`) are kept the same way, as
+   `<name>.dropped-<timestamp>.json` holding the file as it was before the
+   write that removed them; it is created once per load, with the same
+   `store_preserved` event. If the store directory is not writable the
    rename fails and stderr instead emits
    `{"event":"store_preserve_failed","filePath":...,"corruptPath":...,"reason":...}`
    (`grep store_preserve_failed` in logs; when stderr is a TTY the same
    failure prints as a prose `... could not be moved aside to <path>: <error>`
-   line); copy the original file elsewhere before the next write
-   replaces it, then fix permissions (step 5).
+   line); the unparsable file is left in place, so copy it elsewhere before
+   the next write replaces it, then fix permissions (step 5).
+   A failed `.dropped-` copy emits the same `store_preserve_failed` event
+   (TTY prose: `... had entries dropped and the original could not be copied
+   to <path>: <error>`), but the write proceeds regardless, so by the time
+   the event is visible the original has already been replaced and cannot be
+   copied: restore from backup or re-add the entries (step 3), then fix
+   permissions (step 5) so later copies succeed.
 3. If no copy exists, re-add the important excuses with `rationguard add`.
    Sighting counts cannot be reconstructed.
 4. If `HOME` was the cause, correct the environment of the service and restart.
