@@ -26,8 +26,10 @@ empty state, which makes the loss permanent unless a copy was kept.
 - Stderr carries a `store_entries_dropped` event
   (`{"event":"store_entries_dropped","filePath":...,"dropped":1,"kept":4}`;
   `grep store_entries_dropped` in logs). Some entries had an unexpected shape
-  and were ignored; the next write removes them from the file, so copy it
-  first if they matter.
+  and were ignored; the next write removes them from the file, but first
+  copies the original to `<name>.dropped-<timestamp>.json` next to the store
+  (reported as a `store_preserved` event). Read-only commands such as `list`
+  and `sightings` write nothing.
 - `rationguard list` no longer includes entries you added.
 - The files are `~/.rationguard/sightings.json` and
   `~/.rationguard/custom-excuses.json`. When no absolute home directory can be
@@ -85,12 +87,17 @@ empty state, which makes the loss permanent unless a copy was kept.
    detection continues with an empty store. Stderr gets one JSON line,
    `{"event":"store_preserved","filePath":...,"corruptPath":...}`, naming both
    paths; filter for it in logs with `grep store_preserved`.
-   Repair or merge from that copy. If the store directory is not writable the
+   Repair or merge from that copy. Entries dropped for an unexpected shape
+   (`store_entries_dropped`) are kept the same way, as
+   `<name>.dropped-<timestamp>.json` holding the file as it was before the
+   write that removed them; it is created once per load, with the same
+   `store_preserved` event. If the store directory is not writable the
    rename fails and stderr instead emits
    `{"event":"store_preserve_failed","filePath":...,"corruptPath":...,"reason":...}`
    (`grep store_preserve_failed` in logs; when stderr is a TTY the same
    failure prints as a prose `... could not be moved aside to <path>: <error>`
-   line); copy the original file elsewhere before the next write
+   line; a failed `.dropped-` copy is reported the same way and the write still
+   proceeds); copy the original file elsewhere before the next write
    replaces it, then fix permissions (step 5).
 3. If no copy exists, re-add the important excuses with `rationguard add`.
    Sighting counts cannot be reconstructed.

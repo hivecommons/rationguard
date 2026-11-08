@@ -18,6 +18,7 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - Entries dropped from the trusted `sightings.json` / `custom-excuses.json` for having an unexpected shape now emit a `store_entries_dropped` JSON event on stderr (with `dropped` and `kept`) instead of vanishing silently on the next write; project-local stores stay silent (#502).
+- The write that persists dropped trusted-store entries now first keeps the original as `<name>.dropped-<timestamp>.json` (once per load, `store_preserved` event, `store_preserve_failed` if the copy fails) instead of leaving the operator to copy a file that was already overwritten; read-only commands create no copy (#504).
 - `--log-format` now counts as an implicit-`check` flag on piped stdin, so `printf '...' | rationguard --log-format=json` runs `check` instead of printing help and exiting 0; the TTY help path is covered by a test again (#498, #499).
 - Bare `rationguard` with a non-TTY stdin (CI, cron, `spawn`) prints help and exits 0 again; piped stdin only becomes implicit `check` input when `--fail-on-match` or `--json` is given (#496).
 - A store lock still held after the wait budget now emits a `store_lock_timeout` JSON event on stderr (with `waitedMs`) before the write runs unlocked, instead of silently risking a dropped update.
