@@ -509,6 +509,43 @@ describe('check', () => {
     assert.match(stripAnsi(res.stdout), /USAGE/);
   });
 
+  it('rejects a non-check flag on a dash-led implicit check', () => {
+    const res = run(['- Nothing left to do', '--rebuttal=send']);
+    assert.strictEqual(res.status, 1);
+    assert.strictEqual(stripAnsi(res.stderr), 'Error: Unknown flag "--rebuttal" for check. See rationguard --help.\n');
+    assert.strictEqual(res.stdout, '');
+  });
+
+  it('rejects a non-check flag on an implicit check that reads --file', () => {
+    const file = path.join(sandbox, 'implicit-flag.txt');
+    fs.writeFileSync(file, 'hello world');
+    const res = run([`--file=${file}`, '--cli=claude']);
+    assert.strictEqual(res.status, 1);
+    assert.strictEqual(stripAnsi(res.stderr), 'Error: Unknown flag "--cli" for check. See rationguard --help.\n');
+    assert.strictEqual(res.stdout, '');
+  });
+
+  it('rejects a non-check flag on an implicit check that reads piped stdin', () => {
+    const res = run(['--json', '--mode=subscribe'], 'hello world');
+    assert.strictEqual(res.status, 1);
+    assert.strictEqual(stripAnsi(res.stderr), 'Error: Unknown flag "--mode" for check. See rationguard --help.\n');
+    assert.strictEqual(res.stdout, '');
+  });
+
+  it('keeps check-compatible flags on a dash-led implicit check', () => {
+    const res = run(['- Nothing left to do', '--json', '--log-format=text']);
+    assert.strictEqual(res.status, 0);
+    assert.strictEqual(res.stderr, '');
+    assert.strictEqual(JSON.parse(res.stdout).input, '- Nothing left to do');
+  });
+
+  it('shows help, not an error, for a lone non-check flag with no input', () => {
+    const res = run(['--rebuttal=send']);
+    assert.strictEqual(res.status, 0);
+    assert.strictEqual(res.stderr, '');
+    assert.match(stripAnsi(res.stdout), /USAGE/);
+  });
+
   it('includes project-local excuses from ./.rationguard in detection', () => {
     const dir = path.join(projectDir, '.rationguard');
     fs.mkdirSync(dir, { recursive: true });
