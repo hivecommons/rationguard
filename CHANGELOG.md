@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Fixed
+
+- Unknown commands with flags that `check` does not accept (for example, `wtach my-agent --rebuttal=send`) now report a usage error and exit 1 instead of silently running a text check; shorthand checks with check-compatible flags are preserved (#513).
+
 ## 0.15.0 - 2026-11-09
 
 ### Changed

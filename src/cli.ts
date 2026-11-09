@@ -623,7 +623,11 @@ async function main(): Promise<void> {
       }
       break;
     default:
-      // Treat unknown command as check input
+      // Keep shorthand checks, but don't silently ignore another command's flags.
+      if (Object.keys(flags).some(flag => !['file', 'fail-on-match', 'json', 'log-format', 'help'].includes(flag))) {
+        console.error(`${ANSI_RED}Error:${ANSI_RESET} Unknown command "${sanitizeForTerminal(command)}". See rationguard --help.`);
+        process.exit(1);
+      }
       await cmdCheck([command, ...positional], flags);
       break;
   }
