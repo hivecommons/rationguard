@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file.
 ### Fixed
 
 - Unknown commands with flags that `check` does not accept (for example, `wtach my-agent --rebuttal=send`) now report a usage error and exit 1 instead of silently running a text check; shorthand checks with check-compatible flags are preserved (#513).
+- Implicit check text passed as several arguments whose first argument starts with a dash (for example, `rationguard "- Nothing" "left to do"`) is now checked in the order given instead of having a later argument moved to the front, so phrases spanning the argument boundary are matched (#515).
 
 ## 0.15.0 - 2026-11-09
 
