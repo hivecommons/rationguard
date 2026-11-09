@@ -573,6 +573,15 @@ function cmdSightings(flags: Record<string, string>): void {
   console.log();
 }
 
+// Shorthand and implicit checks must not silently ignore another command's flags.
+function rejectNonCheckFlags(flags: Record<string, string>, name: string): void {
+  if (Object.keys(flags).some(flag => !['file', 'fail-on-match', 'json', 'log-format', 'help'].includes(flag))) {
+    const subject = name === '' ? 'Unsupported flag for check' : `Unknown command "${sanitizeForTerminal(name)}"`;
+    console.error(`${ANSI_RED}Error:${ANSI_RESET} ${subject}. See rationguard --help.`);
+    process.exit(1);
+  }
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const { command, positional, flags } = parseFlags(args);
@@ -617,17 +626,14 @@ async function main(): Promise<void> {
       // or piped stdin alongside a check flag), treat as check; otherwise show help
       const checkFlagGiven = flags['fail-on-match'] !== undefined || flags['json'] !== undefined || flags['log-format'] !== undefined;
       if (positional.length > 0 || flags['file'] !== undefined || (!process.stdin.isTTY && checkFlagGiven)) {
+        rejectNonCheckFlags(flags, positional[0] ?? '');
         await cmdCheck(positional, flags);
       } else {
         console.log(HELP);
       }
       break;
     default:
-      // Keep shorthand checks, but don't silently ignore another command's flags.
-      if (Object.keys(flags).some(flag => !['file', 'fail-on-match', 'json', 'log-format', 'help'].includes(flag))) {
-        console.error(`${ANSI_RED}Error:${ANSI_RESET} Unknown command "${sanitizeForTerminal(command)}". See rationguard --help.`);
-        process.exit(1);
-      }
+      rejectNonCheckFlags(flags, command);
       await cmdCheck([command, ...positional], flags);
       break;
   }

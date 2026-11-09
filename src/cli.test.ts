@@ -509,6 +509,36 @@ describe('check', () => {
     assert.match(stripAnsi(res.stdout), /USAGE/);
   });
 
+  it('rejects a non-check flag on an implicit check with dash-led text', () => {
+    const res = run(['- Nothing left to do', '--rebuttal=send']);
+    assert.strictEqual(res.status, 1);
+    assert.strictEqual(stripAnsi(res.stderr), 'Error: Unknown command "- Nothing left to do". See rationguard --help.\n');
+    assert.strictEqual(res.stdout, '');
+  });
+
+  it('rejects a non-check flag on an implicit check with --file', () => {
+    const file = path.join(sandbox, 'implicit-flag-check.txt');
+    fs.writeFileSync(file, 'hello world');
+    const res = run([`--file=${file}`, '--cli=claude']);
+    assert.strictEqual(res.status, 1);
+    assert.strictEqual(stripAnsi(res.stderr), 'Error: Unsupported flag for check. See rationguard --help.\n');
+    assert.strictEqual(res.stdout, '');
+  });
+
+  it('rejects a non-check flag on an implicit check with piped stdin', () => {
+    const res = run(['--json', '--rebuttal=send'], 'everything is complete');
+    assert.strictEqual(res.status, 1);
+    assert.strictEqual(stripAnsi(res.stderr), 'Error: Unsupported flag for check. See rationguard --help.\n');
+    assert.strictEqual(res.stdout, '');
+  });
+
+  it('still prints help for a non-check flag with no input at all', () => {
+    const res = run(['--rebuttal=send']);
+    assert.strictEqual(res.status, 0);
+    assert.strictEqual(res.stderr, '');
+    assert.match(stripAnsi(res.stdout), /USAGE/);
+  });
+
   it('includes project-local excuses from ./.rationguard in detection', () => {
     const dir = path.join(projectDir, '.rationguard');
     fs.mkdirSync(dir, { recursive: true });
