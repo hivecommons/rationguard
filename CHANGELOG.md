@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+## 0.15.0 - 2026-11-09
+
 ### Changed
 
 - `ROADMAP.md` supported-CLI matrix and the README `--dangerous` table now list all seven `--cli` values and the flags the bundled pluk actually applies (`goose` is `GOOSE_MODE=auto`, `copilot` `--allow-all-tools`, `gemini` `--yolo`, `aider` `--yes-always`, `omp` `--approval-mode yolo`); `npm run test:workflows` pins both to `--help` and the installed `@hivecommons/pluk` (#482).
