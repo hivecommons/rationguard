@@ -451,6 +451,57 @@ describe('check', () => {
     assert.match(stripAnsi(res.stdout), /False Completion/);
   });
 
+  it('rejects a typo in watch instead of silently checking the session name', () => {
+    const res = run(['wtach', 'my-agent', '--rebuttal=send']);
+    assert.strictEqual(res.status, 1);
+    assert.strictEqual(stripAnsi(res.stderr), 'Error: Unknown command "wtach". See rationguard --help.\n');
+    assert.strictEqual(res.stdout, '');
+  });
+
+  for (const flag of ['--rebuttal=send', '--mode=subscribe', '--cli=claude', '--run-dir=/tmp/pluk', '--category=deferral', '--excuse=text', '--format=yaml', '--verbose=false']) {
+    it(`rejects an unknown command with non-check flag ${flag}`, () => {
+      const res = run(['wtach', 'my-agent', '--json', flag]);
+      assert.strictEqual(res.status, 1);
+      assert.strictEqual(stripAnsi(res.stderr), 'Error: Unknown command "wtach". See rationguard --help.\n');
+      assert.strictEqual(res.stdout, '');
+    });
+  }
+
+  it('rejects non-check flags before an unknown command and sanitizes its name', () => {
+    const res = run(['--rebuttal=send', 'wtach\x1b]0;hidden\x07', 'my-agent']);
+    assert.strictEqual(res.status, 1);
+    assert.strictEqual(stripAnsi(res.stderr), 'Error: Unknown command "wtach". See rationguard --help.\n');
+    assert.strictEqual(res.stdout, '');
+  });
+
+  it('keeps unknown commands as check input with check-compatible flags', () => {
+    const clean = run(['chekc', '--fail-on-match', 'hello world', '--json', '--log-format=text', '--help=false']);
+    assert.strictEqual(clean.status, 0);
+    assert.strictEqual(clean.stderr, '');
+    assert.strictEqual(JSON.parse(clean.stdout).input, 'chekc hello world');
+    assert.strictEqual(JSON.parse(clean.stdout).clean, true);
+
+    const match = run(['chekc', '--fail-on-match', 'everything is complete', '--json', '--log-format=json']);
+    assert.strictEqual(match.status, 2);
+    assert.strictEqual(JSON.parse(match.stdout).clean, false);
+  });
+
+  it('keeps --file input for an implicit check with an unknown command', () => {
+    const file = path.join(sandbox, 'implicit-check.txt');
+    fs.writeFileSync(file, 'hello world');
+    const res = run(['chekc', `--file=${file}`, '--json']);
+    assert.strictEqual(res.status, 0);
+    assert.strictEqual(res.stderr, '');
+    assert.strictEqual(JSON.parse(res.stdout).input, 'hello world');
+  });
+
+  it('shows help for an unknown command with non-check flags when requested', () => {
+    const res = run(['wtach', 'my-agent', '--rebuttal=send', '--help']);
+    assert.strictEqual(res.status, 0);
+    assert.strictEqual(res.stderr, '');
+    assert.match(stripAnsi(res.stdout), /USAGE/);
+  });
+
   it('includes project-local excuses from ./.rationguard in detection', () => {
     const dir = path.join(projectDir, '.rationguard');
     fs.mkdirSync(dir, { recursive: true });
