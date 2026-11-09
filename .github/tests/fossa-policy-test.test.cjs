@@ -9,10 +9,12 @@ const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 
 const yaml = readFileSync(join(__dirname, '../workflows/fossa.yml'), 'utf8');
+// Comments explain why fossa-action's inputs are avoided; only real keys count.
+const yamlWithoutComments = yaml.replace(/^\s*#.*$/gm, '');
 
 test('fossa.yml policy test runs the CLI directly, not fossa-action run-tests', () => {
-  assert.doesNotMatch(yaml, /run-tests:\s*true/, 'run-tests: true cannot fall back when the base revision is unknown');
-  assert.doesNotMatch(yaml, /test-diff-revision:/);
+  assert.doesNotMatch(yamlWithoutComments, /run-tests:\s*true/, 'run-tests: true cannot fall back when the base revision is unknown');
+  assert.doesNotMatch(yamlWithoutComments, /test-diff-revision:/);
   assert.match(yaml, /fossa test --project hivecommons\/rationguard --diff "\$BASE_SHA"/);
 });
 
