@@ -49,11 +49,24 @@ jobs:
           team: Hive Commons
           branch: ${{ github.head_ref || github.ref_name }}
 
+      # `fossa test --diff <base>` hard-fails when FOSSA has never seen the base
+      # revision — the only uploader is this workflow's own push:main run, so a
+      # main run lost to infrastructure (CLI download outage, #506) turns every
+      # PR against that base red until main moves again. When FOSSA says the
+      # base is unknown, test the PR revision in full instead (a superset of
+      # the diff test); any other failure still fails the job.
       - name: Run FOSSA policy test
         if: env.FOSSA_API_KEY != '' && github.event_name == 'pull_request'
-        uses: fossas/fossa-action@29693cc50323968e039056be419b32989fc5880c # v2.0.0
-        with:
-          api-key: ${{ secrets.FOSSA_API_KEY }}
-          project: hivecommons/rationguard
-          run-tests: true
-          test-diff-revision: ${{ github.event.pull_request.base.sha }}
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -o pipefail
+          if fossa test --project hivecommons/rationguard --diff "$BASE_SHA" 2>&1 | tee fossa-test.log; then
+            exit 0
+          fi
+          if grep -q 'Revision for locator .* was not found' fossa-test.log; then
+            echo "::warning::FOSSA has no analysis for base $BASE_SHA (its push:main scan did not upload); running the policy test on this revision without --diff."
+            fossa test --project hivecommons/rationguard
+          else
+            exit 1
+          fi
