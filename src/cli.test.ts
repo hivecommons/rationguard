@@ -439,6 +439,12 @@ describe('check', () => {
     assert.match(stripAnsi(res.stdout), /False Completion/);
   });
 
+  it('keeps word order when dash-led implicit check text spans several arguments', () => {
+    const res = run(['- all done,', 'nothing left to do']);
+    assert.strictEqual(res.status, 0);
+    assert.match(stripAnsi(res.stdout), /False Completion/);
+  });
+
   it('exits 1 with an error when there is no input at all', () => {
     const res = run(['check']);
     assert.strictEqual(res.status, 1);

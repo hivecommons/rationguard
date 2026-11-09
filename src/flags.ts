@@ -41,7 +41,7 @@ export function parseFlags(args: string[]): { command: string; positional: strin
   for (const arg of args) {
     if (endOfOptions) {
       positional.push(arg);
-    } else if (!command && !arg.startsWith('-')) {
+    } else if (!command && positional.length === 0 && !arg.startsWith('-')) {
       command = arg;
     } else if (arg === '--') {
       endOfOptions = true;

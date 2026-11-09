@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- Multi-argument check text starting with a dash (for example, `rationguard "- all done," "nothing left to do"`) now preserves word order instead of reordering arguments before matching phrase patterns; this prevents false negatives when patterns span the argument boundary (#515).
 - Unknown commands with flags that `check` does not accept (for example, `wtach my-agent --rebuttal=send`) now report a usage error and exit 1 instead of silently running a text check; shorthand checks with check-compatible flags are preserved (#513).
 
 ## 0.15.0 - 2026-11-09
