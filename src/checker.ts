@@ -7,6 +7,9 @@ const EXACT_MATCH_CONFIDENCE = 1.0;
 const KEYWORD_WEIGHT = 0.15;
 
 const FILLER_WORDS = new RegExp(`\\b(${FILLER_WORD_LIST.split(' ').join('|')})\\b`, 'g');
+// "all" is filler for matching purposes but, next to a single verb, it is the
+// whole claim ("all done", "all passing"); such keywords keep it.
+const TOTALITY_QUALIFIER = /\ball\b/;
 // Suffix stripping keeps a stem of at least three letters so short words
 // survive ("need" is not "ne" + "ed"); a bare "s" is not stripped from an
 // "ss" ending ("address" is not a plural of "addres").
@@ -31,12 +34,15 @@ function normalizeText(text: string): string {
   return text.toLowerCase().replace(/[\u2018\u2019\u02BC]/g, "'").replace(/[\u201C\u201D]/g, '"').replace(/\s+/g, ' ').trim();
 }
 
-function reduceText(text: string): string {
+function stemText(text: string): string {
   return normalizeText(text)
-    .replace(FILLER_WORDS, '')
     .replace(/[a-z]+/g, stemWord)
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+function reduceText(text: string): string {
+  return stemText(normalizeText(text).replace(FILLER_WORDS, ''));
 }
 
 // Substring match that requires non-alphanumeric characters (or string edges)
@@ -61,6 +67,7 @@ function scoreExcuse(text: string, excuse: Excuse): MatchResult {
   }
 
   const reduced = reduceText(text);
+  const stemmed = stemText(text);
   // Inflected variants of one word (defer/deferred/deferring) share a stem and
   // count as a single hit.
   const hitStems = new Set<string>();
@@ -71,8 +78,18 @@ function scoreExcuse(text: string, excuse: Excuse): MatchResult {
     // A keyword made only of filler words ("will", "just", "should") reduces
     // to '', and '' is a substring of every string — never let an empty
     // reduced form count as a hit.
-    const kwReduced = reduceText(kw);
-    if (containsKeyword(normalized, kwNorm) || (kwReduced.length > 0 && containsKeyword(reduced, kwReduced))) {
+    let kwReduced = reduceText(kw);
+    let haystack = reduced;
+    // Filler stripping must not leave a bare verb: "all done" reduces to
+    // "done" and "all passing" to "pas", losing the "all" that makes them a
+    // totality claim. Compare those without filler removal instead. Other
+    // filler ("will address" -> "address") still drops, so inflections such
+    // as "addressed" keep matching.
+    if (kwReduced.length > 0 && !kwReduced.includes(' ') && TOTALITY_QUALIFIER.test(kwNorm)) {
+      kwReduced = stemText(kw);
+      haystack = stemmed;
+    }
+    if (containsKeyword(normalized, kwNorm) || (kwReduced.length > 0 && containsKeyword(haystack, kwReduced))) {
       hitStems.add(kwReduced.length > 0 ? kwReduced : kwNorm);
       if (kw.length > bestMatch.length) bestMatch = kw;
     }

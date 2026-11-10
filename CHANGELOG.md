@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- The `all done`, `all complete`, `completed all` and `all passing` keywords no longer degrade to a bare `done`/`complete`/`pass` once filler stripping removes `all`, so ordinary sentences such as "Done with the parser refactor" or "I will pass the config through the loader" are not flagged as false completion (#523).
 - `rationguard check` now reports an unknown `--log-format` value before the "No input" and "File not found" errors, matching how every other command validates its flags up front (#521).
 - Unknown commands with flags that `check` does not accept (for example, `wtach my-agent --rebuttal=send`) now report a usage error and exit 1 instead of silently running a text check; shorthand checks with check-compatible flags are preserved (#513).
 - Implicit check text passed as several arguments whose first argument starts with a dash (for example, `rationguard "- Nothing" "left to do"`) is now checked in the order given instead of having a later argument moved to the front, so phrases spanning the argument boundary are matched (#515).

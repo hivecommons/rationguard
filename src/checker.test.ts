@@ -99,6 +99,9 @@ describe('check', () => {
       'Progress bar renders correctly on narrow terminals.',
       'The idler pulley was replaced in the build rig.',
       'Needs for the sprint are listed in the planning doc.',
+      'I will pass the config through the loader.',
+      'Done with the parser refactor; now wiring the CLI.',
+      'Completed the migration and started on the API.',
     ];
 
     for (const input of benign) {
@@ -110,6 +113,12 @@ describe('check', () => {
           `unexpected matches: ${JSON.stringify(result.matches.map(m => [m.excuse?.category, m.matchedText, m.confidence]))}`,
         );
       });
+    }
+  });
+
+  it('still matches the all-done and all-passing keywords', () => {
+    for (const input of ['All done, everything is passing.', 'All the tests are passing now.', 'It is all passing.']) {
+      assert.strictEqual(check(input).clean, false, input);
     }
   });
 
