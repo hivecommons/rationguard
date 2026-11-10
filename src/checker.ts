@@ -7,6 +7,9 @@ const EXACT_MATCH_CONFIDENCE = 1.0;
 const KEYWORD_WEIGHT = 0.15;
 
 const FILLER_WORDS = new RegExp(`\\b(${FILLER_WORD_LIST.split(' ').join('|')})\\b`, 'g');
+// "all" is filler for matching purposes but, next to a single verb, it is the
+// whole claim ("all done", "all passing"); such keywords keep it.
+const TOTALITY_QUALIFIER = /\ball\b/;
 // Suffix stripping keeps a stem of at least three letters so short words
 // survive ("need" is not "ne" + "ed"); a bare "s" is not stripped from an
 // "ss" ending ("address" is not a plural of "addres").
@@ -79,10 +82,11 @@ function scoreExcuse(text: string, excuse: Excuse): MatchResult {
     let haystack = reduced;
     // Filler stripping must not leave a bare verb: "all done" reduces to
     // "done" and "all passing" to "pas", losing the "all" that makes them a
-    // totality claim. Compare those without filler removal instead.
-    const kwStemmed = stemText(kw);
-    if (kwReduced.length > 0 && kwReduced !== kwStemmed && !kwReduced.includes(' ')) {
-      kwReduced = kwStemmed;
+    // totality claim. Compare those without filler removal instead. Other
+    // filler ("will address" -> "address") still drops, so inflections such
+    // as "addressed" keep matching.
+    if (kwReduced.length > 0 && !kwReduced.includes(' ') && TOTALITY_QUALIFIER.test(kwNorm)) {
+      kwReduced = stemText(kw);
       haystack = stemmed;
     }
     if (containsKeyword(normalized, kwNorm) || (kwReduced.length > 0 && containsKeyword(haystack, kwReduced))) {
