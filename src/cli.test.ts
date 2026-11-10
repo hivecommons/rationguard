@@ -2499,6 +2499,17 @@ describe('check --log-format', () => {
     assert.strictEqual(bad.status, 1);
     assert.match(bad.stderr, /Unknown --log-format/);
   });
+
+  it('rejects an unknown value before the no-input and missing-file errors (#521)', () => {
+    const noInput = run(['check', '--log-format=xml']);
+    assert.strictEqual(noInput.status, 1);
+    assert.match(noInput.stderr, /Unknown --log-format/);
+    assert.doesNotMatch(noInput.stderr, /No input/);
+    const missingFile = run(['check', '--log-format=xml', '--file=/nonexistent/rationguard-521']);
+    assert.strictEqual(missingFile.status, 1);
+    assert.match(missingFile.stderr, /Unknown --log-format/);
+    assert.doesNotMatch(missingFile.stderr, /File not found/);
+  });
 });
 
 describe('check --fail-on-match', () => {
