@@ -143,6 +143,7 @@ async function readStdin(): Promise<string> {
 async function cmdCheck(positional: string[], flags: Record<string, string>): Promise<void> {
   requireBooleanFlag('fail-on-match', flags['fail-on-match']);
   requireBooleanFlag('json', flags['json']);
+  requireOneOf('log-format', flags['log-format'], ['text', 'json'], 'Valid values');
   let input = positional.join(' ');
 
   const fromFile = flags['file'] !== undefined;
@@ -171,7 +172,6 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
     process.exit(1);
   }
 
-  requireOneOf('log-format', flags['log-format'], ['text', 'json'], 'Valid values');
   const jsonLog = flags['log-format'] === 'json';
   const failOnMatch = flags['fail-on-match'] === 'true';
   const allExcuses = getAllExcuses();
