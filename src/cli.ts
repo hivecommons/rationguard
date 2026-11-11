@@ -149,6 +149,10 @@ async function cmdCheck(positional: string[], flags: Record<string, string>): Pr
   const fromFile = flags['file'] !== undefined;
   if (fromFile) {
     requirePathFlag('file', flags['file']);
+    if (input) {
+      console.error(`${ANSI_RED}Error:${ANSI_RESET} Provide text or --file=<path>, not both.`);
+      process.exit(1);
+    }
     const filePath = flags['file'];
     if (!fs.existsSync(filePath)) {
       console.error(`${ANSI_RED}Error:${ANSI_RESET} File not found: ${sanitizeForTerminal(filePath)}`);
