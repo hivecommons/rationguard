@@ -410,6 +410,15 @@ describe('check', () => {
     assert.match(stripAnsi(res.stderr), /Provide text or --file=<path>, not both\./);
   });
 
+  it('rejects multi-word shorthand text combined with --file', () => {
+    const file = path.join(sandbox, 'clean-both-words.txt');
+    fs.writeFileSync(file, 'all good here');
+    const res = run(['already', 'handled', `--file=${file}`]);
+    assert.strictEqual(res.status, 1);
+    assert.strictEqual(res.stdout, '');
+    assert.match(stripAnsi(res.stderr), /Provide text or --file=<path>, not both\./);
+  });
+
   it('exits 1 when --file does not exist', () => {
     const res = run(['check', '--file=/nonexistent/nope.txt']);
     assert.strictEqual(res.status, 1);

@@ -638,7 +638,13 @@ async function main(): Promise<void> {
       break;
     default:
       rejectNonCheckFlags(flags, command);
-      await cmdCheck([command, ...positional], flags);
+      // A lone word with --file is a mistyped command (e.g. `chekc --file=x`), not
+      // check text, so keep the file as the sole input instead of rejecting both.
+      if (flags['file'] !== undefined && positional.length === 0 && !/\s/.test(command)) {
+        await cmdCheck([], flags);
+      } else {
+        await cmdCheck([command, ...positional], flags);
+      }
       break;
   }
 }
