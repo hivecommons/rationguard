@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
-- `rationguard check` (and the shorthand form) now exits 1 with `Provide text or --file=<path>, not both.` when positional text is combined with `--file`, instead of silently dropping the text and checking only the file (#526).
+- `rationguard check` (and the shorthand form) now exits 1 with `Provide text or --file=<path>, not both.` when positional text is combined with `--file`, instead of silently dropping the text and checking only the file (#526). Because the CLI cannot tell a mistyped command from shorthand text, a lone unknown word combined with `--file` (for example, `rationguard chekc --file=x`) is now also a usage error rather than an implicit check of the file.
 - The `all done`, `all complete`, `completed all` and `all passing` keywords no longer degrade to a bare `done`/`complete`/`pass` once filler stripping removes `all`, so ordinary sentences such as "Done with the parser refactor" or "I will pass the config through the loader" are not flagged as false completion (#523).
 - `rationguard check` now reports an unknown `--log-format` value before the "No input" and "File not found" errors, matching how every other command validates its flags up front (#521).
 - Unknown commands with flags that `check` does not accept (for example, `wtach my-agent --rebuttal=send`) now report a usage error and exit 1 instead of silently running a text check; shorthand checks with check-compatible flags are preserved (#513).
