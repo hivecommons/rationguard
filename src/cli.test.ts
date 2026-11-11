@@ -392,6 +392,42 @@ describe('check', () => {
     assert.match(stripAnsi(res.stdout), /False Completion/);
   });
 
+  it('rejects positional text combined with --file', () => {
+    const file = path.join(sandbox, 'clean-both.txt');
+    fs.writeFileSync(file, 'all good here');
+    const res = run(['check', 'everything is complete', `--file=${file}`, '--fail-on-match']);
+    assert.strictEqual(res.status, 1);
+    assert.strictEqual(res.stdout, '');
+    assert.match(stripAnsi(res.stderr), /Provide text or --file=<path>, not both\./);
+  });
+
+  it('rejects shorthand positional text combined with --file', () => {
+    const file = path.join(sandbox, 'clean-both-shorthand.txt');
+    fs.writeFileSync(file, 'all good here');
+    const res = run(['I already handled that', `--file=${file}`]);
+    assert.strictEqual(res.status, 1);
+    assert.strictEqual(res.stdout, '');
+    assert.match(stripAnsi(res.stderr), /Provide text or --file=<path>, not both\./);
+  });
+
+  it('rejects multi-word shorthand text combined with --file', () => {
+    const file = path.join(sandbox, 'clean-both-words.txt');
+    fs.writeFileSync(file, 'all good here');
+    const res = run(['already', 'handled', `--file=${file}`]);
+    assert.strictEqual(res.status, 1);
+    assert.strictEqual(res.stdout, '');
+    assert.match(stripAnsi(res.stderr), /Provide text or --file=<path>, not both\./);
+  });
+
+  it('rejects a lone shorthand word combined with --file', () => {
+    const file = path.join(sandbox, 'clean-both-word.txt');
+    fs.writeFileSync(file, 'all good here');
+    const res = run(['handled', `--file=${file}`]);
+    assert.strictEqual(res.status, 1);
+    assert.strictEqual(res.stdout, '');
+    assert.match(stripAnsi(res.stderr), /Provide text or --file=<path>, not both\./);
+  });
+
   it('exits 1 when --file does not exist', () => {
     const res = run(['check', '--file=/nonexistent/nope.txt']);
     assert.strictEqual(res.status, 1);
@@ -493,13 +529,13 @@ describe('check', () => {
     assert.strictEqual(JSON.parse(match.stdout).clean, false);
   });
 
-  it('keeps --file input for an implicit check with an unknown command', () => {
+  it('rejects a mistyped command combined with --file as text plus --file', () => {
     const file = path.join(sandbox, 'implicit-check.txt');
     fs.writeFileSync(file, 'hello world');
     const res = run(['chekc', `--file=${file}`, '--json']);
-    assert.strictEqual(res.status, 0);
-    assert.strictEqual(res.stderr, '');
-    assert.strictEqual(JSON.parse(res.stdout).input, 'hello world');
+    assert.strictEqual(res.status, 1);
+    assert.strictEqual(res.stdout, '');
+    assert.match(stripAnsi(res.stderr), /Provide text or --file=<path>, not both\./);
   });
 
   it('shows help for an unknown command with non-check flags when requested', () => {
