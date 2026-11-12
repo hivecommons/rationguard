@@ -94,7 +94,9 @@ export function sanitizeForTerminal(text: string): string {
  * U+001F, so V8 emits DEL (U+007F) and the C1 range (U+0080–U+009F) as raw
  * code points — and U+009B/U+009D/U+0090 are the 8-bit CSI/OSC/DCS
  * introducers that xterm, VTE and other emulators honour even in UTF-8
- * mode. Untrusted values (project-local excuse text, matched agent
+ * mode. Bidi embedding, override and isolate controls can also reorder
+ * visible output, including provenance, if emitted raw.
+ * Untrusted values (project-local excuse text, matched agent
  * output, pluk session metadata) would otherwise bypass the print-safety
  * boundary `sanitizeForTerminal` enforces on the plain-text path.
  *
@@ -104,7 +106,7 @@ export function sanitizeForTerminal(text: string): string {
  */
 export function stringifyForTerminal(value: unknown, indent?: number): string {
   return JSON.stringify(value, null, indent).replace(
-    /[\x7f-\x9f]/g,
+    /[\x7f-\x9f\u202a-\u202e\u2066-\u2069]/g,
     c => `\\u${c.charCodeAt(0).toString(16).padStart(4, '0')}`,
   );
 }

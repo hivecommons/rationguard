@@ -143,6 +143,13 @@ describe('stringifyForTerminal', () => {
     assert.strictEqual(out, '{"t":"a\\u007fb\\u0080c\\u009bd\\u009fe"}');
   });
 
+  it('escapes bidi controls without changing the parsed value', () => {
+    const value = { '\u202akey': 'a\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069z' };
+    const out = stringifyForTerminal(value);
+    assert.strictEqual(out, '{"\\u202akey":"a\\u202a\\u202b\\u202c\\u202d\\u202e\\u2066\\u2067\\u2068\\u2069z"}');
+    assert.deepStrictEqual(JSON.parse(out), value);
+  });
+
   it('round-trips to the same value and keeps C0/ESC escaped', () => {
     const value = { s: '\x1b]0;x\x07\x9b2J\x00plain\u2028', n: [1, null, true] };
     const out = stringifyForTerminal(value, 2);
