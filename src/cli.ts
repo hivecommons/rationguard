@@ -237,7 +237,15 @@ function cmdPrompt(flags: Record<string, string>): void {
 function cmdAdd(positional: string[], flags: Record<string, string>): void {
   requireValueFlag('excuse', flags['excuse']);
   requireValueFlag('rebuttal', flags['rebuttal']);
-  const excuse = (positional.join(' ') || flags['excuse'] || '').trim();
+  const positionalText = positional.join(' ').trim();
+  const flagExcuse = flags['excuse']?.trim();
+  
+  if (positionalText && flagExcuse) {
+    console.error(`${ANSI_RED}Error:${ANSI_RESET} Provide excuse text as an argument or --excuse="<text>", not both.`);
+    process.exit(1);
+  }
+  
+  const excuse = (positionalText || flagExcuse || '').trim();
   if (!excuse) {
     console.error(`${ANSI_RED}Error:${ANSI_RESET} Provide excuse text as an argument or --excuse="<text>". Use -- to mark the end of options before positional text.`);
     console.error(`  rationguard add "I already handled that" --category=false-completion`);

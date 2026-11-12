@@ -10,6 +10,7 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- `rationguard add` now exits 1 with `Provide excuse text as an argument or --excuse="<text>", not both.` when positional text is combined with `--excuse`, instead of silently dropping the flag and using only the positional text (#531), matching the pattern in `rationguard check` (#527).
 - `rationguard check` (and the shorthand form) now exits 1 with `Provide text or --file=<path>, not both.` when positional text is combined with `--file`, instead of silently dropping the text and checking only the file (#526). Because the CLI cannot tell a mistyped command from shorthand text, a lone unknown word combined with `--file` (for example, `rationguard chekc --file=x`) is now also a usage error rather than an implicit check of the file.
 - The `all done`, `all complete`, `completed all` and `all passing` keywords no longer degrade to a bare `done`/`complete`/`pass` once filler stripping removes `all`, so ordinary sentences such as "Done with the parser refactor" or "I will pass the config through the loader" are not flagged as false completion (#523).
 - `rationguard check` now reports an unknown `--log-format` value before the "No input" and "File not found" errors, matching how every other command validates its flags up front (#521).

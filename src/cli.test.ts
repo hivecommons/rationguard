@@ -977,6 +977,13 @@ describe('add', () => {
     assert.strictEqual(res.status, 1);
     assert.match(stripAnsi(res.stderr), /Unknown category "constructor"/);
   });
+
+  it('rejects positional text combined with --excuse', () => {
+    const res = run(['add', 'positional text', '--excuse=flag text']);
+    assert.strictEqual(res.status, 1);
+    assert.match(stripAnsi(res.stderr), /Provide excuse text as an argument or --excuse="<text>", not both\./);
+    assert.ok(!fs.existsSync(path.join(homeDir, '.rationguard', 'sightings.json')));
+  });
 });
 
 describe('list', () => {
