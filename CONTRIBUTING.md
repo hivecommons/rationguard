@@ -4,6 +4,14 @@ Thanks for helping improve rationguard. This project follows the Hive Commons co
 
 See [ROADMAP.md](ROADMAP.md) for the 1.0 exit criteria, supported-CLI matrix and detection-pattern contribution policy.
 
+## Finding something to work on
+
+- Browse [`good first issue`](https://github.com/hivecommons/rationguard/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22) for small, well-scoped tasks, or [`help wanted`](https://github.com/hivecommons/rationguard/issues?q=is%3Aissue+is%3Aopen+label%3A%22help+wanted%22) for work maintainers would welcome help with.
+- rationguard flagged text that isn't an excuse, missed one that is, or you want a new default excuse? Use the [excuse pattern report form](https://github.com/hivecommons/rationguard/issues/new?template=excuse_pattern.yml) (`.github/ISSUE_TEMPLATE/excuse_pattern.yml`). To send the pattern change yourself, follow the [detection-pattern contribution policy](ROADMAP.md#detection-pattern-contribution-policy).
+- Have an idea for a new feature? Use the [feature request form](https://github.com/hivecommons/rationguard/issues/new?template=feature_request.yml) (`.github/ISSUE_TEMPLATE/feature_request.yml`).
+- Ask setup and contributor questions on [Discord](https://hivecommons.dev/discord).
+- Meet the maintainers at the biweekly [Hive Commons community meeting](https://docs.hivecommons.dev/docs/community/meetings).
+
 ## Local setup
 
 Prerequisites:
@@ -54,7 +62,8 @@ workflow pins `uses:` to a commented commit SHA, declares a top-level
 pins the issue forms under `.github/ISSUE_TEMPLATE/` to the CLI surface: the
 subcommand and `--cli` dropdowns are checked against `src/cli.ts`, the excuse
 category dropdown against `ExcuseCategory` in `src/types.ts`, and the linked
-README headings against `README.md`. Every `rationguard <command> --flag`
+README headings against `README.md`, and the starter-issue, issue-form and
+community links in this guide must stay in place. Every `rationguard <command> --flag`
 shown in code in `README.md`, `CONTRIBUTING.md`, `SECURITY.md` and
 `runbooks/*.md` is likewise checked against the subcommands `main()`
 dispatches and the flags `src/cli.ts` reads, and the help text must list the
