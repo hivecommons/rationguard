@@ -11,7 +11,7 @@ import { discoverSessions, attach, type SessionInfo } from '@hivecommons/pluk';
 import { displayWidth, padEndDisplay, sanitizeForTerminal, stringifyForTerminal, stripTerminalEscapes } from './sanitize.js';
 import { startDiagnostics } from './diagnostics.js';
 import fs from 'node:fs';
-import { parseFlags, requirePathFlag, requireBooleanFlag, requireValueFlag, requireDiagnosticsSeconds, requireOneOf, requireWatchPatterns } from './flags.js';
+import { COMMAND_FLAGS, parseFlags, rejectUnsupportedFlags, requirePathFlag, requireBooleanFlag, requireValueFlag, requireDiagnosticsSeconds, requireOneOf, requireWatchPatterns } from './flags.js';
 
 const ANSI_RED = '\x1b[31m';
 const ANSI_YELLOW = '\x1b[33m';
@@ -577,9 +577,10 @@ function cmdSightings(flags: Record<string, string>): void {
   console.log();
 }
 
-// Shorthand and implicit checks must not silently ignore another command's flags.
+// Shorthand and implicit checks must not silently ignore another command's
+// flags either; they keep their own wording because the "command" is text.
 function rejectNonCheckFlags(flags: Record<string, string>, name: string): void {
-  if (Object.keys(flags).some(flag => !['file', 'fail-on-match', 'json', 'log-format', 'help'].includes(flag))) {
+  if (Object.keys(flags).some(flag => flag !== 'help' && !(COMMAND_FLAGS.check as readonly string[]).includes(flag))) {
     const subject = name === '' ? 'Unsupported flag for check' : `Unknown command "${sanitizeForTerminal(name)}"`;
     console.error(`${ANSI_RED}Error:${ANSI_RESET} ${subject}. See rationguard --help.`);
     process.exit(1);
@@ -598,28 +599,36 @@ async function main(): Promise<void> {
 
   switch (command) {
     case 'attach':
+      rejectUnsupportedFlags('attach', flags);
       cmdAttach(positional, flags);
       break;
     case 'check':
+      rejectUnsupportedFlags('check', flags);
       await cmdCheck(positional, flags);
       break;
     case 'sessions':
     case 'ls':
+      rejectUnsupportedFlags('sessions', flags);
       cmdSessions(flags);
       break;
     case 'watch':
+      rejectUnsupportedFlags('watch', flags);
       await cmdWatch(positional, flags);
       break;
     case 'prompt':
+      rejectUnsupportedFlags('prompt', flags);
       cmdPrompt(flags);
       break;
     case 'add':
+      rejectUnsupportedFlags('add', flags);
       cmdAdd(positional, flags);
       break;
     case 'list':
+      rejectUnsupportedFlags('list', flags);
       cmdList(flags);
       break;
     case 'sightings':
+      rejectUnsupportedFlags('sightings', flags);
       cmdSightings(flags);
       break;
     case 'help':

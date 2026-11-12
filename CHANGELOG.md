@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file.
 
 ## Unreleased
 
+### Added
+
+- Every explicit command (`check`, `attach`, `watch`, `sessions`/`ls`, `prompt`, `add`, `list`, `sightings`) now rejects flags it does not read with `Error: Unsupported flag --<flag> for <command>. See rationguard --help.` and exit 1, instead of silently ignoring them (for example `rationguard check --file=x --cli=claude` or `rationguard list --cli=goose`). The accepted flags per command live in one `COMMAND_FLAGS` table that a test keeps in sync with what each command handler reads, so a new flag cannot be parsed-but-dropped again; `--help` is accepted everywhere and correct invocations are unchanged (#525).
+
 ### Fixed
 
 - `rationguard check` (and the shorthand form) now exits 1 with `Provide text or --file=<path>, not both.` when positional text is combined with `--file`, instead of silently dropping the text and checking only the file (#526). Because the CLI cannot tell a mistyped command from shorthand text, a lone unknown word combined with `--file` (for example, `rationguard chekc --file=x`) is now also a usage error rather than an implicit check of the file.

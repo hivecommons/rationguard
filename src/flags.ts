@@ -32,6 +32,32 @@ export const KNOWN_FLAGS = new Set([
   'verbose',
 ]);
 
+// Flags each explicit command reads. main() rejects anything else before
+// dispatch so no command silently drops a flag (#513, #518, #525). --help is
+// accepted everywhere. cli.test.ts checks every entry against the flags its
+// cmd* function actually reads, so the table cannot drift from the code.
+export const COMMAND_FLAGS = {
+  check: ['file', 'fail-on-match', 'json', 'log-format'],
+  attach: ['cli', 'rebuttal', 'dangerous', 'dir', 'no-open', 'verbose', 'command', 'no-raw', 'cli-args', 'rationguard-bin', 'run-dir'],
+  watch: ['cli', 'mode', 'rebuttal', 'run-dir', 'patterns-dir', 'json', 'verbose', 'log-format', 'diagnostics'],
+  sessions: ['run-dir', 'json'],
+  prompt: ['format'],
+  add: ['excuse', 'rebuttal', 'category'],
+  list: ['json'],
+  sightings: ['json'],
+} as const satisfies Readonly<Record<string, readonly string[]>>;
+
+export type Command = keyof typeof COMMAND_FLAGS;
+
+export function rejectUnsupportedFlags(command: Command, flags: Record<string, string>): void {
+  const allowed: readonly string[] = COMMAND_FLAGS[command];
+  for (const name of Object.keys(flags)) {
+    if (name === 'help' || allowed.includes(name)) continue;
+    console.error(`${ANSI_RED}Error:${ANSI_RESET} Unsupported flag --${sanitizeForTerminal(name)} for ${command}. See rationguard --help.`);
+    process.exit(1);
+  }
+}
+
 export function parseFlags(args: string[]): { command: string; positional: string[]; flags: Record<string, string> } {
   const flags: Record<string, string> = {};
   const positional: string[] = [];
