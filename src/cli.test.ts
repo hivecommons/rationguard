@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
+import { COMMAND_FLAGS, KNOWN_FLAGS } from './flags.js';
 
 // End-to-end tests: run the compiled CLI as a subprocess with HOME and cwd
 // sandboxed so sightings/custom-excuse stores never touch real state.
@@ -2644,6 +2645,59 @@ describe('check --fail-on-match', () => {
     const offWithInput = run(['--help=false', 'no work found']);
     assert.strictEqual(offWithInput.status, 0);
     assert.match(stripAnsi(offWithInput.stdout), /Found \d+ rationalization pattern/);
+  });
+
+  // #525: every explicit command rejects flags it does not read, so no flag is
+  // ever parsed and silently dropped (the class behind #513 and #518).
+  describe('per-command flag allow-list', () => {
+    const CMD_FUNCTION: Record<string, string> = {
+      check: 'cmdCheck', attach: 'cmdAttach', watch: 'cmdWatch', sessions: 'cmdSessions',
+      prompt: 'cmdPrompt', add: 'cmdAdd', list: 'cmdList', sightings: 'cmdSightings',
+    };
+    // Flags that are safe to pass without side effects alongside an unsupported one.
+    const SAMPLE_VALUE: Record<string, string> = {
+      'file': '=README.md', 'cli': '=claude', 'mode': '=subscribe', 'rebuttal': '=log', 'run-dir': '=/nonexistent',
+      'patterns-dir': '=/nonexistent', 'log-format': '=json', 'diagnostics': '=30', 'format': '=yaml',
+      'excuse': '=x', 'category': '=deferral', 'dir': '=.', 'command': '=echo', 'cli-args': '=x', 'rationguard-bin': '=echo',
+    };
+
+    it('covers every dispatched command and matches the flags each handler reads', (t) => {
+      const src = fs.readFileSync(path.resolve(path.dirname(CLI), '..', 'src', 'cli.ts'), 'utf-8');
+      if (sourceIsInstrumented(src)) return t.skip(SKIP_UNDER_MUTATION);
+      const dispatched = new Set([...(src.match(/switch \(command\) \{([\s\S]*?)\n  \}/)?.[1] ?? '').matchAll(/case '([a-z]+)':/g)].map((m) => m[1]));
+      for (const skipped of ['ls', 'help', '']) dispatched.delete(skipped);
+      assert.deepStrictEqual([...dispatched].sort(), Object.keys(COMMAND_FLAGS).sort(), 'COMMAND_FLAGS must list exactly the commands main() dispatches');
+      for (const [command, allowed] of Object.entries(COMMAND_FLAGS)) {
+        const body = src.match(new RegExp(`function ${CMD_FUNCTION[command]}\\([\\s\\S]*?\\n\\}`))?.[0];
+        assert.ok(body, `${CMD_FUNCTION[command]} not found in src/cli.ts`);
+        const read = new Set([...body.matchAll(/flags\['([a-z][a-z0-9-]*)'\]/g)].map((m) => m[1]));
+        assert.deepStrictEqual([...read].sort(), [...allowed].sort(), `COMMAND_FLAGS.${command} must equal the flags ${CMD_FUNCTION[command]} reads`);
+      }
+    });
+
+    for (const [command, allowed] of Object.entries(COMMAND_FLAGS)) {
+      for (const flag of KNOWN_FLAGS) {
+        if (flag === 'help' || (allowed as readonly string[]).includes(flag)) continue;
+        it(`${command} rejects --${flag} instead of ignoring it`, () => {
+          const res = run([command, 'arg', `--${flag}${SAMPLE_VALUE[flag] ?? ''}`]);
+          assert.strictEqual(res.status, 1);
+          assert.strictEqual(stripAnsi(res.stderr), `Error: Unsupported flag --${flag} for ${command}. See rationguard --help.\n`);
+          assert.strictEqual(res.stdout, '');
+        });
+      }
+    }
+
+    it('rejects the flag for the canonical command when the alias is used', () => {
+      const res = run(['ls', '--rebuttal=send']);
+      assert.strictEqual(res.status, 1);
+      assert.strictEqual(stripAnsi(res.stderr), 'Error: Unsupported flag --rebuttal for sessions. See rationguard --help.\n');
+    });
+
+    it('still accepts --help alongside an unsupported flag', () => {
+      const res = run(['list', '--cli=goose', '--help']);
+      assert.strictEqual(res.status, 0);
+      assert.match(stripAnsi(res.stdout), /USAGE/);
+    });
   });
 
   it('keeps KNOWN_FLAGS in sync with HELP and the flags read in cli.ts', (t) => {
