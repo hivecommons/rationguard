@@ -260,3 +260,23 @@ test('config.yml: community contact links match the hive README', () => {
   assert.ok(urls.includes('https://docs.hivecommons.dev/docs/community/meetings'), 'issue chooser must link the community meeting');
   assert.match(README, /\(https:\/\/docs\.hivecommons\.dev\/docs\/community\/meetings\)/, 'README Contributing & Community must link the community meeting');
 });
+
+test('CONTRIBUTING.md: points newcomers at starter issues, the issue forms and the community', () => {
+  const contributing = readFileSync(join(repoRoot, 'CONTRIBUTING.md'), 'utf8');
+  const base = 'https://github.com/hivecommons/rationguard/issues';
+  for (const label of ['good+first+issue', 'help+wanted']) {
+    assert.ok(contributing.includes(`(${base}?q=is%3Aissue+is%3Aopen+label%3A%22${label}%22)`), `CONTRIBUTING.md must link open "${label.replace(/\+/g, ' ')}" issues`);
+  }
+  const forms = [...contributing.matchAll(/\(https:\/\/github\.com\/hivecommons\/rationguard\/issues\/new\?template=([^)\s]+)\)/g)].map(m => m[1]);
+  for (const form of ['excuse_pattern.yml', 'feature_request.yml']) {
+    assert.ok(forms.includes(form), `CONTRIBUTING.md must link the ${form} issue form`);
+  }
+  for (const form of forms) {
+    assert.ok(existsSync(join(TEMPLATES, form)), `CONTRIBUTING.md links missing issue form ${form}`);
+  }
+  assert.match(contributing, /\(ROADMAP\.md#detection-pattern-contribution-policy\)/, 'CONTRIBUTING.md must link the detection-pattern contribution policy');
+  const roadmap = readFileSync(join(repoRoot, 'ROADMAP.md'), 'utf8');
+  assert.match(roadmap, /^## Detection-pattern contribution policy$/m, 'ROADMAP.md heading linked from CONTRIBUTING.md is missing');
+  assert.match(contributing, /\(https:\/\/hivecommons\.dev\/discord\)/, 'CONTRIBUTING.md must link the Hive Commons Discord');
+  assert.match(contributing, /\(https:\/\/docs\.hivecommons\.dev\/docs\/community\/meetings\)/, 'CONTRIBUTING.md must link the community meeting');
+});
