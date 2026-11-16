@@ -21,7 +21,7 @@ Proposed, in verifiable terms. Items marked *enforced today* are already CI gate
 
 ## Supported-CLI matrix
 
-The seven values accepted by `--cli` are `claude`, `copilot`, `gemini`, `goose`, `codex`, `aider` and `omp` — every CLI the bundled [pluk](https://www.npmjs.com/package/@hivecommons/pluk) ships terminal patterns for. `--dangerous` is passed through to pluk, so the flag it maps to follows the bundled pluk version. Support levels are derived from what the repository tests or documents today:
+The eight values accepted by `--cli` are `claude`, `copilot`, `gemini`, `goose`, `codex`, `aider`, `omp` and `bob` — every CLI the bundled [pluk](https://www.npmjs.com/package/@hivecommons/pluk) ships terminal patterns for. `--dangerous` is passed through to pluk, so the flag it maps to follows the bundled pluk version. Support levels are derived from what the repository tests or documents today:
 
 | CLI | Level | Evidence |
 |-----|-------|----------|
@@ -32,6 +32,7 @@ The seven values accepted by `--cli` are `claude`, `copilot`, `gemini`, `goose`,
 | `gemini` | Best-effort | `--dangerous` maps to `--yolo`; the README documents a Gemini CLI `AfterAgent` hook for post-response detection; no CLI-specific test or fixture |
 | `aider` | Best-effort | `--dangerous` maps to `--yes-always`; accepted by `--cli` and listed in `--help` (#441); no CLI-specific test, fixture or hook documentation |
 | `omp` | Best-effort | `--dangerous` maps to `--approval-mode yolo`; accepted by `--cli` and listed in `--help` (#441); no CLI-specific test, fixture or hook documentation |
+| `bob` | Best-effort | `--dangerous` maps to `--approval-mode yolo`; IBM Bob Shell, bundled by pluk 0.12.0 and accepted by `--cli`; no CLI-specific test, fixture or hook documentation |
 
 Levels meaning:
 
@@ -65,5 +66,5 @@ Project-local excuses (`./.rationguard/custom-excuses.json`) are untrusted: they
 - Replacing an AI CLI's own permission or sandbox model; `--dangerous` only forwards a CLI's existing flag.
 - Judging code quality or correctness of an agent's work; rationguard detects rationalizing language only.
 - Acting as a security boundary against a malicious agent or repository.
-- Supporting CLIs beyond the seven above through built-in code; other CLIs can use `--command` wrappers.
+- Supporting CLIs beyond the eight above through built-in code; other CLIs can use `--command` wrappers.
 - Machine-learned or remote-service detection; patterns stay local, inspectable keyword and pattern rules.
