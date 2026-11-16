@@ -42,7 +42,7 @@ const HELP = `${ANSI_BOLD}rationguard${ANSI_RESET} — Detect and rebut rational
 ${ANSI_BOLD}QUICK START${ANSI_RESET}
 
   ${ANSI_CYAN}rationguard attach${ANSI_RESET} my-agent        Start agent + pluk + rationguard in one command
-    --cli=claude                       CLI type (claude, copilot, gemini, goose, codex, aider, omp)
+    --cli=claude                       CLI type (claude, copilot, gemini, goose, codex, aider, omp, bob)
     --rebuttal=send                    Auto-send rebuttals back to the agent
     --dangerous                        Skip CLI permission prompts (auto-approve all)
     --dir=/path/to/project             Working directory for the agent
@@ -66,7 +66,7 @@ ${ANSI_BOLD}USAGE${ANSI_RESET}
     --json                             Output as JSON
 
   ${ANSI_CYAN}rationguard watch${ANSI_RESET} <session>        Real-time detection via pluk event stream
-    --cli=claude                       CLI type (claude, copilot, gemini, goose, codex, aider, omp)
+    --cli=claude                       CLI type (claude, copilot, gemini, goose, codex, aider, omp, bob)
     --mode=subscribe                   subscribe (tail JSONL) or watch (classify stdin)
     --rebuttal=log                     log (print) or send (pluk-send back)
     --run-dir=/var/run/pluk            Pluk run directory

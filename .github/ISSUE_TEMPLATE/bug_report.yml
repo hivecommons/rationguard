@@ -55,6 +55,7 @@ body:
         - codex
         - aider
         - omp
+        - bob
         - custom `--command`
         - not applicable
     validations:

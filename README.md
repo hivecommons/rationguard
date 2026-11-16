@@ -24,7 +24,7 @@ rationguard catches these patterns and provides rebuttals — in real-time via [
 - For the live stack, Node.js **22 or newer** and
   [pluk](https://www.npmjs.com/package/@hivecommons/pluk), whose own minimum is 22
 - `tmux`, for `rationguard attach` and for watching live sessions
-- The AI CLI you want to supervise (`claude`, `copilot`, `gemini`, `goose`, `codex`, `aider` or `omp`), already installed and authenticated; [ROADMAP.md](ROADMAP.md#supported-cli-matrix) lists the support level of each
+- The AI CLI you want to supervise (`claude`, `copilot`, `gemini`, `goose`, `codex`, `aider`, `omp` or `bob`), already installed and authenticated; [ROADMAP.md](ROADMAP.md#supported-cli-matrix) lists the support level of each
 
 `rationguard check` and `rationguard prompt` only need Node.js.
 
@@ -128,6 +128,7 @@ Maps to the correct permission-skip flag per CLI:
 | `copilot` | `--allow-all-tools` |
 | `codex` | `--full-auto` |
 | `omp` | `--approval-mode yolo` |
+| `bob` | `--approval-mode yolo` |
 | `gemini` | `--yolo` |
 | `aider` | `--yes-always` |
 | `goose` | `GOOSE_MODE=auto` (environment variable set for the session, not a flag) |

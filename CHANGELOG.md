@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- `--cli=bob` (IBM Bob Shell) is now accepted by `attach` and `watch`, with `--dangerous` mapping to `--approval-mode yolo`, by bumping the bundled `@hivecommons/pluk` from 0.11.0 to 0.12.0 (#535). `--help`, the README, the ROADMAP supported-CLI matrix, the bug-report form and the npm keywords list `bob` alongside the other CLIs.
+
 - Every explicit command (`check`, `attach`, `watch`, `sessions`/`ls`, `prompt`, `add`, `list`, `sightings`) now rejects flags it does not read with `Error: Unsupported flag --<flag> for <command>. See rationguard --help.` and exit 1, instead of silently ignoring them (for example `rationguard check --file=x --cli=claude` or `rationguard list --cli=goose`). The accepted flags per command live in one `COMMAND_FLAGS` table that a test keeps in sync with what each command handler reads, so a new flag cannot be parsed-but-dropped again; `--help` is accepted everywhere and correct invocations are unchanged (#525).
 
 ### Fixed

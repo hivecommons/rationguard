@@ -38,6 +38,7 @@
     "codex",
     "aider",
     "omp",
+    "bob",
     "tmux"
   ],
   "author": "hivecommons",
@@ -67,7 +68,7 @@
     "typescript": "^5.7.0"
   },
   "dependencies": {
-    "@hivecommons/pluk": "^0.11.0"
+    "@hivecommons/pluk": "^0.12.0"
   },
   "overrides": {
     "minimatch": "^11.0.1"
