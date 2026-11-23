@@ -37,6 +37,9 @@ const ALLOWLIST = {
   'close-linked-issues.yml': {
     workflow: { contents: 'read', issues: 'write', 'pull-requests': 'read' },
   },
+  'contributing-drift.yml': {
+    workflow: { contents: 'read' },
+  },
   'copilot-automation.yml': {
     workflow: {
       contents: 'read',
