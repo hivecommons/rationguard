@@ -112,6 +112,7 @@ token is also present.
 ## Development notes
 
 - Source lives under `src/` and is TypeScript ESM.
+- CI also smoke-tests the built CLI with `node dist/cli.js help`; run it after building to check the compiled entry point starts.
 - Add or update tests for behavior changes. Tests compile to `dist/` and are discovered with `node --test dist/*.test.js`.
 - Keep changes focused: security fixes, behavior changes, docs, and refactors should be separate PRs when practical.
 - Do not commit secrets, local credentials, generated `dist/` output, or machine-specific files.
